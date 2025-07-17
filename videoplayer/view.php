@@ -17,23 +17,22 @@ $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
 echo $OUTPUT->header();
-// echo $OUTPUT->heading($videoplayer->name); // Eliminado para evitar duplicado
+// Título eliminado para que no se repita dos veces
+// echo $OUTPUT->heading($videoplayer->name);
 
 // Extraer ID de Google Drive
 if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->video_url, $matches)) {
     $drive_id = $matches[1];
     echo '<div style="max-width: 800px; margin: auto">';
-    echo html_writer::tag('iframe', '',
-        array(
-            'src' => "https://drive.google.com/file/{$drive_id}/preview",
-            'width' => '100%',
-            'height' => '480',
-            'allow' => 'autoplay; fullscreen',
-            'allowfullscreen' => 'true',
-            'sandbox' => 'allow-scripts allow-same-origin',
-            'style' => 'border:none;'
-        )
-    );
+    echo '<iframe 
+    src="https://drive.google.com/file/d/' . $drive_id . '/preview" 
+    width="100%" 
+    height="480" 
+    allow="autoplay; fullscreen" 
+    allowfullscreen
+    sandbox="allow-scripts allow-same-origin"
+    style="border:none;">
+</iframe>';
     echo '</div>';
 } else {
     echo html_writer::div(get_string('invalidurl', 'videoplayer'), 'alert alert-danger');
