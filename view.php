@@ -10,14 +10,12 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 /**
  * View page for the Video Player activity.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud  <jose@elearningcloud.org>
+ * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -25,7 +23,7 @@ require(__DIR__.'/../../config.php');
 require_once(__DIR__.'/lib.php');
 require_once(__DIR__.'/locallib.php');
 
-$id = required_param('id', PARAM_INT); // Course Module ID
+$id = required_param('id', PARAM_INT); // Course Module ID.
 $cm = get_coursemodule_from_id('videoplayer', $id, 0, false, MUST_EXIST);
 $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 $videoplayer = $DB->get_record('videoplayer', ['id' => $cm->instance], '*', MUST_EXIST);
@@ -40,17 +38,17 @@ $PAGE->set_context($context);
 
 echo $OUTPUT->header();
 
-// Mostrar la descripción solo si existe (una sola vez)
-//if (!empty($videoplayer->intro)) {
-   // echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
-//}
+// Mostrar descripción si existe.
+if (!empty($videoplayer->intro)) {
+    echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
+}
 
-// Extraer ID de Google Drive y mostrar video
-if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->video_url, $matches)) {
-    $drive_id = $matches[1];
+// Extraer ID de Google Drive y mostrar video.
+if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->videourl, $matches)) {
+    $driveid = $matches[1];
     echo '<div style="max-width: 800px; margin: auto">';
     echo '<iframe 
-        src="https://drive.google.com/file/d/' . $drive_id . '/preview" 
+        src="https://drive.google.com/file/d/' . $driveid . '/preview" 
         width="100%" 
         height="480" 
         allow="autoplay; fullscreen" 
