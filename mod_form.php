@@ -21,28 +21,30 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot.'/course/moodleform_mod.php');
+require_once($CFG->dirroot . '/course/moodleform_mod.php');
 
 class mod_videoplayer_mod_form extends moodleform_mod {
-    function definition() {
+
+    public function definition() {
         $mform = $this->_form;
 
-        // Nombre de la actividad
-        $mform->addElement('text', 'name', get_string('videoname', 'videoplayer'), array('size' => '64'));
+        // Name of the activity instance.
+        $mform->addElement('text', 'name', get_string('videoname', 'mod_videoplayer'), ['size' => 64]);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
 
-        // URL de Google Drive
-        $mform->addElement('text', 'video_url', get_string('videourl', 'videoplayer'), array('size' => '80'));
-        $mform->setType('video_url', PARAM_RAW);
+        // Video URL (from Google Drive or elsewhere).
+        $mform->addElement('text', 'video_url', get_string('videourl', 'mod_videoplayer'), ['size' => 80]);
+        $mform->setType('video_url', PARAM_URL);
         $mform->addRule('video_url', null, 'required', null, 'client');
 
-        // Descripción
+        // Standard intro and coursemodule elements.
         $this->standard_intro_elements();
-
         $this->standard_coursemodule_elements();
+
         $this->add_action_buttons();
     }
 }
