@@ -10,17 +10,14 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 /**
- * View page for the Video Player activity.
+ * Form definition for the Video Player activity.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud  <jose@elearningcloud.org>
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -31,17 +28,17 @@ class mod_videoplayer_mod_form extends moodleform_mod {
     public function definition() {
         $mform = $this->_form;
 
-        // Name of the activity instance.
+        // Nombre de la actividad.
         $mform->addElement('text', 'name', get_string('videoname', 'mod_videoplayer'), ['size' => 64]);
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', null, 'required', null, 'client');
 
-        // Video URL (from Google Drive or elsewhere).
-        $mform->addElement('text', 'video_url', get_string('videourl', 'mod_videoplayer'), ['size' => 80]);
-        $mform->setType('video_url', PARAM_URL);
-        $mform->addRule('video_url', null, 'required', null, 'client');
+        // Campo para la URL del video.
+        $mform->addElement('text', 'videourl', get_string('videourl', 'mod_videoplayer'), ['size' => 80]);
+        $mform->setType('videourl', PARAM_URL);
+        $mform->addRule('videourl', null, 'required', null, 'client');
 
-        // Standard intro and coursemodule elements.
+        // Campos estándar de Moodle.
         $this->standard_intro_elements();
         $this->standard_coursemodule_elements();
 
