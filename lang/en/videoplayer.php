@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-
 /**
- * Version information for the Video Player activity module.
+ * Language strings for the Video Player activity module.
  *
  * @package    mod_videoplayer
  * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud <jose@elearningcloud.org>
@@ -54,3 +53,6 @@ $string['mod_videoplayer:viewreport_help'] = 'Allows users to view reports relat
 
 $string['mod_videoplayer:editreport'] = 'Edit Video Player reports';
 $string['mod_videoplayer:editreport_help'] = 'Allows users to edit reports, such as user progress, in the Video Player activity.';
+
+// Error messages.
+$string['invalidurl'] = 'The provided video URL is not valid. Please use a proper Google Drive shareable link.';
