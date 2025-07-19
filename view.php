@@ -41,9 +41,9 @@ $PAGE->set_context($context);
 echo $OUTPUT->header();
 
 // Mostrar la descripción solo si existe (una sola vez)
-if (!empty($videoplayer->intro)) {
-    echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
-}
+//if (!empty($videoplayer->intro)) {
+   // echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
+//}
 
 // Extraer ID de Google Drive y mostrar video
 if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->video_url, $matches)) {
