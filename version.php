@@ -13,19 +13,20 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
-/**
- * View page for the Video Player activity.
- *
- * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud  <jose@elearningcloud.org>
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'mod_videoplayer';        // Full name of the plugin (used for diagnostics).
-$plugin->release   = '1.0.0';                  // Human-readable version name.
-$plugin->version   = 2025071900;               // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2022041900;               // Moodle version required (e.g., 4.0 = 2022041900).
-$plugin->supported = [40100, 50000];           // Supported Moodle versions (e.g., 4.1 to 5.0).
-$plugin->maturity  = MATURITY_STABLE;          // Maturity level of the plugin (e.g., ALPHA, BETA, RC, STABLE).
+/**
+ * Version information for the Video Player activity module.
+ *
+ * @package    mod_videoplayer
+ * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud <jose@elearningcloud.org>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+$plugin->component = 'mod_videoplayer';       // Full name of the plugin (used for diagnostics).
+$plugin->version   = 2025071900;              // Plugin version (YYYYMMDDXX).
+$plugin->release   = '1.0.0';                 // Human-readable version.
+$plugin->requires  = 2022041900;              // Requires at least this Moodle version (4.0).
+$plugin->supported = [40100, 50000];          // Supported Moodle versions (4.1 to 5.0).
+$plugin->maturity  = MATURITY_STABLE;         // Maturity level.
