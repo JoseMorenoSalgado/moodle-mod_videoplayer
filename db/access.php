@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Capability definitions for Video Player module.
+ * Capability definitions for the Video Player module.
  *
  * @package    mod_videoplayer
  * @category   access
@@ -27,6 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
 
+    // Capability to add a new videoplayer instance to a course.
     'mod/videoplayer:addinstance' => [
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
@@ -38,6 +39,7 @@ $capabilities = [
         'clonepermissionsfrom' => 'moodle/course:manageactivities',
     ],
 
+    // Capability to view videoplayer content.
     'mod/videoplayer:view' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -50,6 +52,7 @@ $capabilities = [
         ],
     ],
 
+    // Capability to edit videoplayer settings or content.
     'mod/videoplayer:edit' => [
         'riskbitmask' => RISK_XSS,
         'captype' => 'write',
@@ -60,6 +63,7 @@ $capabilities = [
         ],
     ],
 
+    // Capability to manage general module configuration.
     'mod/videoplayer:manage' => [
         'riskbitmask' => RISK_XSS,
         'captype' => 'write',
@@ -70,6 +74,7 @@ $capabilities = [
         ],
     ],
 
+    // Capability to view reports related to videoplayer.
     'mod/videoplayer:viewreport' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -79,6 +84,7 @@ $capabilities = [
         ],
     ],
 
+    // Capability to edit reports (e.g., user progress).
     'mod/videoplayer:editreport' => [
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
