@@ -21,7 +21,6 @@
 
 require(__DIR__.'/../../config.php');
 require_once(__DIR__.'/lib.php');
-require_once(__DIR__.'/locallib.php');
 
 $id = required_param('id', PARAM_INT); // Course Module ID.
 
@@ -37,40 +36,32 @@ $PAGE->set_title(format_string($videoplayer->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
+// Registrar evento de vista.
+$event = \mod_videoplayer\event\course_module_viewed::create([
+    'objectid' => $videoplayer->id,
+    'context' => $context
+]);
+$event->add_record_snapshot('course_modules', $cm);
+$event->add_record_snapshot('course', $course);
+$event->add_record_snapshot('videoplayer', $videoplayer);
+$event->trigger();
+
 echo $OUTPUT->header();
 
-// Mostrar descripción si existe.
-if (!empty($videoplayer->intro)) {
-    echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
-}
+// Contexto para plantilla Mustache.
+$templatecontext = [
+    'intro' => format_module_intro('videoplayer', $videoplayer, $cm->id)
+];
 
-// Validar y extraer ID del video de Google Drive.
 $videourl = trim($videoplayer->videourl);
-$driveid = null;
-
-// Soporte para varios formatos de URL.
-if (preg_match('/\/d\/([a-zA-Z0-9_-]{25,})/', $videourl, $matches)) {
-    $driveid = $matches[1];
-} elseif (preg_match('/id=([a-zA-Z0-9_-]{25,})/', $videourl, $matches)) {
-    $driveid = $matches[1];
-}
-
-// Mostrar iframe si se extrajo el ID.
-if ($driveid) {
-    echo '<div style="max-width: 800px; margin: auto">';
-    echo '<iframe 
-        src="https://drive.google.com/file/d/' . $driveid . '/preview" 
-        width="100%" 
-        height="480" 
-        allow="autoplay; fullscreen" 
-        allowfullscreen
-        sandbox="allow-scripts allow-same-origin"
-        style="border:none;">
-    </iframe>';
-    echo '</div>';
+if (preg_match('/\/d\/([a-zA-Z0-9_-]{25,})/', $videourl, $matches) ||
+    preg_match('/id=([a-zA-Z0-9_-]{25,})/', $videourl, $matches)) {
+    $templatecontext['validurl'] = true;
+    $templatecontext['driveid'] = $matches[1];
 } else {
-    // Si no se reconoce la URL.
-    echo html_writer::div(get_string('invalidurl', 'videoplayer'), 'alert alert-danger');
+    $templatecontext['validurl'] = false;
+    $templatecontext['invalidurl'] = get_string('invalidurl', 'videoplayer');
 }
 
+echo $OUTPUT->render_from_template('mod_videoplayer/view', $templatecontext);
 echo $OUTPUT->footer();
