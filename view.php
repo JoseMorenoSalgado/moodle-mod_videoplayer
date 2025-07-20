@@ -43,22 +43,24 @@ if (!empty($videoplayer->intro)) {
     echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
 }
 
-// Extraer ID de Google Drive y mostrar video.
-if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->videourl, $matches)) {
-    $driveid = $matches[1];
-    echo '<div style="max-width: 800px; margin: auto">';
-    echo '<iframe 
-        src="https://drive.google.com/file/d/' . $driveid . '/preview" 
-        width="100%" 
-        height="480" 
-        allow="autoplay; fullscreen" 
-        allowfullscreen
-        sandbox="allow-scripts allow-same-origin"
-        style="border:none;">
-    </iframe>';
-    echo '</div>';
-} else {
-    echo html_writer::div(get_string('invalidurl', 'videoplayer'), 'alert alert-danger');
-}
-
+if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $dgrivedocs->video_url, $matches)) {  
+    $drive_id = $matches[1];  
+    echo '<div class="gdrivedoc-container">';  
+    echo '<iframe   
+        src="https://drive.google.com/file/d/' . $drive_id . '/preview"   
+        width="100%"   
+        height="480"   
+        allow="autoplay; fullscreen"   
+        allowfullscreen  
+        sandbox="allow-scripts allow-same-origin"  
+        style="border:none;">  
+    </iframe>';  
+    echo '</div>';  
+} else {  
+    echo html_writer::div(get_string('invalidurl', 'dgrivedocs'), 'alert alert-danger');  
+}  
+  
+// Mostrar descripción  
+//echo $OUTPUT->box(format_module_intro('dgrivedocs', $dgrivedocs, $cm->id), 'generalbox mod_introbox', 'dgrivedocsintro');  
+  
 echo $OUTPUT->footer();
