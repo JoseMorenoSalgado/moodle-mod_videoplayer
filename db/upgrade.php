@@ -1,205 +1,178 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 /**
- * View page for the Video Player activity.
+ * Upgrade steps for mod_videoplayer.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud  <jose@elearningcloud.org>
- * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Execute the plugin upgrade steps from the given old version.
+ * Execute upgrade steps.
  *
  * @param int $oldversion
  * @return bool
  */
 function xmldb_videoplayer_upgrade($oldversion) {
     global $DB;
+
     $dbman = $DB->get_manager();
 
-    if ($oldversion < 2024092204) {
+    if ($oldversion < 2026061400) {
         $table = new xmldb_table('videoplayer');
-        $field = new xmldb_field('start', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'displayasstartscreen');
-        $dbman->change_field_type($table, $field);
 
-        $field = new xmldb_field('end', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'start');
-        $dbman->change_field_type($table, $field);
+        if ($dbman->table_exists($table)) {
+            $legacyfield = new xmldb_field('start');
+            $newfield = new xmldb_field('starttime', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'displayasstartscreen');
+            if ($dbman->field_exists($table, $legacyfield) && !$dbman->field_exists($table, $newfield)) {
+                $dbman->rename_field($table, $legacyfield, 'starttime');
+            }
 
-        upgrade_mod_savepoint(true, 2024092204, 'videoplayer');
-    }
+            $legacyfield = new xmldb_field('end');
+            $newfield = new xmldb_field('endtime', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'starttime');
+            if ($dbman->field_exists($table, $legacyfield) && !$dbman->field_exists($table, $newfield)) {
+                $dbman->rename_field($table, $legacyfield, 'endtime');
+            }
 
-    if ($oldversion < 2024092214) {
-        $table = new xmldb_table('videoplayer');
-        $field = new xmldb_field('extendedcompletion', XMLDB_TYPE_TEXT, null, null, null, null, null, 'posterimage');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
-        upgrade_mod_savepoint(true, 2024092214, 'videoplayer');
-    }
+            $fields = [
+                new xmldb_field('source', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'googledrive', 'introformat'),
+                new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, null, 'source'),
+                new xmldb_field('type', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'auto', 'videourl'),
+                new xmldb_field('video', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'type'),
+                new xmldb_field('endscreentext', XMLDB_TYPE_TEXT, null, null, null, null, null, 'video'),
+                new xmldb_field('displayasstartscreen', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'endscreentext'),
+                new xmldb_field('starttime', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'displayasstartscreen'),
+                new xmldb_field('endtime', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'starttime'),
+                new xmldb_field('completionpercentage', XMLDB_TYPE_INTEGER, '3', null, XMLDB_NOTNULL, null, '80', 'endtime'),
+                new xmldb_field('grade', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'completionpercentage'),
+                new xmldb_field('displayoptions', XMLDB_TYPE_TEXT, null, null, null, null, null, 'grade'),
+                new xmldb_field('posterimage', XMLDB_TYPE_TEXT, null, null, null, null, null, 'displayoptions'),
+                new xmldb_field('extendedcompletion', XMLDB_TYPE_TEXT, null, null, null, null, null, 'posterimage'),
+            ];
 
-    if ($oldversion < 2024092222) {
-        $table = new xmldb_table('videoplayer');
-        $field = new xmldb_field('start', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'displayasstartscreen');
-        $dbman->rename_field($table, $field, 'starttime');
-        upgrade_mod_savepoint(true, 2024092222, 'videoplayer');
-    }
+            foreach ($fields as $field) {
+                if (!$dbman->field_exists($table, $field)) {
+                    $dbman->add_field($table, $field);
+                }
+            }
 
-    if ($oldversion < 2024092223) {
-        $table = new xmldb_table('videoplayer');
-        $field = new xmldb_field('end', XMLDB_TYPE_NUMBER, '10, 2', null, null, null, null, 'starttime');
-        $dbman->rename_field($table, $field, 'endtime');
-        upgrade_mod_savepoint(true, 2024092223, 'videoplayer');
-    }
+            $videourlfield = new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, null, 'source');
+            if ($dbman->field_exists($table, $videourlfield)) {
+                $dbman->change_field_type($table, $videourlfield);
+            }
 
-    if ($oldversion < 2025010100) {
-        $table = new xmldb_table('videoplayer_items');
-        $field = new xmldb_field('intg1', XMLDB_TYPE_INTEGER, '20', null, null, null, '0', 'advanced');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
+            $sourcefield = new xmldb_field('source', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'googledrive', 'introformat');
+            if ($dbman->field_exists($table, $sourcefield)) {
+                $dbman->change_field_type($table, $sourcefield);
+                $dbman->change_field_default($table, $sourcefield);
+            }
 
-        $field = new xmldb_field('intg2', XMLDB_TYPE_INTEGER, '20', null, null, null, '0', 'intg1');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
+            $typefield = new xmldb_field('type', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'auto', 'videourl');
+            if ($dbman->field_exists($table, $typefield)) {
+                $dbman->change_field_type($table, $typefield);
+                $dbman->change_field_default($table, $typefield);
+            }
 
-        $field = new xmldb_field('intg3', XMLDB_TYPE_INTEGER, '20', null, null, null, '0', 'intg2');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
+            $completionfield = new xmldb_field('completionpercentage', XMLDB_TYPE_INTEGER, '3', null, XMLDB_NOTNULL, null, '80', 'endtime');
+            if ($dbman->field_exists($table, $completionfield)) {
+                $dbman->change_field_type($table, $completionfield);
+                $dbman->change_field_default($table, $completionfield);
+            }
 
-        upgrade_mod_savepoint(true, 2025010100, 'videoplayer');
-    }
+            $DB->execute("UPDATE {videoplayer} SET source = 'googledrive' WHERE source IS NULL OR source = ''");
+            $DB->execute("UPDATE {videoplayer} SET type = 'auto' WHERE type IS NULL OR type = ''");
+            $DB->execute("UPDATE {videoplayer} SET completionpercentage = 80 WHERE completionpercentage IS NULL OR completionpercentage = 0");
 
-    if ($oldversion < 2025010101) {
-        $table = new xmldb_table('videoplayer_completion');
-        $field = new xmldb_field('lastviewed', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'completiondetails');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
-        upgrade_mod_savepoint(true, 2025010101, 'videoplayer');
-    }
+            $indexes = [
+                new xmldb_index('course_idx', XMLDB_INDEX_NOTUNIQUE, ['course']),
+                new xmldb_index('source_idx', XMLDB_INDEX_NOTUNIQUE, ['source']),
+                new xmldb_index('type_idx', XMLDB_INDEX_NOTUNIQUE, ['type']),
+            ];
 
-    if ($oldversion < 2025011309) {
-        $table = new xmldb_table('videoplayer_settings');
-        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
-        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '20', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('usermodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('endscreentext', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('displayasstartscreen', XMLDB_TYPE_INTEGER, '1', null, null, null, null);
-        $table->add_field('completionpercentage', XMLDB_TYPE_INTEGER, '3', null, null, null, null);
-        $table->add_field('displayoptions', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('extendedcompletion', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('completion', XMLDB_TYPE_INTEGER, '1', null, null, null, null);
-
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
-        $table->add_key('usermodified', XMLDB_KEY_FOREIGN, ['usermodified'], 'user', ['id']);
-        $table->add_index('courseid', XMLDB_INDEX_UNIQUE, ['courseid']);
-
-        if (!$dbman->table_exists($table)) {
-            $dbman->create_table($table);
-        }
-        upgrade_mod_savepoint(true, 2025011309, 'videoplayer');
-    }
-
-    if ($oldversion < 2025033001) {
-        $table = new xmldb_table('videoplayer_settings');
-        $key = new xmldb_key('usermodified', XMLDB_KEY_FOREIGN, ['usermodified'], 'user', ['id']);
-        $dbman->drop_key($table, $key);
-
-        $field = new xmldb_field('usermodified');
-        if ($dbman->field_exists($table, $field)) {
-            $dbman->drop_field($table, $field);
-        }
-        upgrade_mod_savepoint(true, 2025033001, 'videoplayer');
-    }
-
-    if ($oldversion < 2025041202) {
-        $table = new xmldb_table('videoplayer_completion');
-        $field = new xmldb_field('timeended', XMLDB_TYPE_INTEGER, '20', null, null, null, null, 'timecompleted');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
-        }
-        upgrade_mod_savepoint(true, 2025041202, 'videoplayer');
-    }
-
-    if ($oldversion < 2025052803) {
-        $table = new xmldb_table('videoplayer_log');
-
-        $fields = [
-            new xmldb_field('intg4', XMLDB_TYPE_INTEGER, '20', null, null, null, null, 'intg3'),
-            new xmldb_field('intg5', XMLDB_TYPE_INTEGER, '20', null, null, null, null, 'intg4'),
-            new xmldb_field('intg6', XMLDB_TYPE_INTEGER, '20', null, null, null, null, 'intg5'),
-            new xmldb_field('char4', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'char3'),
-            new xmldb_field('char5', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'char4'),
-            new xmldb_field('char6', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'char5'),
-        ];
-
-        foreach ($fields as $field) {
-            if (!$dbman->field_exists($table, $field)) {
-                $dbman->add_field($table, $field);
+            foreach ($indexes as $index) {
+                if (!$dbman->index_exists($table, $index)) {
+                    $dbman->add_index($table, $index);
+                }
             }
         }
 
-        $table = new xmldb_table('videoplayer_settings');
-        $field = new xmldb_field('defaults', XMLDB_TYPE_TEXT, null, null, null, null, null, 'completion');
-        if (!$dbman->field_exists($table, $field)) {
-            $dbman->add_field($table, $field);
+        $viewstable = new xmldb_table('videoplayer_views');
+        if (!$dbman->table_exists($viewstable)) {
+            $viewstable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $viewstable->add_field('videoplayerid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $viewstable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $viewstable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $viewstable->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $viewstable->add_field('progress', XMLDB_TYPE_NUMBER, '10, 2', null, XMLDB_NOTNULL, null, '0');
+            $viewstable->add_field('completed', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+            $viewstable->add_field('completionpercentage', XMLDB_TYPE_NUMBER, '5, 2', null, XMLDB_NOTNULL, null, '0');
+            $viewstable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $viewstable->add_key('fk_videoplayerid', XMLDB_KEY_FOREIGN, ['videoplayerid'], 'videoplayer', ['id']);
+            $viewstable->add_key('fk_userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+            $viewstable->add_key('uniq_videoplayer_user', XMLDB_KEY_UNIQUE, ['videoplayerid', 'userid']);
+            $viewstable->add_index('videoplayerid_idx', XMLDB_INDEX_NOTUNIQUE, ['videoplayerid']);
+            $viewstable->add_index('userid_idx', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+            $viewstable->add_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']);
+            $viewstable->add_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']);
+            $dbman->create_table($viewstable);
+        } else {
+            $fields = [
+                new xmldb_field('progress', XMLDB_TYPE_NUMBER, '10, 2', null, XMLDB_NOTNULL, null, '0', 'timemodified'),
+                new xmldb_field('completed', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'progress'),
+                new xmldb_field('completionpercentage', XMLDB_TYPE_NUMBER, '5, 2', null, XMLDB_NOTNULL, null, '0', 'completed'),
+            ];
+
+            foreach ($fields as $field) {
+                if (!$dbman->field_exists($viewstable, $field)) {
+                    $dbman->add_field($viewstable, $field);
+                } else {
+                    $dbman->change_field_type($viewstable, $field);
+                    $dbman->change_field_default($viewstable, $field);
+                }
+            }
+
+            $indexes = [
+                new xmldb_index('videoplayerid_idx', XMLDB_INDEX_NOTUNIQUE, ['videoplayerid']),
+                new xmldb_index('userid_idx', XMLDB_INDEX_NOTUNIQUE, ['userid']),
+                new xmldb_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']),
+                new xmldb_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']),
+            ];
+
+            foreach ($indexes as $index) {
+                if (!$dbman->index_exists($viewstable, $index)) {
+                    $dbman->add_index($viewstable, $index);
+                }
+            }
+
+            $unique = new xmldb_key('uniq_videoplayer_user', XMLDB_KEY_UNIQUE, ['videoplayerid', 'userid']);
+            if (!$dbman->key_exists($viewstable, $unique)) {
+                $duplicates = $DB->get_records_sql("SELECT videoplayerid, userid, COUNT(*) AS total
+                                                      FROM {videoplayer_views}
+                                                  GROUP BY videoplayerid, userid
+                                                    HAVING COUNT(*) > 1");
+                foreach ($duplicates as $duplicate) {
+                    $records = $DB->get_records('videoplayer_views', [
+                        'videoplayerid' => $duplicate->videoplayerid,
+                        'userid' => $duplicate->userid,
+                    ], 'timemodified DESC, id DESC', 'id');
+                    $keepfirst = true;
+                    foreach ($records as $record) {
+                        if ($keepfirst) {
+                            $keepfirst = false;
+                            continue;
+                        }
+                        $DB->delete_records('videoplayer_views', ['id' => $record->id]);
+                    }
+                }
+                $dbman->add_key($viewstable, $unique);
+            }
         }
 
-        upgrade_mod_savepoint(true, 2025052803, 'videoplayer');
-    }
-
-    if ($oldversion < 2025052805) {
-        $table = new xmldb_table('videoplayer_defaults');
-        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
-        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('courseid', XMLDB_TYPE_INTEGER, '20', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('timestamp', XMLDB_TYPE_NUMBER, '20, 2', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('content', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('xp', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('displayoptions', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, 'popup');
-        $table->add_field('type', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, 'richtext');
-        $table->add_field('hascompletion', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
-        $table->add_field('completiontracking', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, 'manual');
-        $table->add_field('advanced', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('intg1', XMLDB_TYPE_INTEGER, '20', null, null, null, '0');
-        $table->add_field('intg2', XMLDB_TYPE_INTEGER, '20', null, null, null, '0');
-        $table->add_field('intg3', XMLDB_TYPE_INTEGER, '20', null, null, null, '0');
-        $table->add_field('char1', XMLDB_TYPE_CHAR, '255', null, null, null, 'null');
-        $table->add_field('char2', XMLDB_TYPE_CHAR, '255', null, null, null, 'null');
-        $table->add_field('char3', XMLDB_TYPE_CHAR, '255', null, null, null, 'null');
-        $table->add_field('text1', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('text2', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('text3', XMLDB_TYPE_TEXT, null, null, null, null, null);
-        $table->add_field('requiremintime', XMLDB_TYPE_INTEGER, '20', null, null, null, null);
-
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
-        $table->add_key('courseid', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
-
-        if (!$dbman->table_exists($table)) {
-            $dbman->create_table($table);
-        }
-
-        upgrade_mod_savepoint(true, 2025052805, 'videoplayer');
+        upgrade_mod_savepoint(true, 2026061400, 'videoplayer');
     }
 
     return true;
