@@ -19,11 +19,12 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require(__DIR__.'/../../config.php');
-require_once(__DIR__.'/lib.php');
-require_once(__DIR__.'/locallib.php');
+require(__DIR__ . '/../../config.php');
+require_once(__DIR__ . '/lib.php');
+require_once(__DIR__ . '/locallib.php');
 
-$id = required_param('id', PARAM_INT); // Course Module ID.
+$id = required_param('id', PARAM_INT); // Course module ID.
+
 $cm = get_coursemodule_from_id('videoplayer', $id, 0, false, MUST_EXIST);
 $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
 $videoplayer = $DB->get_record('videoplayer', ['id' => $cm->instance], '*', MUST_EXIST);
@@ -31,32 +32,51 @@ $videoplayer = $DB->get_record('videoplayer', ['id' => $cm->instance], '*', MUST
 require_login($course, true, $cm);
 
 $context = context_module::instance($cm->id);
+require_capability('mod/videoplayer:view', $context);
+
 $PAGE->set_url('/mod/videoplayer/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($videoplayer->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
 
+$event = \mod_videoplayer\event\course_module_viewed::create([
+    'objectid' => $videoplayer->id,
+    'context' => $context,
+]);
+$event->add_record_snapshot('course', $course);
+$event->add_record_snapshot('course_modules', $cm);
+$event->add_record_snapshot('videoplayer', $videoplayer);
+$event->trigger();
+
+$completion = new completion_info($course);
+$completion->set_module_viewed($cm);
+
 echo $OUTPUT->header();
 
-// Mostrar descripción si existe.
 if (!empty($videoplayer->intro)) {
-    echo $OUTPUT->box(format_module_intro('videoplayer', $videoplayer, $cm->id), 'generalbox mod_introbox', 'videoplayerintro');
+    echo $OUTPUT->box(
+        format_module_intro('videoplayer', $videoplayer, $cm->id),
+        'generalbox mod_introbox',
+        'videoplayerintro'
+    );
 }
 
-// Extraer ID de Google Drive y mostrar video.
 if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->videourl, $matches)) {
-    $driveid = $matches[1];
-    echo '<div style="max-width: 800px; margin: auto">';
-    echo '<iframe 
-        src="https://drive.google.com/file/d/' . $driveid . '/preview" 
-        width="100%" 
-        height="480" 
-        allow="autoplay; fullscreen" 
-        allowfullscreen
-        sandbox="allow-scripts allow-same-origin"
-        style="border:none;">
-    </iframe>';
-    echo '</div>';
+    $driveid = clean_param($matches[1], PARAM_ALPHANUMEXT);
+    $iframeurl = new moodle_url('https://drive.google.com/file/d/' . rawurlencode($driveid) . '/preview');
+
+    echo html_writer::start_div('mod-videoplayer-wrapper', ['style' => 'max-width: 800px; margin: auto;']);
+    echo html_writer::tag('iframe', '', [
+        'src' => $iframeurl->out(false),
+        'width' => '100%',
+        'height' => '480',
+        'allow' => 'autoplay; fullscreen',
+        'allowfullscreen' => 'allowfullscreen',
+        'sandbox' => 'allow-scripts allow-same-origin',
+        'style' => 'border:none;',
+        'title' => format_string($videoplayer->name),
+    ]);
+    echo html_writer::end_div();
 } else {
     echo html_writer::div(get_string('invalidurl', 'videoplayer'), 'alert alert-danger');
 }
