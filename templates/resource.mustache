@@ -3,19 +3,17 @@
 
     @template mod_videoplayer/resource
 
-    Template for displaying an embedded Google Drive resource.
-
-    Context variables:
-    * resourcetype - Resource type label.
-    * iframeurl - Preview URL.
-    * title - Iframe title.
-    * cmid - Course module ID.
-    * type - Machine-readable resource type.
+    Template for displaying an embedded Drive Resource.
 }}
 <div class="mod-videoplayer-container" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between">
         <div class="text-muted small">{{resourcetype}}</div>
-        <div class="text-muted small">{{#str}} protectedresource, mod_videoplayer {{/str}}</div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="mod-videoplayer-fullscreen" data-target="mod-videoplayer-fullscreen-{{cmid}}">
+                {{#str}} fullscreen, mod_videoplayer {{/str}}
+            </button>
+        </div>
     </div>
 
     <div class="mod-videoplayer-frame-wrapper" style="max-width: 1100px; margin: 0 auto;">
@@ -30,6 +28,28 @@
             style="border:0; width:100%; min-height:620px;"
             title="{{title}}"
             loading="lazy">
+        </iframe>
+    </div>
+</div>
+
+<div id="mod-videoplayer-fullscreen-{{cmid}}" class="mod-videoplayer-fullscreen" hidden aria-hidden="true">
+    <div class="mod-videoplayer-fullscreen-header">
+        <div class="mod-videoplayer-fullscreen-title">{{title}}</div>
+        <button type="button" class="btn btn-light btn-sm" data-action="mod-videoplayer-close-fullscreen">
+            {{#str}} closefullscreen, mod_videoplayer {{/str}}
+        </button>
+    </div>
+    <div class="mod-videoplayer-fullscreen-body">
+        <iframe
+            data-src="{{iframeurl}}"
+            width="100%"
+            height="100%"
+            allow="autoplay; fullscreen"
+            allowfullscreen="allowfullscreen"
+            sandbox="allow-scripts allow-same-origin"
+            referrerpolicy="no-referrer"
+            style="border:0; width:100%; height:100%;"
+            title="{{title}}">
         </iframe>
     </div>
 </div>
