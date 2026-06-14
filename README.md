@@ -1,75 +1,156 @@
-# video-drive-moodle
-# 📹 Video Elearning Cloud – Plugin para Moodle
+# Drive Resource for Moodle
 
-Este plugin permite incrustar y reproducir videos almacenados en **Google Drive** directamente en el aula virtual de Moodle como una **actividad de tipo video**.
+**Drive Resource** is a Moodle activity module for embedding and tracking learning resources hosted in Google Drive.
 
----
+The internal Moodle component remains `mod_videoplayer` for compatibility with existing installations, but the user-facing product name is **Drive Resource**.
 
-## ✅ Requisitos
+## Features
 
-- Moodle **4.1** o superior.
-- Acceso de administrador para instalar complementos.
-- Un video subido a Google Drive con permiso de acceso general.
+- Embed Google Drive resources inside Moodle courses.
+- Support for videos, PDFs, images, documents, spreadsheets and presentations.
+- Automatic resource type detection.
+- Protected interface that hides direct Google Drive navigation links from the Moodle page.
+- Plugin-owned fullscreen viewer for mobile and desktop.
+- Presence-based progress tracking for Google Drive embedded resources.
+- Teacher progress report per activity.
+- Moodle Completion API integration.
+- Backup and Restore support.
+- Privacy API support.
+- English and Spanish language strings.
+- Admin settings for tracking, protected mode and default completion behavior.
 
----
+## Requirements
 
-## 📦 Instalación del Plugin
+- Moodle 4.5 or later.
+- PHP version supported by the target Moodle release.
+- HTTPS-enabled Moodle site.
+- Google Drive resources shared with permissions that allow Moodle users to view them.
 
-1. Descarga el archivo `mod_videoplayer.zip` (si aún no lo tienes).
-2. Ve al panel de administración de Moodle.
-3. Dirígete a:  
-   `Administración del sitio → Plugins → Instalar plugins → Subir un archivo`.
-4. Sube el archivo `.zip` y continúa el proceso de instalación.
-5. Moodle detectará automáticamente el nuevo módulo de actividad llamado **Video Elearning Cloud**.
-6. Verifica que el plugin quede correctamente instalado.
+## Installation
 
----
+1. Copy the plugin folder to:
 
-## 🧩 Estructura del Plugin
+   ```bash
+   mod/videoplayer
+   ```
 
-- El plugin se instala como un nuevo tipo de actividad.
-- Se muestra con un ícono personalizado azul.
-- Compatible con el selector de actividades del theme Edwiser.
+2. Visit Moodle site administration to complete the plugin installation.
 
----
+3. Go to:
 
-## 🎥 Cómo incrustar un video desde Google Drive
+   ```text
+   Site administration > Plugins > Activity modules > Drive Resource
+   ```
 
-1. **Sube el video** a tu cuenta de Google Drive.
-2. Haz clic derecho sobre el video y selecciona **Compartir**.
-3. En la parte de “Acceso general”, selecciona:  
-   **"Cualquier persona con el vínculo" → Lector**
-4. Haz clic en **Copiar vínculo**.
-5. El enlace debe tener esta forma:
+4. Configure the default tracking and protected mode settings.
 
+## Usage
 
-6. Pega ese enlace completo en el campo **"Enlace de Google Drive"** al crear la actividad en Moodle.
+1. Enter a Moodle course.
+2. Turn editing on.
+3. Add a new activity.
+4. Select **Drive Resource**.
+5. Enter the activity name.
+6. Paste a supported Google Drive or Google Docs URL.
+7. Select the resource type or leave it as **Automatic**.
+8. Configure the completion percentage if needed.
+9. Save and display.
 
----
+## Supported resources
 
-## 🔒 Seguridad y privacidad
+Drive Resource supports common Google Drive and Google Docs URLs, including:
 
-- El plugin reproduce el video usando `iframe` con restricciones (`sandbox`) para evitar que los usuarios puedan abrir Google Drive directamente.
-- El botón de pantalla completa está habilitado (si el navegador lo permite).
-- Solo personas con el enlace del video podrán verlo, según la configuración de Google Drive.
+- Videos from Google Drive.
+- PDF files.
+- Images.
+- Google Docs documents.
+- Google Sheets spreadsheets.
+- Google Slides presentations.
+- Generic Drive files supported by the Google Drive preview viewer.
 
----
+## Protected mode
 
-## 🧑‍🏫 ¿Quién puede usarlo?
+Protected mode hides plugin-owned direct links to Google Drive and restricts iframe popup permissions.
 
-- Cualquier docente con permisos para agregar actividades puede usar el plugin.
-- El estudiante verá el video directamente sin salir de Moodle.
+Important limitation: Google Drive controls its own embedded viewer. If Google displays internal controls, Moodle cannot remove those controls from inside the iframe because of browser cross-origin restrictions.
 
----
+The plugin also includes a `protected.php` endpoint intended to reduce direct URL exposure by authorizing access through Moodle. This mode is designed to avoid permanent storage in `moodledata`.
 
-## 📌 Soporte
+## Fullscreen viewer
 
-- Moodle 4.1 o superior
-- Compatible con temas como Edwiser y Boost
+Drive Resource includes its own fullscreen overlay. This allows students to expand the resource on mobile and desktop while staying inside Moodle.
 
----
+The fullscreen overlay does not intentionally open Google Drive in a new browser tab.
 
-## 👨‍💻 Autor
+## Progress tracking
 
-**Jose Erasmo Moreno Elearning Cloud**  
-https://elearningcloud.io  
+Google Drive iframes do not expose exact video playback time to Moodle. For that reason, Drive Resource uses presence-based tracking:
+
+- active time in the resource page,
+- periodic heartbeat updates,
+- completion when the configured threshold is reached.
+
+For providers that expose playback APIs, future versions may support real video playback percentage tracking.
+
+## Teacher reports
+
+Teachers with the `mod/videoplayer:viewreport` capability can access the progress report for each activity. The report shows:
+
+- student name,
+- email,
+- progress time,
+- completion percentage,
+- completion state,
+- last update time.
+
+## JavaScript AMD build
+
+Development files live in:
+
+```text
+amd/src/
+```
+
+Compiled production files live in:
+
+```text
+amd/build/
+```
+
+To compile AMD files using Moodle tooling:
+
+```bash
+npm install
+npx grunt amd
+```
+
+or, inside a Moodle development environment:
+
+```bash
+grunt amd
+```
+
+## Compatibility
+
+Current stable release:
+
+- Release: `1.0.0`
+- Component: `mod_videoplayer`
+- Supported Moodle versions: 4.5 to 5.1
+
+## Documentation
+
+Additional technical documentation is available in the `docs/` directory:
+
+- `docs/architecture.md`
+- `docs/database.md`
+- `docs/developer-guide.md`
+
+## License
+
+GNU GPL v3 or later.
+
+## Maintainer
+
+Elearning Cloud  
+https://elearningcloud.io
