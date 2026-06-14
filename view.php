@@ -42,6 +42,8 @@ $event->trigger();
 $completion = new completion_info($course);
 $completion->set_module_viewed($cm);
 
+$fileid = drive::extract_file_id($videoplayer->videourl ?? '');
+
 echo $OUTPUT->header();
 
 if (!empty($videoplayer->intro)) {
@@ -51,8 +53,6 @@ if (!empty($videoplayer->intro)) {
         'videoplayerintro'
     );
 }
-
-$fileid = drive::extract_file_id($videoplayer->videourl ?? '');
 
 if (!$fileid) {
     echo html_writer::div(get_string('invaliddriveurl', 'mod_videoplayer'), 'alert alert-danger');
@@ -64,43 +64,46 @@ $type = empty($videoplayer->type) || $videoplayer->type === 'auto'
     ? drive::detect_type($videoplayer->videourl)
     : clean_param($videoplayer->type, PARAM_ALPHANUMEXT);
 
+$typestringkey = 'type' . $type;
+$typestring = get_string_manager()->string_exists($typestringkey, 'mod_videoplayer')
+    ? get_string($typestringkey, 'mod_videoplayer')
+    : get_string('typefile', 'mod_videoplayer');
+
 $previewurl = drive::preview_url($fileid);
 $openurl = new moodle_url('https://drive.google.com/file/d/' . rawurlencode($fileid) . '/view');
 
-$attributes = [
-    'src' => $previewurl->out(false),
-    'width' => '100%',
-    'height' => '620',
-    'allow' => 'autoplay; fullscreen',
-    'allowfullscreen' => 'allowfullscreen',
-    'sandbox' => 'allow-scripts allow-same-origin allow-forms allow-popups',
-    'style' => 'border:0; width:100%; min-height:620px;',
+$progressrecord = null;
+if (!isguestuser()) {
+    $progressrecord = $DB->get_record('videoplayer_views', [
+        'videoplayerid' => $videoplayer->id,
+        'userid' => $USER->id,
+    ]);
+}
+
+$initialprogress = $progressrecord ? (float) $progressrecord->progress : 0;
+$completed = $progressrecord ? (bool) $progressrecord->completed : false;
+$requiredseconds = max(60, ((int) ($videoplayer->completionpercentage ?? 80)) * 6);
+
+if (!isguestuser()) {
+    $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
+        'cmid' => $cm->id,
+        'requiredSeconds' => $requiredseconds,
+        'interval' => 30000,
+        'initialProgress' => $initialprogress,
+        'completed' => $completed,
+    ]]);
+}
+
+$templatecontext = [
+    'type' => $type,
+    'cmid' => $cm->id,
+    'resourcetype' => get_string('resourcetype', 'mod_videoplayer') . ': ' . $typestring,
+    'openurl' => $openurl->out(false),
+    'openlabel' => get_string('openindrive', 'mod_videoplayer'),
+    'iframeurl' => $previewurl->out(false),
     'title' => format_string($videoplayer->name),
-    'loading' => 'lazy',
 ];
 
-echo html_writer::start_div('mod-videoplayer-container', [
-    'data-resource-type' => s($type),
-    'data-cmid' => $cm->id,
-]);
-
-echo html_writer::start_div('mod-videoplayer-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between');
-echo html_writer::tag('div', get_string('resourcetype', 'mod_videoplayer') . ': ' . get_string('type' . $type, 'mod_videoplayer'), [
-    'class' => 'text-muted small',
-]);
-echo html_writer::link($openurl, get_string('openindrive', 'mod_videoplayer'), [
-    'class' => 'btn btn-secondary btn-sm',
-    'target' => '_blank',
-    'rel' => 'noopener noreferrer',
-]);
-echo html_writer::end_div();
-
-echo html_writer::start_div('mod-videoplayer-frame-wrapper', [
-    'style' => 'max-width: 1100px; margin: 0 auto;',
-]);
-echo html_writer::tag('iframe', '', $attributes);
-echo html_writer::end_div();
-
-echo html_writer::end_div();
+echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
 
 echo $OUTPUT->footer();
