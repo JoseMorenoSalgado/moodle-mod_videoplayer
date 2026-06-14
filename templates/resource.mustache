@@ -7,8 +7,6 @@
 
     Context variables:
     * resourcetype - Resource type label.
-    * openurl - URL to open the resource in Google Drive.
-    * openlabel - Button label.
     * iframeurl - Preview URL.
     * title - Iframe title.
     * cmid - Course module ID.
@@ -17,7 +15,7 @@
 <div class="mod-videoplayer-container" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between">
         <div class="text-muted small">{{resourcetype}}</div>
-        <a href="{{openurl}}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer">{{openlabel}}</a>
+        <div class="text-muted small">{{#str}} protectedresource, mod_videoplayer {{/str}}</div>
     </div>
 
     <div class="mod-videoplayer-frame-wrapper" style="max-width: 1100px; margin: 0 auto;">
@@ -27,7 +25,8 @@
             height="620"
             allow="autoplay; fullscreen"
             allowfullscreen="allowfullscreen"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-same-origin"
+            referrerpolicy="no-referrer"
             style="border:0; width:100%; min-height:620px;"
             title="{{title}}"
             loading="lazy">
