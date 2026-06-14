@@ -10,33 +10,72 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Defines the backup structure for mod_videoplayer.
+ * Backup structure for mod_videoplayer.
  *
- * @package   mod_videoplayer
- * @category  backup
- * @copyright 2025 Jose Erasmo Moreno Salgado
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package    mod_videoplayer
+ * @category   backup
+ * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot . '/mod/videoplayer/backup/moodle2/backup_videoplayer_stepslib.php');
-
+/**
+ * Defines the complete backup structure for the videoplayer activity.
+ */
 class backup_videoplayer_activity_structure_step extends backup_activity_structure_step {
+
+    /**
+     * Define the backup structure.
+     *
+     * @return backup_nested_element
+     */
     protected function define_structure() {
+        $userinfo = $this->get_setting_value('userinfo');
 
         $videoplayer = new backup_nested_element('videoplayer', ['id'], [
-            'name', 'intro', 'introformat', 'video_url', 'timemodified'
+            'course',
+            'name',
+            'timecreated',
+            'timemodified',
+            'intro',
+            'introformat',
+            'source',
+            'videourl',
+            'type',
+            'video',
+            'endscreentext',
+            'displayasstartscreen',
+            'starttime',
+            'endtime',
+            'completionpercentage',
+            'grade',
+            'displayoptions',
+            'posterimage',
+            'extendedcompletion',
         ]);
+
+        $views = new backup_nested_element('views');
+        $view = new backup_nested_element('view', ['id'], [
+            'userid',
+            'timecreated',
+            'timemodified',
+            'progress',
+            'completed',
+            'completionpercentage',
+        ]);
+
+        $videoplayer->add_child($views);
+        $views->add_child($view);
 
         $videoplayer->set_source_table('videoplayer', ['id' => backup::VAR_ACTIVITYID]);
 
-        $videoplayer->annotate_ids('user', 'userid');
+        if ($userinfo) {
+            $view->set_source_table('videoplayer_views', ['videoplayerid' => backup::VAR_PARENTID]);
+            $view->annotate_ids('user', 'userid');
+        }
 
         return $this->prepare_activity_structure($videoplayer);
     }
