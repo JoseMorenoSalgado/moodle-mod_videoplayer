@@ -29,6 +29,7 @@ $PAGE->set_url('/mod/videoplayer/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($videoplayer->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
+$PAGE->requires->js_call_amd('mod_videoplayer/fullscreen', 'init');
 
 $event = \mod_videoplayer\event\course_module_viewed::create([
     'objectid' => $videoplayer->id,
@@ -70,7 +71,6 @@ $typestring = get_string_manager()->string_exists($typestringkey, 'mod_videoplay
     : get_string('typefile', 'mod_videoplayer');
 
 $previewurl = drive::preview_url($fileid);
-$openurl = new moodle_url('https://drive.google.com/file/d/' . rawurlencode($fileid) . '/view');
 
 $progressrecord = null;
 if (!isguestuser()) {
@@ -98,8 +98,6 @@ $templatecontext = [
     'type' => $type,
     'cmid' => $cm->id,
     'resourcetype' => get_string('resourcetype', 'mod_videoplayer') . ': ' . $typestring,
-    'openurl' => $openurl->out(false),
-    'openlabel' => get_string('openindrive', 'mod_videoplayer'),
     'iframeurl' => $previewurl->out(false),
     'title' => format_string($videoplayer->name),
 ];
