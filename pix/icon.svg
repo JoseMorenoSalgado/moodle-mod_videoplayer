@@ -1,5 +1,28 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Drive Resource">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="0.55" stop-color="#06b6d4"/>
+      <stop offset="1" stop-color="#16a34a"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.18"/>
+    </filter>
+  </defs>
 
-<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="10" ry="10" fill="#3b82f6"/>
-  <polygon points="24,18 48,32 24,46" fill="white"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)">
+    <path d="M22 14h15l9 9v27H22z" fill="#ffffff"/>
+    <path d="M37 14v9h9z" fill="#dbeafe"/>
+  </g>
+
+  <rect x="18" y="24" width="18" height="13" rx="2" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <path d="M24 28l8 4-8 4z" fill="#2563eb"/>
+
+  <rect x="29" y="39" width="16" height="4" rx="2" fill="#22c55e"/>
+  <rect x="29" y="46" width="12" height="3" rx="1.5" fill="#93c5fd"/>
+
+  <circle cx="45" cy="45" r="7" fill="#16a34a" stroke="#ffffff" stroke-width="2"/>
+  <path d="M41.8 45.1l2 2 4.2-4.4" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
