@@ -1,29 +1,20 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
 
 /**
- * View page for the Video Player activity.
+ * View page for mod_videoplayer.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
-require_once(__DIR__ . '/locallib.php');
 
-$id = required_param('id', PARAM_INT); // Course module ID.
+use mod_videoplayer\local\drive;
+
+$id = required_param('id', PARAM_INT);
 
 $cm = get_coursemodule_from_id('videoplayer', $id, 0, false, MUST_EXIST);
 $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
@@ -61,24 +52,55 @@ if (!empty($videoplayer->intro)) {
     );
 }
 
-if (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $videoplayer->videourl, $matches)) {
-    $driveid = clean_param($matches[1], PARAM_ALPHANUMEXT);
-    $iframeurl = new moodle_url('https://drive.google.com/file/d/' . rawurlencode($driveid) . '/preview');
+$fileid = drive::extract_file_id($videoplayer->videourl ?? '');
 
-    echo html_writer::start_div('mod-videoplayer-wrapper', ['style' => 'max-width: 800px; margin: auto;']);
-    echo html_writer::tag('iframe', '', [
-        'src' => $iframeurl->out(false),
-        'width' => '100%',
-        'height' => '480',
-        'allow' => 'autoplay; fullscreen',
-        'allowfullscreen' => 'allowfullscreen',
-        'sandbox' => 'allow-scripts allow-same-origin',
-        'style' => 'border:none;',
-        'title' => format_string($videoplayer->name),
-    ]);
-    echo html_writer::end_div();
-} else {
-    echo html_writer::div(get_string('invalidurl', 'videoplayer'), 'alert alert-danger');
+if (!$fileid) {
+    echo html_writer::div(get_string('invaliddriveurl', 'mod_videoplayer'), 'alert alert-danger');
+    echo $OUTPUT->footer();
+    exit;
 }
+
+$type = empty($videoplayer->type) || $videoplayer->type === 'auto'
+    ? drive::detect_type($videoplayer->videourl)
+    : clean_param($videoplayer->type, PARAM_ALPHANUMEXT);
+
+$previewurl = drive::preview_url($fileid);
+$openurl = new moodle_url('https://drive.google.com/file/d/' . rawurlencode($fileid) . '/view');
+
+$attributes = [
+    'src' => $previewurl->out(false),
+    'width' => '100%',
+    'height' => '620',
+    'allow' => 'autoplay; fullscreen',
+    'allowfullscreen' => 'allowfullscreen',
+    'sandbox' => 'allow-scripts allow-same-origin allow-forms allow-popups',
+    'style' => 'border:0; width:100%; min-height:620px;',
+    'title' => format_string($videoplayer->name),
+    'loading' => 'lazy',
+];
+
+echo html_writer::start_div('mod-videoplayer-container', [
+    'data-resource-type' => s($type),
+    'data-cmid' => $cm->id,
+]);
+
+echo html_writer::start_div('mod-videoplayer-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between');
+echo html_writer::tag('div', get_string('resourcetype', 'mod_videoplayer') . ': ' . get_string('type' . $type, 'mod_videoplayer'), [
+    'class' => 'text-muted small',
+]);
+echo html_writer::link($openurl, get_string('openindrive', 'mod_videoplayer'), [
+    'class' => 'btn btn-secondary btn-sm',
+    'target' => '_blank',
+    'rel' => 'noopener noreferrer',
+]);
+echo html_writer::end_div();
+
+echo html_writer::start_div('mod-videoplayer-frame-wrapper', [
+    'style' => 'max-width: 1100px; margin: 0 auto;',
+]);
+echo html_writer::tag('iframe', '', $attributes);
+echo html_writer::end_div();
+
+echo html_writer::end_div();
 
 echo $OUTPUT->footer();
