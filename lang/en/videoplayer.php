@@ -1,58 +1,64 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Language strings for the Video Player activity module.
+ * Language strings for mod_videoplayer.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud <jose@elearningcloud.org>
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-// General strings.
-$string['modulename'] = 'Video player';
-$string['modulenameplural'] = 'Video players';
-$string['modulename_help'] = 'Use this module to embed and display videos from Google Drive or other sources.';
-$string['pluginname'] = 'Video player';
+$string['pluginname'] = 'Google Drive resource';
+$string['modulename'] = 'Google Drive resource';
+$string['modulenameplural'] = 'Google Drive resources';
+$string['modulename_help'] = 'Use this activity to embed videos, PDFs, images, documents, spreadsheets and presentations from Google Drive.';
+$string['pluginadministration'] = 'Google Drive resource administration';
 
-// Form strings.
-$string['videoname'] = 'Video title';
-$string['videourl'] = 'Google Drive video URL';
-$string['videourl_help'] = 'Paste the shareable link from Google Drive. The video will be embedded in the activity.';
+$string['resourcename'] = 'Resource name';
+$string['videoname'] = 'Resource name';
+$string['driveurl'] = 'Google Drive URL';
+$string['driveurl_help'] = 'Paste a shareable Google Drive or Google Docs URL. Supported resources include videos, PDFs, images, documents, spreadsheets and presentations.';
+$string['videourl'] = 'Google Drive URL';
+$string['videourl_help'] = 'Paste a shareable Google Drive or Google Docs URL.';
+$string['resourcetype'] = 'Resource type';
+$string['completionpercentage'] = 'Required completion percentage';
+$string['completionpercentage_help'] = 'Percentage required to consider this resource completed when progress tracking is available. For non-video resources, Moodle view completion may be used.';
+$string['openindrive'] = 'Open in Google Drive';
 
-// Capability strings.
-$string['mod_videoplayer:addinstance'] = 'Add a new Video Player instance';
-$string['mod_videoplayer:addinstance_help'] = 'Allows users to add a new instance of the Video Player activity to a course.';
+$string['typeauto'] = 'Automatic';
+$string['typevideo'] = 'Video';
+$string['typepdf'] = 'PDF';
+$string['typeimage'] = 'Image';
+$string['typedocument'] = 'Document';
+$string['typespreadsheet'] = 'Spreadsheet';
+$string['typepresentation'] = 'Presentation';
+$string['typefile'] = 'File';
 
-$string['mod_videoplayer:view'] = 'View Video Player activity';
-$string['mod_videoplayer:view_help'] = 'Allows users to view the Video Player activity content.';
+$string['invalidurl'] = 'The provided URL is not valid. Please use a proper Google Drive shareable link.';
+$string['invaliddriveurl'] = 'Enter a valid Google Drive or Google Docs shareable URL.';
+$string['invalidcompletionpercentage'] = 'The completion percentage must be a number between 0 and 100.';
 
-$string['mod_videoplayer:edit'] = 'Edit Video Player activity';
-$string['mod_videoplayer:edit_help'] = 'Allows users to edit the settings or content of the Video Player activity.';
+$string['mod_videoplayer:addinstance'] = 'Add a new Google Drive resource';
+$string['mod_videoplayer:addinstance_help'] = 'Allows users to add a new Google Drive resource activity to a course.';
+$string['mod_videoplayer:view'] = 'View Google Drive resource';
+$string['mod_videoplayer:view_help'] = 'Allows users to view the Google Drive resource activity content.';
+$string['mod_videoplayer:edit'] = 'Edit Google Drive resource';
+$string['mod_videoplayer:edit_help'] = 'Allows users to edit the Google Drive resource settings.';
+$string['mod_videoplayer:manage'] = 'Manage Google Drive resource';
+$string['mod_videoplayer:manage_help'] = 'Allows users to manage Google Drive resource configuration.';
+$string['mod_videoplayer:viewreport'] = 'View Google Drive resource reports';
+$string['mod_videoplayer:viewreport_help'] = 'Allows users to view reports related to Google Drive resources.';
+$string['mod_videoplayer:editreport'] = 'Edit Google Drive resource reports';
+$string['mod_videoplayer:editreport_help'] = 'Allows users to edit reports and user progress in Google Drive resources.';
 
-$string['mod_videoplayer:manage'] = 'Manage Video Player activity';
-$string['mod_videoplayer:manage_help'] = 'Allows users to manage general module configuration for the Video Player activity.';
-
-$string['mod_videoplayer:viewreport'] = 'View Video Player reports';
-$string['mod_videoplayer:viewreport_help'] = 'Allows users to view reports related to the Video Player activity.';
-
-$string['mod_videoplayer:editreport'] = 'Edit Video Player reports';
-$string['mod_videoplayer:editreport_help'] = 'Allows users to edit reports, such as user progress, in the Video Player activity.';
-
-// Error messages.
-$string['invalidurl'] = 'The provided video URL is not valid. Please use a proper Google Drive shareable link.';
+$string['privacy:metadata:videoplayer_views'] = 'Stores user progress and completion data for Google Drive resources.';
+$string['privacy:metadata:videoplayer_views:videoplayerid'] = 'The Google Drive resource activity instance ID.';
+$string['privacy:metadata:videoplayer_views:userid'] = 'The ID of the user who viewed the resource.';
+$string['privacy:metadata:videoplayer_views:progress'] = 'The last saved progress value.';
+$string['privacy:metadata:videoplayer_views:completed'] = 'Whether the resource has been marked as completed.';
+$string['privacy:metadata:videoplayer_views:completionpercentage'] = 'The saved completion percentage.';
+$string['privacy:metadata:videoplayer_views:timecreated'] = 'The time when the first progress record was created.';
+$string['privacy:metadata:videoplayer_views:timemodified'] = 'The time when the progress record was last updated.';
