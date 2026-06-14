@@ -1,0 +1,36 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template mod_videoplayer/resource
+
+    Template for displaying an embedded Google Drive resource.
+
+    Context variables:
+    * resourcetype - Resource type label.
+    * openurl - URL to open the resource in Google Drive.
+    * openlabel - Button label.
+    * iframeurl - Preview URL.
+    * title - Iframe title.
+    * cmid - Course module ID.
+    * type - Machine-readable resource type.
+}}
+<div class="mod-videoplayer-container" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+    <div class="mod-videoplayer-toolbar mb-3 d-flex flex-wrap align-items-center justify-content-between">
+        <div class="text-muted small">{{resourcetype}}</div>
+        <a href="{{openurl}}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer">{{openlabel}}</a>
+    </div>
+
+    <div class="mod-videoplayer-frame-wrapper" style="max-width: 1100px; margin: 0 auto;">
+        <iframe
+            src="{{iframeurl}}"
+            width="100%"
+            height="620"
+            allow="autoplay; fullscreen"
+            allowfullscreen="allowfullscreen"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            style="border:0; width:100%; min-height:620px;"
+            title="{{title}}"
+            loading="lazy">
+        </iframe>
+    </div>
+</div>
