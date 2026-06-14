@@ -9,16 +9,16 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Version information for mod_videoplayer.
+ * Version information for Drive Resource.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud <jose@elearningcloud.org>
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud <jose@elearningcloud.org>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 $plugin->component = 'mod_videoplayer';
-$plugin->version   = 2026061400;
-$plugin->release   = '2.0.0';
-$plugin->requires  = 2022041900;
-$plugin->supported = [40100, 50100];
+$plugin->version   = 2026061401;
+$plugin->release   = '1.0.0';
+$plugin->requires  = 2024100700;
+$plugin->supported = [40500, 50100];
 $plugin->maturity  = MATURITY_STABLE;
