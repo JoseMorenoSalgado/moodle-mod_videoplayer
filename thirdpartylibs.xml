@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thirdpartylibs>
+    <library>
+        <location>thirdpartylibs/pdfjs</location>
+        <name>PDF.js</name>
+        <version>6.0.227</version>
+        <license>Apache</license>
+        <licenseversion>2.0</licenseversion>
+    </library>
+</thirdpartylibs>
