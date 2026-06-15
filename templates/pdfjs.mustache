@@ -3,7 +3,7 @@
 
     @template mod_videoplayer/pdfjs
 
-    Template for displaying a protected PDF resource with a lightweight PDF.js viewer.
+    Template for displaying a protected PDF resource exclusively with PDF.js.
 }}
 <div class="mod-videoplayer-container mod-videoplayer-pdfjs" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">
@@ -26,15 +26,8 @@
             <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
         </div>
 
-        <div class="mod-videoplayer-pdfjs-fallback" hidden>
-            <iframe
-                src="{{pdfurl}}#toolbar=0&navpanes=0&scrollbar=1"
-                class="mod-videoplayer-pdf-iframe"
-                title="{{title}}"
-                loading="lazy"
-                sandbox="allow-scripts allow-same-origin"
-                referrerpolicy="no-referrer">
-            </iframe>
+        <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>
+            {{#str}} pdfjsrequired, mod_videoplayer {{/str}}
         </div>
     </div>
 </div>
