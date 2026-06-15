@@ -50,7 +50,7 @@ if ($ADMIN->fulltree) {
         'mod_videoplayer/pdfcachettl',
         get_string('setting_pdfcachettl', 'mod_videoplayer'),
         get_string('setting_pdfcachettl_desc', 'mod_videoplayer'),
-        86400,
+        2592000,
         PARAM_INT
     ));
 }
