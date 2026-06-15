@@ -29,7 +29,6 @@ $PAGE->set_url('/mod/videoplayer/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($videoplayer->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
-$PAGE->requires->js_call_amd('mod_videoplayer/fullscreen', 'init');
 
 $event = \mod_videoplayer\event\course_module_viewed::create([
     'objectid' => $videoplayer->id,
