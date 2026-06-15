@@ -5,30 +5,21 @@
     </div>
 
     <div class="mod-videoplayer-pdfjs-viewer" data-pdf-url="{{pdfurl}}" data-title="{{title}}">
-        <div class="mod-videoplayer-pdfjs-toolbar" role="toolbar" aria-label="{{title}}">
-            <button type="button" class="btn btn-secondary btn-sm" data-action="toggle-thumbnails">Paginas</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="previous-page">Anterior</button>
+        <div class="mod-videoplayer-pdfjs-topbar" aria-label="{{title}}">
             <span class="mod-videoplayer-pdfjs-page-status"><span data-region="current-page">1</span> / <span data-region="total-pages">-</span></span>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="next-page">Siguiente</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-out">-</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-in">+</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="fullscreen">Pantalla completa</button>
+            <button type="button" class="mod-videoplayer-pdfjs-icon" data-action="zoom-out" aria-label="Alejar">−</button>
+            <button type="button" class="mod-videoplayer-pdfjs-icon" data-action="zoom-in" aria-label="Acercar">+</button>
         </div>
 
-        <div class="mod-videoplayer-pdfjs-search">
-            <input type="search" class="form-control form-control-sm" data-region="search-input" placeholder="Buscar en el PDF">
-            <button type="button" class="btn btn-secondary btn-sm" data-action="search-previous">Anterior</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="search-next">Siguiente</button>
-            <span class="mod-videoplayer-pdfjs-search-status" data-region="search-status"></span>
+        <div class="mod-videoplayer-pdfjs-loading" data-region="pdfjs-loading">
+            <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
+            <span>Cargando PDF...</span>
         </div>
 
-        <div class="mod-videoplayer-pdfjs-loading alert alert-info" data-region="pdfjs-loading">Cargando PDF</div>
-
-        <div class="mod-videoplayer-pdfjs-layout">
-            <aside class="mod-videoplayer-pdfjs-thumbnails" data-region="thumbnails"></aside>
-            <div class="mod-videoplayer-pdfjs-canvas-wrap">
-                <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
-            </div>
+        <div class="mod-videoplayer-pdfjs-canvas-wrap">
+            <button type="button" class="mod-videoplayer-pdfjs-nav mod-videoplayer-pdfjs-nav-prev" data-action="previous-page" aria-label="Página anterior">‹</button>
+            <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
+            <button type="button" class="mod-videoplayer-pdfjs-nav mod-videoplayer-pdfjs-nav-next" data-action="next-page" aria-label="Página siguiente">›</button>
         </div>
 
         <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>{{#str}} pdfjsrequired, mod_videoplayer {{/str}}</div>
