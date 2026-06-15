@@ -1,14 +1,4 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
-
-/**
- * Admin settings for mod_videoplayer.
- *
- * @package    mod_videoplayer
- * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 defined('MOODLE_INTERNAL') || die();
 
 if ($ADMIN->fulltree) {
@@ -47,5 +37,20 @@ if ($ADMIN->fulltree) {
         get_string('setting_showresourcetype', 'mod_videoplayer'),
         get_string('setting_showresourcetype_desc', 'mod_videoplayer'),
         1
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'mod_videoplayer/pdfcacheenabled',
+        get_string('setting_pdfcacheenabled', 'mod_videoplayer'),
+        get_string('setting_pdfcacheenabled_desc', 'mod_videoplayer'),
+        1
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'mod_videoplayer/pdfcachettl',
+        get_string('setting_pdfcachettl', 'mod_videoplayer'),
+        get_string('setting_pdfcachettl_desc', 'mod_videoplayer'),
+        86400,
+        PARAM_INT
     ));
 }
