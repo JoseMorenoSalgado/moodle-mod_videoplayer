@@ -1,14 +1,6 @@
 <?php
 // This file is part of Moodle - http://moodle.org/
 
-/**
- * Language strings for mod_videoplayer.
- *
- * @package    mod_videoplayer
- * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Drive Resource';
@@ -16,7 +8,6 @@ $string['modulename'] = 'Drive Resource';
 $string['modulenameplural'] = 'Drive Resources';
 $string['modulename_help'] = 'Use this activity to embed videos, PDFs, images, documents, spreadsheets and presentations from Google Drive.';
 $string['pluginadministration'] = 'Drive Resource administration';
-
 $string['resourcename'] = 'Resource name';
 $string['videoname'] = 'Resource name';
 $string['driveurl'] = 'Google Drive URL';
@@ -34,7 +25,6 @@ $string['progressreport'] = 'Progress report';
 $string['noprogressrecords'] = 'There are no progress records for this resource yet.';
 $string['noresources'] = 'There are no Drive Resources in this course.';
 $string['noresourcesavailable'] = 'There are no Drive Resources available to you in this course.';
-
 $string['typeauto'] = 'Automatic';
 $string['typevideo'] = 'Video';
 $string['typepdf'] = 'PDF';
@@ -43,7 +33,6 @@ $string['typedocument'] = 'Document';
 $string['typespreadsheet'] = 'Spreadsheet';
 $string['typepresentation'] = 'Presentation';
 $string['typefile'] = 'File';
-
 $string['invalidurl'] = 'The provided URL is not valid. Please use a proper Google Drive shareable link.';
 $string['invaliddriveurl'] = 'Enter a valid Google Drive or Google Docs shareable URL.';
 $string['invalidcompletionpercentage'] = 'The completion percentage must be a number between 0 and 100.';
@@ -51,7 +40,6 @@ $string['protectedmodedisabled'] = 'Protected mode is disabled by the site admin
 $string['unsupportedprotectedresource'] = 'This protected resource type is not currently supported.';
 $string['protectedresourceunavailable'] = 'The protected resource is currently unavailable or cannot be streamed.';
 $string['pdfjsrequired'] = 'The local PDF.js viewer could not be loaded. Please contact the site administrator and confirm that thirdpartylibs/pdfjs/pdf.min.mjs and thirdpartylibs/pdfjs/pdf.worker.min.mjs are installed.';
-
 $string['setting_enabletracking'] = 'Enable progress tracking';
 $string['setting_enabletracking_desc'] = 'When enabled, Drive Resource records user presence and interaction time in the activity.';
 $string['setting_defaultrequiredseconds'] = 'Default required time';
@@ -62,7 +50,10 @@ $string['setting_protectedmode'] = 'Protected mode';
 $string['setting_protectedmode_desc'] = 'When enabled, Drive Resource hides direct Google Drive navigation links and limits iframe popup permissions. Google Drive internal controls may still be controlled by Google.';
 $string['setting_showresourcetype'] = 'Show resource type';
 $string['setting_showresourcetype_desc'] = 'Show the detected or selected resource type above the embedded resource.';
-
+$string['setting_pdfcacheenabled'] = 'Enable PDF cache';
+$string['setting_pdfcacheenabled_desc'] = 'Stores protected PDF files in Moodle local cache after the first full request so subsequent views load faster. Files are still served only through protected.php after access checks.';
+$string['setting_pdfcachettl'] = 'PDF cache lifetime';
+$string['setting_pdfcachettl_desc'] = 'Lifetime in seconds for cached PDF files. Default is 86400 seconds.';
 $string['mod_videoplayer:addinstance'] = 'Add a new Drive Resource';
 $string['mod_videoplayer:addinstance_help'] = 'Allows users to add a new Drive Resource activity to a course.';
 $string['mod_videoplayer:view'] = 'View Drive Resource';
@@ -75,7 +66,6 @@ $string['mod_videoplayer:viewreport'] = 'View Drive Resource reports';
 $string['mod_videoplayer:viewreport_help'] = 'Allows users to view reports related to Drive Resources.';
 $string['mod_videoplayer:editreport'] = 'Edit Drive Resource reports';
 $string['mod_videoplayer:editreport_help'] = 'Allows users to edit reports and user progress in Drive Resources.';
-
 $string['privacy:metadata:videoplayer_views'] = 'Stores user progress and completion data for Drive Resources.';
 $string['privacy:metadata:videoplayer_views:videoplayerid'] = 'The Drive Resource activity instance ID.';
 $string['privacy:metadata:videoplayer_views:userid'] = 'The ID of the user who viewed the resource.';
