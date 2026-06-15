@@ -47,6 +47,10 @@ $string['typefile'] = 'Archivo';
 $string['invalidurl'] = 'La URL proporcionada no es válida. Use un enlace compartible correcto de Google Drive.';
 $string['invaliddriveurl'] = 'Ingrese una URL compartible válida de Google Drive o Google Docs.';
 $string['invalidcompletionpercentage'] = 'El porcentaje de finalización debe ser un número entre 0 y 100.';
+$string['protectedmodedisabled'] = 'El modo protegido está desactivado por el administrador del sitio.';
+$string['unsupportedprotectedresource'] = 'Este tipo de recurso protegido no está soportado actualmente.';
+$string['protectedresourceunavailable'] = 'El recurso protegido no está disponible actualmente o no puede transmitirse.';
+$string['pdfjsrequired'] = 'No se pudo cargar el visor local PDF.js. Contacte al administrador del sitio y confirme que thirdpartylibs/pdfjs/pdf.min.mjs y thirdpartylibs/pdfjs/pdf.worker.min.mjs estén instalados.';
 
 $string['setting_enabletracking'] = 'Activar seguimiento de progreso';
 $string['setting_enabletracking_desc'] = 'Cuando está activado, Drive Resource registra la permanencia e interacción del usuario dentro de la actividad.';
