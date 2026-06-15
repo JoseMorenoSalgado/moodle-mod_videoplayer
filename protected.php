@@ -48,34 +48,139 @@ if (!$url) {
     throw new moodle_exception('unsupportedprotectedresource', 'mod_videoplayer');
 }
 
-$curl = new curl();
-$curl->setopt([
-    'CURLOPT_FOLLOWLOCATION' => true,
-    'CURLOPT_MAXREDIRS' => 5,
-    'CURLOPT_TIMEOUT' => 60,
-    'CURLOPT_CONNECTTIMEOUT' => 20,
-    'CURLOPT_SSL_VERIFYPEER' => true,
-    'CURLOPT_SSL_VERIFYHOST' => 2,
-]);
-
-$content = $curl->get($url);
-$info = $curl->get_info();
-
-if ($content === false || empty($info['http_code']) || $info['http_code'] >= 400) {
-    throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
-}
-
-$contenttype = !empty($info['content_type']) ? $info['content_type'] : drive::default_mimetype($type);
+$contenttype = drive::default_mimetype($type);
 $filename = clean_filename(format_string($videoplayer->name, true, ['context' => $context]));
 if ($filename === '') {
     $filename = 'drive-resource';
 }
 
-@header('Content-Type: ' . $contenttype);
-@header('Content-Disposition: inline; filename="' . $filename . '"');
-@header('X-Content-Type-Options: nosniff');
-@header('Cache-Control: private, max-age=300, no-transform');
-@header('Pragma: private');
+if ($type === 'pdf' && !preg_match('/\.pdf$/i', $filename)) {
+    $filename .= '.pdf';
+}
 
-echo $content;
+@set_time_limit(0);
+while (ob_get_level()) {
+    ob_end_clean();
+}
+
+$range = optional_param('range', '', PARAM_RAW);
+if (empty($range) && !empty($_SERVER['HTTP_RANGE'])) {
+    $range = clean_param($_SERVER['HTTP_RANGE'], PARAM_RAW);
+}
+
+$requestheaders = [];
+if (!empty($range) && preg_match('/^bytes=\d*-\d*$/', $range)) {
+    $requestheaders[] = 'Range: ' . $range;
+}
+
+$headerbuffer = [];
+$httpcode = 0;
+$contentlength = null;
+$remotecontenttype = null;
+
+$ch = curl_init($url);
+curl_setopt_array($ch, [
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 5,
+    CURLOPT_CONNECTTIMEOUT => 20,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
+    CURLOPT_HTTPHEADER => $requestheaders,
+    CURLOPT_HEADERFUNCTION => function($curl, string $header) use (&$headerbuffer, &$contentlength, &$remotecontenttype): int {
+        $length = strlen($header);
+        $trimmed = trim($header);
+
+        if ($trimmed === '') {
+            return $length;
+        }
+
+        if (preg_match('/^Content-Length:\s*(\d+)/i', $trimmed, $matches)) {
+            $contentlength = (int) $matches[1];
+        } else if (preg_match('/^Content-Type:\s*(.+)$/i', $trimmed, $matches)) {
+            $remotecontenttype = trim($matches[1]);
+        } else if (preg_match('/^Content-Range:\s*(.+)$/i', $trimmed, $matches)) {
+            $headerbuffer['Content-Range'] = trim($matches[1]);
+        }
+
+        return $length;
+    },
+    CURLOPT_WRITEFUNCTION => function($curl, string $data): int {
+        echo $data;
+        flush();
+        return strlen($data);
+    },
+]);
+
+// Execute a lightweight HEAD request first to collect metadata before sending output headers.
+$head = curl_init($url);
+curl_setopt_array($head, [
+    CURLOPT_NOBODY => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 5,
+    CURLOPT_CONNECTTIMEOUT => 20,
+    CURLOPT_TIMEOUT => 30,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
+    CURLOPT_HTTPHEADER => $requestheaders,
+    CURLOPT_HEADERFUNCTION => function($curl, string $header) use (&$headerbuffer, &$contentlength, &$remotecontenttype): int {
+        $length = strlen($header);
+        $trimmed = trim($header);
+
+        if ($trimmed === '') {
+            return $length;
+        }
+
+        if (preg_match('/^Content-Length:\s*(\d+)/i', $trimmed, $matches)) {
+            $contentlength = (int) $matches[1];
+        } else if (preg_match('/^Content-Type:\s*(.+)$/i', $trimmed, $matches)) {
+            $remotecontenttype = trim($matches[1]);
+        } else if (preg_match('/^Content-Range:\s*(.+)$/i', $trimmed, $matches)) {
+            $headerbuffer['Content-Range'] = trim($matches[1]);
+        }
+
+        return $length;
+    },
+]);
+
+curl_exec($head);
+$headcode = (int) curl_getinfo($head, CURLINFO_HTTP_CODE);
+curl_close($head);
+
+if ($headcode >= 400) {
+    throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
+}
+
+$httpcode = $headcode === 206 ? 206 : 200;
+if (!empty($range)) {
+    $httpcode = 206;
+}
+
+if (!headers_sent()) {
+    http_response_code($httpcode);
+    header('Content-Type: ' . ($remotecontenttype ?: $contenttype));
+    header('Content-Disposition: inline; filename="' . $filename . '"');
+    header('X-Content-Type-Options: nosniff');
+    header('Accept-Ranges: bytes');
+    header('Cache-Control: private, max-age=300, no-transform');
+    header('Pragma: private');
+
+    if ($contentlength !== null) {
+        header('Content-Length: ' . $contentlength);
+    }
+
+    if (!empty($headerbuffer['Content-Range'])) {
+        header('Content-Range: ' . $headerbuffer['Content-Range']);
+    }
+}
+
+$result = curl_exec($ch);
+$curlerror = curl_error($ch);
+$curlcode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+if ($result === false || $curlcode >= 400) {
+    debugging('Drive Resource protected stream failed: ' . $curlerror, DEBUG_DEVELOPER);
+}
+
 die;
