@@ -1,0 +1,40 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template mod_videoplayer/pdfjs
+
+    Template for displaying a protected PDF resource with a lightweight PDF.js viewer.
+}}
+<div class="mod-videoplayer-container mod-videoplayer-pdfjs" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+    <div class="mod-videoplayer-meta mb-2">
+        <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
+        <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
+    </div>
+
+    <div class="mod-videoplayer-pdfjs-viewer" data-pdf-url="{{pdfurl}}" data-title="{{title}}">
+        <div class="mod-videoplayer-pdfjs-toolbar" role="toolbar" aria-label="{{title}}">
+            <button type="button" class="btn btn-secondary btn-sm" data-action="previous-page">‹</button>
+            <span class="mod-videoplayer-pdfjs-page-status">
+                <span data-region="current-page">1</span> / <span data-region="total-pages">–</span>
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="next-page">›</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-out">−</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-in">+</button>
+        </div>
+
+        <div class="mod-videoplayer-pdfjs-canvas-wrap">
+            <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
+        </div>
+
+        <div class="mod-videoplayer-pdfjs-fallback" hidden>
+            <iframe
+                src="{{pdfurl}}#toolbar=0&navpanes=0&scrollbar=1"
+                class="mod-videoplayer-pdf-iframe"
+                title="{{title}}"
+                loading="lazy"
+                sandbox="allow-scripts allow-same-origin"
+                referrerpolicy="no-referrer">
+            </iframe>
+        </div>
+    </div>
+</div>
