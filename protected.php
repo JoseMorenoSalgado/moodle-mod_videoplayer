@@ -30,10 +30,6 @@ require_login($course, true, $cm);
 $context = context_module::instance($cm->id);
 require_capability('mod/videoplayer:view', $context);
 
-if (!get_config('mod_videoplayer', 'protectedmode')) {
-    throw new moodle_exception('protectedmodedisabled', 'mod_videoplayer');
-}
-
 $fileid = drive::extract_file_id($videoplayer->videourl ?? '');
 if (!$fileid) {
     throw new moodle_exception('invaliddriveurl', 'mod_videoplayer');
@@ -42,6 +38,13 @@ if (!$fileid) {
 $type = empty($videoplayer->type) || $videoplayer->type === 'auto'
     ? drive::detect_type($videoplayer->videourl)
     : clean_param($videoplayer->type, PARAM_ALPHANUMEXT);
+
+// PDF resources always require this Moodle proxy because Drive Resource must not
+// use the Google Drive PDF viewer. Other resource types still respect the admin
+// protected mode setting while they are being migrated to native viewers.
+if (!drive::is_pdf_type($type) && !get_config('mod_videoplayer', 'protectedmode')) {
+    throw new moodle_exception('protectedmodedisabled', 'mod_videoplayer');
+}
 
 $url = drive::protected_content_url($videoplayer->videourl, $fileid, $type);
 if (!$url) {
@@ -54,7 +57,7 @@ if ($filename === '') {
     $filename = 'drive-resource';
 }
 
-if ($type === 'pdf' && !preg_match('/\.pdf$/i', $filename)) {
+if (drive::is_pdf_type($type) && !preg_match('/\.pdf$/i', $filename)) {
     $filename .= '.pdf';
 }
 
@@ -74,45 +77,9 @@ if (!empty($range) && preg_match('/^bytes=\d*-\d*$/', $range)) {
 }
 
 $headerbuffer = [];
-$httpcode = 0;
 $contentlength = null;
 $remotecontenttype = null;
 
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_MAXREDIRS => 5,
-    CURLOPT_CONNECTTIMEOUT => 20,
-    CURLOPT_TIMEOUT => 0,
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_SSL_VERIFYHOST => 2,
-    CURLOPT_HTTPHEADER => $requestheaders,
-    CURLOPT_HEADERFUNCTION => function($curl, string $header) use (&$headerbuffer, &$contentlength, &$remotecontenttype): int {
-        $length = strlen($header);
-        $trimmed = trim($header);
-
-        if ($trimmed === '') {
-            return $length;
-        }
-
-        if (preg_match('/^Content-Length:\s*(\d+)/i', $trimmed, $matches)) {
-            $contentlength = (int) $matches[1];
-        } else if (preg_match('/^Content-Type:\s*(.+)$/i', $trimmed, $matches)) {
-            $remotecontenttype = trim($matches[1]);
-        } else if (preg_match('/^Content-Range:\s*(.+)$/i', $trimmed, $matches)) {
-            $headerbuffer['Content-Range'] = trim($matches[1]);
-        }
-
-        return $length;
-    },
-    CURLOPT_WRITEFUNCTION => function($curl, string $data): int {
-        echo $data;
-        flush();
-        return strlen($data);
-    },
-]);
-
-// Execute a lightweight HEAD request first to collect metadata before sending output headers.
 $head = curl_init($url);
 curl_setopt_array($head, [
     CURLOPT_NOBODY => true,
@@ -151,10 +118,7 @@ if ($headcode >= 400) {
     throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
 }
 
-$httpcode = $headcode === 206 ? 206 : 200;
-if (!empty($range)) {
-    $httpcode = 206;
-}
+$httpcode = (!empty($range) || $headcode === 206) ? 206 : 200;
 
 if (!headers_sent()) {
     http_response_code($httpcode);
@@ -173,6 +137,22 @@ if (!headers_sent()) {
         header('Content-Range: ' . $headerbuffer['Content-Range']);
     }
 }
+
+$ch = curl_init($url);
+curl_setopt_array($ch, [
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 5,
+    CURLOPT_CONNECTTIMEOUT => 20,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
+    CURLOPT_HTTPHEADER => $requestheaders,
+    CURLOPT_WRITEFUNCTION => function($curl, string $data): int {
+        echo $data;
+        flush();
+        return strlen($data);
+    },
+]);
 
 $result = curl_exec($ch);
 $curlerror = curl_error($ch);
