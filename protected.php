@@ -108,7 +108,7 @@ if ($pdfcache) {
     if (!is_dir($cachedir)) {
         make_writable_directory($cachedir);
     }
-    $cachekey = sha1($cm->id . ':' . $fileid . ':' . $type . ':' . $videoplayer->timemodified);
+    $cachekey = sha1($fileid . ':' . $type);
     $cachefile = $cachedir . '/' . $cachekey . '.pdf';
     if (is_readable($cachefile) && filemtime($cachefile) + $cachettl > time()) {
         mod_videoplayer_send_file($cachefile, $filename, $contenttype);
