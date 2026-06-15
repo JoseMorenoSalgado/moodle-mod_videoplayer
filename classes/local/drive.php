@@ -52,20 +52,32 @@ class drive {
      * @return string
      */
     public static function detect_type(string $url): string {
-        if (strpos($url, 'docs.google.com/document') !== false) {
+        $lowerurl = strtolower($url);
+
+        if (strpos($lowerurl, 'docs.google.com/document') !== false) {
             return 'document';
         }
-        if (strpos($url, 'docs.google.com/spreadsheets') !== false) {
+        if (strpos($lowerurl, 'docs.google.com/spreadsheets') !== false) {
             return 'spreadsheet';
         }
-        if (strpos($url, 'docs.google.com/presentation') !== false) {
+        if (strpos($lowerurl, 'docs.google.com/presentation') !== false) {
             return 'presentation';
         }
+        if (preg_match('/\.pdf([?#].*)?$/i', $lowerurl) || strpos($lowerurl, 'type=pdf') !== false) {
+            return 'pdf';
+        }
+        if (preg_match('/\.(mp4|webm|mov|m4v)([?#].*)?$/i', $lowerurl)) {
+            return 'video';
+        }
+        if (preg_match('/\.(jpg|jpeg|png|gif|webp|svg)([?#].*)?$/i', $lowerurl)) {
+            return 'image';
+        }
+
         return 'file';
     }
 
     /**
-     * Build a secure preview URL.
+     * Build a Google Drive preview URL.
      *
      * @param string $fileid
      * @return \moodle_url
@@ -73,6 +85,51 @@ class drive {
     public static function preview_url(string $fileid): \moodle_url {
         $fileid = clean_param($fileid, PARAM_ALPHANUMEXT);
         return new \moodle_url('https://drive.google.com/file/d/' . rawurlencode($fileid) . '/preview');
+    }
+
+    /**
+     * Build the Google Drive content URL used by the protected proxy.
+     *
+     * This URL is never rendered in the Moodle page. It is used server-side by
+     * protected.php after Moodle access checks have passed.
+     *
+     * @param string $originalurl Original Google Drive URL.
+     * @param string $fileid Google Drive file id.
+     * @param string $type Resource type.
+     * @return string|null
+     */
+    public static function protected_content_url(string $originalurl, string $fileid, string $type): ?string {
+        $fileid = clean_param($fileid, PARAM_ALPHANUMEXT);
+        if ($fileid === '') {
+            return null;
+        }
+
+        if (in_array($type, ['document', 'spreadsheet', 'presentation'], true)) {
+            return self::google_docs_export_url($fileid, $type);
+        }
+
+        return 'https://drive.google.com/uc?export=download&id=' . rawurlencode($fileid);
+    }
+
+    /**
+     * Return the default MIME type for a resource type.
+     *
+     * @param string $type Resource type.
+     * @return string
+     */
+    public static function default_mimetype(string $type): string {
+        $types = [
+            'pdf' => 'application/pdf',
+            'video' => 'video/mp4',
+            'audio' => 'audio/mpeg',
+            'image' => 'image/jpeg',
+            'document' => 'application/pdf',
+            'spreadsheet' => 'application/pdf',
+            'presentation' => 'application/pdf',
+            'file' => 'application/octet-stream',
+        ];
+
+        return $types[$type] ?? 'application/octet-stream';
     }
 
     /**
@@ -97,5 +154,33 @@ class drive {
         }
 
         return self::extract_file_id($url) !== null;
+    }
+
+    /**
+     * Whether the resource type is a PDF-compatible resource.
+     *
+     * @param string $type Resource type.
+     * @return bool
+     */
+    public static function is_pdf_type(string $type): bool {
+        return in_array($type, ['pdf', 'document', 'spreadsheet', 'presentation'], true);
+    }
+
+    /**
+     * Build Google Docs export URL.
+     *
+     * @param string $fileid File id.
+     * @param string $type Resource type.
+     * @return string
+     */
+    private static function google_docs_export_url(string $fileid, string $type): string {
+        if ($type === 'spreadsheet') {
+            return 'https://docs.google.com/spreadsheets/d/' . rawurlencode($fileid) . '/export?format=pdf';
+        }
+        if ($type === 'presentation') {
+            return 'https://docs.google.com/presentation/d/' . rawurlencode($fileid) . '/export/pdf';
+        }
+
+        return 'https://docs.google.com/document/d/' . rawurlencode($fileid) . '/export?format=pdf';
     }
 }
