@@ -40,13 +40,16 @@ class precache_pdf extends \core\task\adhoc_task {
             make_writable_directory($cachedir);
         }
 
-        $cm = get_coursemodule_from_instance('videoplayer', $record->id, $record->course, false, IGNORE_MISSING);
-        $cmid = $cm ? $cm->id : 0;
-        $cachekey = sha1($cmid . ':' . $fileid . ':' . $type . ':' . $record->timemodified);
+        $cachekey = sha1($fileid . ':' . $type);
         $cachefile = $cachedir . '/' . $cachekey . '.pdf';
         $tmpfile = $cachefile . '.tmp.' . getmypid();
 
-        if (is_readable($cachefile)) {
+        $cachettl = (int)get_config('mod_videoplayer', 'pdfcachettl');
+        if ($cachettl <= 0) {
+            $cachettl = 86400;
+        }
+
+        if (is_readable($cachefile) && filemtime($cachefile) + $cachettl > time()) {
             return;
         }
 
