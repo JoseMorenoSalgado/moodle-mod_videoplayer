@@ -7,19 +7,17 @@
     <div class="mod-videoplayer-pdfjs-viewer" data-pdf-url="{{pdfurl}}" data-title="{{title}}">
         <div class="mod-videoplayer-pdfjs-topbar" aria-label="{{title}}">
             <span class="mod-videoplayer-pdfjs-page-status"><span data-region="current-page">1</span> / <span data-region="total-pages">-</span></span>
-            <button type="button" class="mod-videoplayer-pdfjs-icon" data-action="zoom-out" aria-label="Alejar">−</button>
-            <button type="button" class="mod-videoplayer-pdfjs-icon" data-action="zoom-in" aria-label="Acercar">+</button>
-        </div>
-
-        <div class="mod-videoplayer-pdfjs-loading" data-region="pdfjs-loading">
-            <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
-            <span>Cargando PDF...</span>
         </div>
 
         <div class="mod-videoplayer-pdfjs-canvas-wrap">
+            <div class="mod-videoplayer-pdfjs-loading" data-region="pdfjs-loading">
+                <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
+                <span>Cargando PDF...</span>
+            </div>
             <button type="button" class="mod-videoplayer-pdfjs-nav mod-videoplayer-pdfjs-nav-prev" data-action="previous-page" aria-label="Página anterior">‹</button>
             <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
             <button type="button" class="mod-videoplayer-pdfjs-nav mod-videoplayer-pdfjs-nav-next" data-action="next-page" aria-label="Página siguiente">›</button>
+            <button type="button" class="mod-videoplayer-pdfjs-fullscreen" data-action="fullscreen" aria-label="Pantalla completa">⛶</button>
         </div>
 
         <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>{{#str}} pdfjsrequired, mod_videoplayer {{/str}}</div>
