@@ -70,6 +70,7 @@ $typestring = get_string_manager()->string_exists($typestringkey, 'mod_videoplay
     : get_string('typefile', 'mod_videoplayer');
 
 $previewurl = drive::preview_url($fileid);
+$protectedurl = new moodle_url('/mod/videoplayer/protected.php', ['id' => $cm->id]);
 
 $progressrecord = null;
 if (!isguestuser()) {
@@ -98,9 +99,14 @@ $templatecontext = [
     'cmid' => $cm->id,
     'resourcetype' => get_string('resourcetype', 'mod_videoplayer') . ': ' . $typestring,
     'iframeurl' => $previewurl->out(false),
+    'pdfurl' => $protectedurl->out(false),
     'title' => format_string($videoplayer->name),
 ];
 
-echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
+if ($type === 'pdf') {
+    echo $OUTPUT->render_from_template('mod_videoplayer/pdf', $templatecontext);
+} else {
+    echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
+}
 
 echo $OUTPUT->footer();
