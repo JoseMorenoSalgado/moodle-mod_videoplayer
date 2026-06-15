@@ -16,9 +16,10 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+$plugin = new stdClass();
 $plugin->component = 'mod_videoplayer';
-$plugin->version   = 2026061500;
-$plugin->release   = '1.0.1';
-$plugin->requires  = 2024100700;
+$plugin->version = 2026061501;
+$plugin->release = '1.0.1';
+$plugin->requires = 2024100700;
 $plugin->supported = [40500, 50100];
-$plugin->maturity  = MATURITY_BETA;
+$plugin->maturity = MATURITY_BETA;
