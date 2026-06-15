@@ -3,9 +3,10 @@
 /**
  * Lightweight PDF.js viewer for Drive Resource.
  *
- * This module loads PDF.js from a CDN as an initial integration layer.
- * A future production-hardening step should vendor PDF.js into the plugin
- * to avoid external CDN dependencies.
+ * This module loads PDF.js from the plugin third-party library directory.
+ * The expected files are:
+ * - thirdpartylibs/pdfjs/pdf.min.mjs
+ * - thirdpartylibs/pdfjs/pdf.worker.min.mjs
  *
  * @module     mod_videoplayer/pdfviewer
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
@@ -13,8 +14,8 @@
  */
 
 define(['core/notification'], function(Notification) {
-    const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
-    const PDFJS_WORKER_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+    const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
+    const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
 
     let pdfjsPromise = null;
 
