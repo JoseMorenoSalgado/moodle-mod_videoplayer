@@ -35,14 +35,15 @@ define(['core/notification'], function(Notification) {
     };
 
     /**
-     * Show iframe fallback.
+     * Show the local PDF.js error state.
      *
-     * @param {HTMLElement} root
+     * @param {HTMLElement} root Viewer root element.
+     * @param {Error} [error] Optional error object.
      */
-    const showFallback = function(root) {
+    const showError = function(root, error) {
         const canvasWrap = root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap');
         const toolbar = root.querySelector('.mod-videoplayer-pdfjs-toolbar');
-        const fallback = root.querySelector('.mod-videoplayer-pdfjs-fallback');
+        const errorRegion = root.querySelector('[data-region="pdfjs-error"]');
 
         if (canvasWrap) {
             canvasWrap.hidden = true;
@@ -50,8 +51,11 @@ define(['core/notification'], function(Notification) {
         if (toolbar) {
             toolbar.hidden = true;
         }
-        if (fallback) {
-            fallback.hidden = false;
+        if (errorRegion) {
+            errorRegion.hidden = false;
+        }
+        if (error && window.console) {
+            window.console.error('Drive Resource PDF.js viewer error', error);
         }
     };
 
@@ -72,7 +76,7 @@ define(['core/notification'], function(Notification) {
         const totalPagesNode = root.querySelector('[data-region="total-pages"]');
 
         if (!pdfUrl || !canvas) {
-            showFallback(root);
+            showError(root);
             return;
         }
 
@@ -135,7 +139,7 @@ define(['core/notification'], function(Notification) {
             }).catch(function(error) {
                 rendering = false;
                 Notification.exception(error);
-                showFallback(root);
+                showError(root, error);
             });
         };
 
@@ -190,7 +194,7 @@ define(['core/notification'], function(Notification) {
             renderPage(pageNumber);
         }).catch(function(error) {
             Notification.exception(error);
-            showFallback(root);
+            showError(root, error);
         });
     };
 
@@ -209,7 +213,9 @@ define(['core/notification'], function(Notification) {
             });
         }).catch(function(error) {
             Notification.exception(error);
-            viewers.forEach(showFallback);
+            viewers.forEach(function(root) {
+                showError(root, error);
+            });
         });
     };
 
