@@ -1,0 +1,30 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template mod_videoplayer/pdf
+
+    Template for displaying a protected PDF resource.
+}}
+<div class="mod-videoplayer-container mod-videoplayer-pdf" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+    <div class="mod-videoplayer-meta mb-2">
+        <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
+        <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
+    </div>
+
+    <div class="mod-videoplayer-pdf-wrapper">
+        <object
+            data="{{pdfurl}}#toolbar=0&navpanes=0&scrollbar=1"
+            type="application/pdf"
+            class="mod-videoplayer-pdf-object"
+            aria-label="{{title}}">
+            <iframe
+                src="{{pdfurl}}#toolbar=0&navpanes=0&scrollbar=1"
+                class="mod-videoplayer-pdf-iframe"
+                title="{{title}}"
+                loading="lazy"
+                sandbox="allow-scripts allow-same-origin"
+                referrerpolicy="no-referrer">
+            </iframe>
+        </object>
+    </div>
+</div>
