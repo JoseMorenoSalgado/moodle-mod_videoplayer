@@ -1,10 +1,3 @@
-{{!
-    This file is part of Moodle - http://moodle.org/
-
-    @template mod_videoplayer/pdfjs
-
-    Template for displaying a protected PDF resource exclusively with PDF.js.
-}}
 <div class="mod-videoplayer-container mod-videoplayer-pdfjs" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">
         <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
@@ -13,21 +6,31 @@
 
     <div class="mod-videoplayer-pdfjs-viewer" data-pdf-url="{{pdfurl}}" data-title="{{title}}">
         <div class="mod-videoplayer-pdfjs-toolbar" role="toolbar" aria-label="{{title}}">
-            <button type="button" class="btn btn-secondary btn-sm" data-action="previous-page">‹</button>
-            <span class="mod-videoplayer-pdfjs-page-status">
-                <span data-region="current-page">1</span> / <span data-region="total-pages">–</span>
-            </span>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="next-page">›</button>
-            <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-out">−</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="toggle-thumbnails">Paginas</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="previous-page">Anterior</button>
+            <span class="mod-videoplayer-pdfjs-page-status"><span data-region="current-page">1</span> / <span data-region="total-pages">-</span></span>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="next-page">Siguiente</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-out">-</button>
             <button type="button" class="btn btn-secondary btn-sm" data-action="zoom-in">+</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="fullscreen">Pantalla completa</button>
         </div>
 
-        <div class="mod-videoplayer-pdfjs-canvas-wrap">
-            <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
+        <div class="mod-videoplayer-pdfjs-search">
+            <input type="search" class="form-control form-control-sm" data-region="search-input" placeholder="Buscar en el PDF">
+            <button type="button" class="btn btn-secondary btn-sm" data-action="search-previous">Anterior</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="search-next">Siguiente</button>
+            <span class="mod-videoplayer-pdfjs-search-status" data-region="search-status"></span>
         </div>
 
-        <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>
-            {{#str}} pdfjsrequired, mod_videoplayer {{/str}}
+        <div class="mod-videoplayer-pdfjs-loading alert alert-info" data-region="pdfjs-loading">Cargando PDF</div>
+
+        <div class="mod-videoplayer-pdfjs-layout">
+            <aside class="mod-videoplayer-pdfjs-thumbnails" data-region="thumbnails"></aside>
+            <div class="mod-videoplayer-pdfjs-canvas-wrap">
+                <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
+            </div>
         </div>
+
+        <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>{{#str}} pdfjsrequired, mod_videoplayer {{/str}}</div>
     </div>
 </div>
