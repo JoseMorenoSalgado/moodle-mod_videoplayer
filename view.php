@@ -104,7 +104,8 @@ $templatecontext = [
 ];
 
 if ($type === 'pdf') {
-    echo $OUTPUT->render_from_template('mod_videoplayer/pdf', $templatecontext);
+    $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
+    echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
 } else {
     echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
 }
