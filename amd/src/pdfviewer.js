@@ -5,6 +5,23 @@ var pdfjsPromise=null;
 var loadPdfJs=function(){if(!pdfjsPromise){pdfjsPromise=import(PDFJS_URL).then(function(pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER_URL;return pdfjsLib;});}return pdfjsPromise;};
 var hide=function(node,value){if(node){node.hidden=value;}};
 var showError=function(root,error){hide(root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap'),true);hide(root.querySelector('.mod-videoplayer-pdfjs-topbar'),true);hide(root.querySelector('[data-region="pdfjs-loading"]'),true);hide(root.querySelector('[data-region="pdfjs-error"]'),false);if(error&&window.console){window.console.error(error);}};
+var block=function(event){event.preventDefault();event.stopPropagation();return false;};
+var hardenViewer=function(root,canvas){
+[root,canvas].forEach(function(node){
+if(!node){return;}
+node.setAttribute('draggable','false');
+node.addEventListener('contextmenu',block,true);
+node.addEventListener('dragstart',block,true);
+node.addEventListener('copy',block,true);
+node.addEventListener('cut',block,true);
+node.addEventListener('paste',block,true);
+node.addEventListener('selectstart',block,true);
+});
+root.addEventListener('keydown',function(event){
+var key=(event.key||'').toLowerCase();
+if((event.ctrlKey||event.metaKey)&&['s','p','c','a'].indexOf(key)!==-1){block(event);}
+},true);
+};
 var initViewer=function(root,pdfjsLib){
 var pdfUrl=root.getAttribute('data-pdf-url');
 var canvas=root.querySelector('.mod-videoplayer-pdfjs-canvas');
@@ -16,6 +33,7 @@ var totalPagesNode=root.querySelector('[data-region="total-pages"]');
 var loading=root.querySelector('[data-region="pdfjs-loading"]');
 var wrap=root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap');
 if(!pdfUrl||!canvas){showError(root);return;}
+hardenViewer(root,canvas);
 var context=canvas.getContext('2d');
 var pdfDocument=null,pageNumber=1,rendering=false,pendingPage=null,firstRender=true;
 var updateButtons=function(){if(!pdfDocument){return;}if(previous){previous.disabled=pageNumber<=1;}if(next){next.disabled=pageNumber>=pdfDocument.numPages;}if(currentPageNode){currentPageNode.textContent=String(pageNumber);}if(totalPagesNode){totalPagesNode.textContent=String(pdfDocument.numPages);}};
