@@ -84,6 +84,14 @@ if (!isguestuser()) {
     ]]);
 }
 
+$playerstyle = '';
+if (get_config('mod_videoplayer', 'playercolormode') === 'custom') {
+    $playercolor = trim((string) get_config('mod_videoplayer', 'playercolor'));
+    if (preg_match('/^#[0-9a-fA-F]{6}$/', $playercolor)) {
+        $playerstyle = '--mod-videoplayer-player-color: ' . $playercolor . ';';
+    }
+}
+
 $templatecontext = [
     'type' => $type,
     'cmid' => $cm->id,
@@ -92,6 +100,7 @@ $templatecontext = [
     'pdfurl' => $protectedurl->out(false),
     'videourl' => $protectedurl->out(false),
     'title' => format_string($videoplayer->name),
+    'playerstyle' => $playerstyle,
 ];
 
 if ($type === 'pdf') {
