@@ -16,7 +16,7 @@ use mod_videoplayer\local\drive;
 function mod_videoplayer_send_file(string $path, string $filename, string $contenttype): void {
     $size = filesize($path);
     $range = '';
-    if (!empty($_SERVER['HTTP_RANGE']) && preg_match('/^bytes=(\d*)-(\d*)$/', $_SERVER['HTTP_RANGE'], $m)) {
+    if (!empty($_SERVER['HTTP_RANGE']) && preg_match('/^bytes=(\d*)-(\d*)$/', $_SERVER['HTTP_RANGE'])) {
         $range = $_SERVER['HTTP_RANGE'];
     }
     $start = 0;
@@ -66,17 +66,16 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
 }
 
 /**
- * Relay only safe proxy response headers.
+ * Relay only safe proxy response headers from the final upstream response.
  *
  * @param array $headers Captured upstream headers.
  * @param string $fallbacktype Fallback MIME type.
  * @param string $filename Safe filename.
- * @param bool $hasrange Whether the browser requested a range.
  * @return void
  */
-function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype, string $filename, bool $hasrange): void {
-    $status = !empty($headers['content-range']) || $hasrange ? 206 : 200;
-    http_response_code($status);
+function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype, string $filename): void {
+    $ispartial = !empty($headers['content-range']) || ((int)($headers['status'] ?? 0) === 206);
+    http_response_code($ispartial ? 206 : 200);
     header('Content-Type: ' . ($headers['content-type'] ?? $fallbacktype));
     header('Content-Disposition: inline; filename="' . $filename . '"');
     header('X-Content-Type-Options: nosniff');
@@ -131,10 +130,12 @@ while (ob_get_level()) {
 }
 
 $range = '';
+$curlrange = '';
 if (!empty($_SERVER['HTTP_RANGE'])) {
     $candidate = clean_param($_SERVER['HTTP_RANGE'], PARAM_RAW);
     if (preg_match('/^bytes=\d*-\d*$/', $candidate)) {
         $range = $candidate;
+        $curlrange = substr($candidate, 6);
     }
 }
 
@@ -156,7 +157,9 @@ if ($pdfcache) {
     }
 }
 
-$requestheaders = [];
+$requestheaders = [
+    'Accept-Encoding: identity',
+];
 if ($range !== '') {
     $requestheaders[] = 'Range: ' . $range;
 }
@@ -169,12 +172,18 @@ $headercallback = function($curl, string $header) use (&$responseheaders): int {
     if ($trimmed === '') {
         return $length;
     }
+    if (preg_match('/^HTTP\/\S+\s+(\d+)/i', $trimmed, $m)) {
+        $responseheaders = ['status' => (int)$m[1]];
+        return $length;
+    }
     if (preg_match('/^Content-Length:\s*(\d+)/i', $trimmed, $m)) {
         $responseheaders['content-length'] = (int)$m[1];
     } else if (preg_match('/^Content-Type:\s*(.+)$/i', $trimmed, $m)) {
         $responseheaders['content-type'] = trim($m[1]);
     } else if (preg_match('/^Content-Range:\s*(.+)$/i', $trimmed, $m)) {
         $responseheaders['content-range'] = trim($m[1]);
+    } else if (preg_match('/^Accept-Ranges:\s*(.+)$/i', $trimmed, $m)) {
+        $responseheaders['accept-ranges'] = trim($m[1]);
     }
     return $length;
 };
@@ -187,7 +196,7 @@ if ($pdfcache && $range === '' && $cachefile !== '') {
 }
 
 $ch = curl_init($url);
-curl_setopt_array($ch, [
+$options = [
     CURLOPT_FOLLOWLOCATION => true,
     CURLOPT_MAXREDIRS => 5,
     CURLOPT_CONNECTTIMEOUT => 15,
@@ -197,9 +206,9 @@ curl_setopt_array($ch, [
     CURLOPT_BUFFERSIZE => 131072,
     CURLOPT_HTTPHEADER => $requestheaders,
     CURLOPT_HEADERFUNCTION => $headercallback,
-    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename, $range): int {
+    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename): int {
         if (!$headerssent) {
-            mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $range !== '');
+            mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename);
             $headerssent = true;
         }
         if ($cachehandle) {
@@ -209,14 +218,18 @@ curl_setopt_array($ch, [
         flush();
         return strlen($data);
     },
-]);
+];
+if ($curlrange !== '') {
+    $options[CURLOPT_RANGE] = $curlrange;
+}
+curl_setopt_array($ch, $options);
 $result = curl_exec($ch);
 $curlerror = curl_error($ch);
 $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if (!$headerssent && $curlcode < 400) {
-    mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $range !== '');
+    mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename);
 }
 
 if ($cachehandle) {
