@@ -2,6 +2,25 @@ define(['core/notification'], function(Notification) {
     var PLYR_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/plyr/plyr.min.js';
     var plyrPromise = null;
 
+    var blockBrowserMediaActions = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    };
+
+    var loadAmdPlyr = function(resolve, reject) {
+        if (window.require) {
+            window.require(['Plyr'], function(Plyr) {
+                resolve(Plyr);
+            }, function() {
+                reject(new Error('Plyr AMD module could not be resolved'));
+            });
+            return;
+        }
+
+        reject(new Error('Plyr did not expose window.Plyr'));
+    };
+
     var loadPlyr = function() {
         if (window.Plyr) {
             return Promise.resolve(window.Plyr);
@@ -9,19 +28,29 @@ define(['core/notification'], function(Notification) {
 
         if (!plyrPromise) {
             plyrPromise = new Promise(function(resolve, reject) {
-                var script = document.createElement('script');
-                script.src = PLYR_URL;
-                script.async = true;
+                var existing = document.querySelector('script[data-mod-videoplayer-plyr="1"]');
+                var script = existing || document.createElement('script');
+
                 script.onload = function() {
                     if (window.Plyr) {
                         resolve(window.Plyr);
-                    } else {
-                        reject(new Error('Plyr did not expose window.Plyr'));
+                        return;
                     }
+
+                    loadAmdPlyr(resolve, reject);
                 };
                 script.onerror = function() {
                     reject(new Error('Local Plyr library could not be loaded'));
                 };
+
+                if (existing) {
+                    loadAmdPlyr(resolve, reject);
+                    return;
+                }
+
+                script.src = PLYR_URL;
+                script.async = true;
+                script.setAttribute('data-mod-videoplayer-plyr', '1');
                 document.head.appendChild(script);
             });
         }
@@ -29,11 +58,22 @@ define(['core/notification'], function(Notification) {
         return plyrPromise;
     };
 
+    var hardenVideo = function(node) {
+        node.setAttribute('controlsList', 'nodownload noplaybackrate');
+        node.setAttribute('draggable', 'false');
+        node.disablePictureInPicture = true;
+        node.addEventListener('contextmenu', blockBrowserMediaActions, true);
+        node.addEventListener('dragstart', blockBrowserMediaActions, true);
+        node.addEventListener('selectstart', blockBrowserMediaActions, true);
+    };
+
     var init = function() {
         var nodes = Array.prototype.slice.call(document.querySelectorAll('.js-drive-resource-video'));
         if (!nodes.length) {
             return;
         }
+
+        nodes.forEach(hardenVideo);
 
         loadPlyr().then(function(Plyr) {
             nodes.forEach(function(node) {
@@ -43,8 +83,9 @@ define(['core/notification'], function(Notification) {
 
                 node.dataset.plyrReady = '1';
                 new Plyr(node, {
-                    controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+                    controls: ['play-large', 'play', 'rewind', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
                     settings: ['speed'],
+                    seekTime: 10,
                     speed: {
                         selected: 1,
                         options: [0.5, 0.75, 1, 1.25, 1.5, 2]
@@ -57,6 +98,14 @@ define(['core/notification'], function(Notification) {
                     tooltips: {
                         controls: true,
                         seek: true
+                    },
+                    storage: {
+                        enabled: false
+                    },
+                    fullscreen: {
+                        enabled: true,
+                        fallback: true,
+                        iosNative: true
                     }
                 });
             });
