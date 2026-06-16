@@ -34,17 +34,15 @@ $completion->set_module_viewed($cm);
 
 $fileid = drive::extract_file_id($videoplayer->videourl ?? '');
 
-echo $OUTPUT->header();
-
-if (!empty($videoplayer->intro)) {
-    echo $OUTPUT->box(
-        format_module_intro('videoplayer', $videoplayer, $cm->id),
-        'generalbox mod_introbox',
-        'videoplayerintro'
-    );
-}
-
 if (!$fileid) {
+    echo $OUTPUT->header();
+    if (!empty($videoplayer->intro)) {
+        echo $OUTPUT->box(
+            format_module_intro('videoplayer', $videoplayer, $cm->id),
+            'generalbox mod_introbox',
+            'videoplayerintro'
+        );
+    }
     echo html_writer::div(get_string('invaliddriveurl', 'mod_videoplayer'), 'alert alert-danger');
     echo $OUTPUT->footer();
     exit;
@@ -84,6 +82,13 @@ if (!isguestuser()) {
     ]]);
 }
 
+if ($type === 'pdf') {
+    $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
+} else if ($type === 'video') {
+    $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
+    $PAGE->requires->js_call_amd('mod_videoplayer/plyr', 'init');
+}
+
 $playerstyle = '';
 if (get_config('mod_videoplayer', 'playercolormode') === 'custom') {
     $playercolor = trim((string) get_config('mod_videoplayer', 'playercolor'));
@@ -103,12 +108,19 @@ $templatecontext = [
     'playerstyle' => $playerstyle,
 ];
 
+echo $OUTPUT->header();
+
+if (!empty($videoplayer->intro)) {
+    echo $OUTPUT->box(
+        format_module_intro('videoplayer', $videoplayer, $cm->id),
+        'generalbox mod_introbox',
+        'videoplayerintro'
+    );
+}
+
 if ($type === 'pdf') {
-    $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
     echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
 } else if ($type === 'video') {
-    $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
-    $PAGE->requires->js_call_amd('mod_videoplayer/plyr', 'init');
     echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
 } else {
     echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
