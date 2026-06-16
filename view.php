@@ -98,6 +98,8 @@ if ($type === 'pdf') {
     $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
     echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
 } else if ($type === 'video') {
+    $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/videojs/video-js.min.css');
+    $PAGE->requires->js_call_amd('mod_videoplayer/videojs', 'init');
     echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
 } else {
     echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
