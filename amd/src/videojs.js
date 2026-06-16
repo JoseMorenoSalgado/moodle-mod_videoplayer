@@ -1,72 +1,82 @@
 define(['core/notification'], function(Notification) {
-    var VIDEOJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/videojs/video.min.js';
-    var videojsPromise = null;
+    var PLYR_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/plyr/plyr.min.js';
+    var PLYR_CSS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/plyr/plyr.css';
+    var plyrPromise = null;
 
-    var loadVideoJs = function() {
-        if (window.videojs) {
-            return Promise.resolve(window.videojs);
+    var ensureCss = function() {
+        if (document.querySelector('link[data-mod-videoplayer-plyr="1"]')) {
+            return;
         }
 
-        if (!videojsPromise) {
-            videojsPromise = new Promise(function(resolve, reject) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = PLYR_CSS_URL;
+        link.dataset.modVideoplayerPlyr = '1';
+        document.head.appendChild(link);
+    };
+
+    var loadPlyr = function() {
+        ensureCss();
+
+        if (window.Plyr) {
+            return Promise.resolve(window.Plyr);
+        }
+
+        if (!plyrPromise) {
+            plyrPromise = new Promise(function(resolve, reject) {
                 var script = document.createElement('script');
-                script.src = VIDEOJS_URL;
+                script.src = PLYR_URL;
                 script.async = true;
                 script.onload = function() {
-                    if (window.videojs) {
-                        resolve(window.videojs);
+                    if (window.Plyr) {
+                        resolve(window.Plyr);
                     } else {
-                        reject(new Error('Video.js did not expose window.videojs'));
+                        reject(new Error('Plyr did not expose window.Plyr'));
                     }
                 };
                 script.onerror = function() {
-                    reject(new Error('Local Video.js library could not be loaded'));
+                    reject(new Error('Local Plyr library could not be loaded'));
                 };
                 document.head.appendChild(script);
             });
         }
 
-        return videojsPromise;
-    };
-
-    var initPlayer = function(videojs, node) {
-        if (node.dataset.videojsReady === '1') {
-            return;
-        }
-
-        node.dataset.videojsReady = '1';
-        videojs(node, {
-            controls: true,
-            fluid: true,
-            responsive: true,
-            preload: 'metadata',
-            playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
-            controlBar: {
-                pictureInPictureToggle: false
-            },
-            html5: {
-                nativeAudioTracks: false,
-                nativeVideoTracks: false
-            }
-        });
+        return plyrPromise;
     };
 
     var init = function() {
-        var players = Array.prototype.slice.call(document.querySelectorAll('.mod-videoplayer-native-video'));
+        var players = Array.prototype.slice.call(document.querySelectorAll('.js-drive-resource-video, .mod-videoplayer-native-video'));
         if (!players.length) {
             return;
         }
 
-        loadVideoJs().then(function(videojs) {
+        loadPlyr().then(function(Plyr) {
             players.forEach(function(node) {
-                initPlayer(videojs, node);
+                if (node.dataset.plyrReady === '1') {
+                    return;
+                }
+
+                node.dataset.plyrReady = '1';
+                new Plyr(node, {
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+                    settings: ['speed'],
+                    speed: {
+                        selected: 1,
+                        options: [0.5, 0.75, 1, 1.25, 1.5, 2]
+                    },
+                    hideControls: true,
+                    keyboard: {
+                        focused: true,
+                        global: false
+                    }
+                });
             });
         }).catch(function(error) {
             if (window.console) {
                 window.console.warn(error.message || error);
             }
             Notification.addNotification({
-                message: M.util.get_string('videojsmissing', 'mod_videoplayer'),
+                message: M.util.get_string('plyrmissing', 'mod_videoplayer'),
                 type: 'warning'
             });
         });
