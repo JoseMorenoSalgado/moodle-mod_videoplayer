@@ -5,7 +5,14 @@
     </div>
 
     <div class="mod-videoplayer-native-frame">
-        <video class="mod-videoplayer-native-video" controls controlslist="nodownload" playsinline preload="metadata" title="{{title}}">
+        <video
+            class="mod-videoplayer-native-video video-js vjs-big-play-centered"
+            data-setup="{}"
+            controls
+            controlslist="nodownload"
+            playsinline
+            preload="metadata"
+            title="{{title}}">
             <source src="{{videourl}}" type="video/mp4">
             {{#str}} videonotsupported, mod_videoplayer {{/str}}
         </video>
