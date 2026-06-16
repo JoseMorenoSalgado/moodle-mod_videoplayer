@@ -5,6 +5,14 @@ require_once(__DIR__ . '/lib.php');
 
 use mod_videoplayer\local\drive;
 
+/**
+ * Send a locally cached file with safe byte-range support.
+ *
+ * @param string $path Absolute local path.
+ * @param string $filename Safe download filename.
+ * @param string $contenttype MIME type.
+ * @return void
+ */
 function mod_videoplayer_send_file(string $path, string $filename, string $contenttype): void {
     $size = filesize($path);
     $range = '';
@@ -57,6 +65,34 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     die;
 }
 
+/**
+ * Relay only safe proxy response headers.
+ *
+ * @param array $headers Captured upstream headers.
+ * @param string $fallbacktype Fallback MIME type.
+ * @param string $filename Safe filename.
+ * @param bool $hasrange Whether the browser requested a range.
+ * @return void
+ */
+function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype, string $filename, bool $hasrange): void {
+    $status = !empty($headers['content-range']) || $hasrange ? 206 : 200;
+    http_response_code($status);
+    header('Content-Type: ' . ($headers['content-type'] ?? $fallbacktype));
+    header('Content-Disposition: inline; filename="' . $filename . '"');
+    header('X-Content-Type-Options: nosniff');
+    header('Accept-Ranges: bytes');
+    header('Cache-Control: private, max-age=900, no-transform');
+    header('Pragma: private');
+    header('Vary: Range');
+
+    if (!empty($headers['content-length'])) {
+        header('Content-Length: ' . $headers['content-length']);
+    }
+    if (!empty($headers['content-range'])) {
+        header('Content-Range: ' . $headers['content-range']);
+    }
+}
+
 $id = required_param('id', PARAM_INT);
 $cm = get_coursemodule_from_id('videoplayer', $id, 0, false, MUST_EXIST);
 $course = $DB->get_record('course', ['id' => $cm->course], '*', MUST_EXIST);
@@ -84,6 +120,8 @@ if ($filename === '') {
 }
 if (drive::is_pdf_type($type) && !preg_match('/\.pdf$/i', $filename)) {
     $filename .= '.pdf';
+} else if ($type === 'video' && !preg_match('/\.(mp4|webm|m4v|mov)$/i', $filename)) {
+    $filename .= '.mp4';
 }
 
 \core\session\manager::write_close();
@@ -92,9 +130,12 @@ while (ob_get_level()) {
     ob_end_clean();
 }
 
-$range = optional_param('range', '', PARAM_RAW);
-if (empty($range) && !empty($_SERVER['HTTP_RANGE'])) {
-    $range = clean_param($_SERVER['HTTP_RANGE'], PARAM_RAW);
+$range = '';
+if (!empty($_SERVER['HTTP_RANGE'])) {
+    $candidate = clean_param($_SERVER['HTTP_RANGE'], PARAM_RAW);
+    if (preg_match('/^bytes=\d*-\d*$/', $candidate)) {
+        $range = $candidate;
+    }
 }
 
 $pdfcache = drive::is_pdf_type($type) && get_config('mod_videoplayer', 'pdfcacheenabled');
@@ -116,70 +157,68 @@ if ($pdfcache) {
 }
 
 $requestheaders = [];
-if (!empty($range) && preg_match('/^bytes=\d*-\d*$/', $range)) {
+if ($range !== '') {
     $requestheaders[] = 'Range: ' . $range;
 }
-$headerbuffer = [];
-$contentlength = null;
-$remotecontenttype = null;
-$headercallback = function($curl, string $header) use (&$headerbuffer, &$contentlength, &$remotecontenttype): int {
+
+$responseheaders = [];
+$headerssent = false;
+$headercallback = function($curl, string $header) use (&$responseheaders): int {
     $length = strlen($header);
     $trimmed = trim($header);
     if ($trimmed === '') {
         return $length;
     }
     if (preg_match('/^Content-Length:\s*(\d+)/i', $trimmed, $m)) {
-        $contentlength = (int)$m[1];
+        $responseheaders['content-length'] = (int)$m[1];
     } else if (preg_match('/^Content-Type:\s*(.+)$/i', $trimmed, $m)) {
-        $remotecontenttype = trim($m[1]);
+        $responseheaders['content-type'] = trim($m[1]);
     } else if (preg_match('/^Content-Range:\s*(.+)$/i', $trimmed, $m)) {
-        $headerbuffer['Content-Range'] = trim($m[1]);
+        $responseheaders['content-range'] = trim($m[1]);
     }
     return $length;
 };
-$head = curl_init($url);
-curl_setopt_array($head, [CURLOPT_NOBODY => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 5, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_TIMEOUT => 20, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_HTTPHEADER => $requestheaders, CURLOPT_HEADERFUNCTION => $headercallback]);
-curl_exec($head);
-$headcode = (int)curl_getinfo($head, CURLINFO_HTTP_CODE);
-curl_close($head);
-if ($headcode >= 400) {
-    throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
-}
-$httpcode = (!empty($range) || $headcode === 206) ? 206 : 200;
-http_response_code($httpcode);
-header('Content-Type: ' . ($remotecontenttype ?: $contenttype));
-header('Content-Disposition: inline; filename="' . $filename . '"');
-header('X-Content-Type-Options: nosniff');
-header('Accept-Ranges: bytes');
-header('Cache-Control: private, max-age=900, no-transform');
-header('Pragma: private');
-header('Vary: Range');
-if ($contentlength !== null) {
-    header('Content-Length: ' . $contentlength);
-}
-if (!empty($headerbuffer['Content-Range'])) {
-    header('Content-Range: ' . $headerbuffer['Content-Range']);
-}
 
 $cachehandle = null;
 $tmpcachefile = '';
-if ($pdfcache && empty($range) && $cachefile !== '') {
+if ($pdfcache && $range === '' && $cachefile !== '') {
     $tmpcachefile = $cachefile . '.tmp.' . getmypid();
     $cachehandle = fopen($tmpcachefile, 'wb');
 }
+
 $ch = curl_init($url);
-curl_setopt_array($ch, [CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 5, CURLOPT_CONNECTTIMEOUT => 15, CURLOPT_TIMEOUT => 0, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2, CURLOPT_BUFFERSIZE => 131072, CURLOPT_HTTPHEADER => $requestheaders, CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle): int {
-    if ($cachehandle) {
-        fwrite($cachehandle, $data);
-    }
-    echo $data;
-    flush();
-    return strlen($data);
-}]);
+curl_setopt_array($ch, [
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 5,
+    CURLOPT_CONNECTTIMEOUT => 15,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
+    CURLOPT_BUFFERSIZE => 131072,
+    CURLOPT_HTTPHEADER => $requestheaders,
+    CURLOPT_HEADERFUNCTION => $headercallback,
+    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename, $range): int {
+        if (!$headerssent) {
+            mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $range !== '');
+            $headerssent = true;
+        }
+        if ($cachehandle) {
+            fwrite($cachehandle, $data);
+        }
+        echo $data;
+        flush();
+        return strlen($data);
+    },
+]);
 $result = curl_exec($ch);
 $curlerror = curl_error($ch);
 $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
+
+if (!$headerssent && $curlcode < 400) {
+    mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $range !== '');
+}
+
 if ($cachehandle) {
     fclose($cachehandle);
     if ($result !== false && $curlcode < 400 && is_readable($tmpcachefile)) {
