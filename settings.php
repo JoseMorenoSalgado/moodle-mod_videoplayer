@@ -39,6 +39,25 @@ if ($ADMIN->fulltree) {
         1
     ));
 
+    $settings->add(new admin_setting_configselect(
+        'mod_videoplayer/playercolormode',
+        get_string('setting_playercolormode', 'mod_videoplayer'),
+        get_string('setting_playercolormode_desc', 'mod_videoplayer'),
+        'theme',
+        [
+            'theme' => get_string('setting_playercolormode_theme', 'mod_videoplayer'),
+            'custom' => get_string('setting_playercolormode_custom', 'mod_videoplayer'),
+        ]
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'mod_videoplayer/playercolor',
+        get_string('setting_playercolor', 'mod_videoplayer'),
+        get_string('setting_playercolor_desc', 'mod_videoplayer'),
+        '#3b82f6',
+        PARAM_TEXT
+    ));
+
     $settings->add(new admin_setting_configcheckbox(
         'mod_videoplayer/pdfcacheenabled',
         get_string('setting_pdfcacheenabled', 'mod_videoplayer'),
