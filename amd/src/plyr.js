@@ -58,6 +58,22 @@ define(['core/notification'], function(Notification) {
         return plyrPromise;
     };
 
+    var markOrientation = function(node) {
+        var wrapper = node.closest('.mod-videoplayer-native-frame');
+        if (!wrapper || !node.videoWidth || !node.videoHeight) {
+            return;
+        }
+
+        wrapper.classList.remove('is-portrait-video', 'is-landscape-video', 'is-square-video');
+        if (node.videoHeight > node.videoWidth) {
+            wrapper.classList.add('is-portrait-video');
+        } else if (node.videoWidth > node.videoHeight) {
+            wrapper.classList.add('is-landscape-video');
+        } else {
+            wrapper.classList.add('is-square-video');
+        }
+    };
+
     var hardenVideo = function(node) {
         node.setAttribute('controlsList', 'nodownload noplaybackrate');
         node.setAttribute('draggable', 'false');
@@ -65,6 +81,9 @@ define(['core/notification'], function(Notification) {
         node.addEventListener('contextmenu', blockBrowserMediaActions, true);
         node.addEventListener('dragstart', blockBrowserMediaActions, true);
         node.addEventListener('selectstart', blockBrowserMediaActions, true);
+        node.addEventListener('loadedmetadata', function() {
+            markOrientation(node);
+        });
     };
 
     var init = function() {
@@ -108,6 +127,7 @@ define(['core/notification'], function(Notification) {
                         iosNative: true
                     }
                 });
+                markOrientation(node);
             });
         }).catch(function(error) {
             if (window.console) {
