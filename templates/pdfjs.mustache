@@ -4,18 +4,18 @@
         <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
     </div>
 
-    <div class="mod-videoplayer-pdfjs-viewer" data-pdf-url="{{pdfurl}}" data-title="{{title}}">
+    <div class="mod-videoplayer-pdfjs-viewer" data-pdf-url="{{pdfurl}}" data-title="{{title}}" oncontextmenu="return false;">
         <div class="mod-videoplayer-pdfjs-topbar" aria-label="{{title}}">
             <span class="mod-videoplayer-pdfjs-page-status"><span data-region="current-page">1</span> / <span data-region="total-pages">-</span></span>
         </div>
 
-        <div class="mod-videoplayer-pdfjs-canvas-wrap">
+        <div class="mod-videoplayer-pdfjs-canvas-wrap" oncontextmenu="return false;">
             <div class="mod-videoplayer-pdfjs-loading" data-region="pdfjs-loading">
                 <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
                 <span>Cargando PDF...</span>
             </div>
             <button type="button" class="mod-videoplayer-pdfjs-nav mod-videoplayer-pdfjs-nav-prev" data-action="previous-page" aria-label="Página anterior">‹</button>
-            <canvas class="mod-videoplayer-pdfjs-canvas"></canvas>
+            <canvas class="mod-videoplayer-pdfjs-canvas" draggable="false" oncontextmenu="return false;"></canvas>
             <button type="button" class="mod-videoplayer-pdfjs-nav mod-videoplayer-pdfjs-nav-next" data-action="next-page" aria-label="Página siguiente">›</button>
             <button type="button" class="mod-videoplayer-pdfjs-fullscreen" data-action="fullscreen" aria-label="Pantalla completa">⛶</button>
         </div>
