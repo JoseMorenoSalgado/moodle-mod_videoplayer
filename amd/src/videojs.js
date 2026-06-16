@@ -76,7 +76,7 @@ define(['core/notification'], function(Notification) {
                 window.console.warn(error.message || error);
             }
             Notification.addNotification({
-                message: M.util.get_string('plyrmissing', 'mod_videoplayer'),
+                message: M.util.get_string('videojsmissing', 'mod_videoplayer'),
                 type: 'warning'
             });
         });
