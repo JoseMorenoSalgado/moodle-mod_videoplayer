@@ -40,6 +40,7 @@ $string['protectedmodedisabled'] = 'Protected mode is disabled by the site admin
 $string['unsupportedprotectedresource'] = 'This protected resource type is not currently supported.';
 $string['protectedresourceunavailable'] = 'The protected resource is currently unavailable or cannot be streamed.';
 $string['pdfjsrequired'] = 'The local PDF.js viewer could not be loaded. Please contact the site administrator and confirm that thirdpartylibs/pdfjs/pdf.min.mjs and thirdpartylibs/pdfjs/pdf.worker.min.mjs are installed.';
+$string['videonotsupported'] = 'Your browser cannot play this video.';
 $string['setting_enabletracking'] = 'Enable progress tracking';
 $string['setting_enabletracking_desc'] = 'When enabled, Drive Resource records user presence and interaction time in the activity.';
 $string['setting_defaultrequiredseconds'] = 'Default required time';
