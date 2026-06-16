@@ -41,6 +41,7 @@ $string['unsupportedprotectedresource'] = 'This protected resource type is not c
 $string['protectedresourceunavailable'] = 'The protected resource is currently unavailable or cannot be streamed.';
 $string['pdfjsrequired'] = 'The local PDF.js viewer could not be loaded. Please contact the site administrator and confirm that thirdpartylibs/pdfjs/pdf.min.mjs and thirdpartylibs/pdfjs/pdf.worker.min.mjs are installed.';
 $string['videonotsupported'] = 'Your browser cannot play this video.';
+$string['plyrmissing'] = 'The local Plyr player could not be loaded. The native HTML5 player will be used.';
 $string['videojsmissing'] = 'Local Video.js is not installed. The native HTML5 player will be used.';
 $string['setting_enabletracking'] = 'Enable progress tracking';
 $string['setting_enabletracking_desc'] = 'When enabled, Drive Resource records user presence and interaction time in the activity.';
