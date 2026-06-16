@@ -1,14 +1,4 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
-
-/**
- * View page for mod_videoplayer.
- *
- * @package    mod_videoplayer
- * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-
 require(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
@@ -100,12 +90,15 @@ $templatecontext = [
     'resourcetype' => get_string('resourcetype', 'mod_videoplayer') . ': ' . $typestring,
     'iframeurl' => $previewurl->out(false),
     'pdfurl' => $protectedurl->out(false),
+    'videourl' => $protectedurl->out(false),
     'title' => format_string($videoplayer->name),
 ];
 
 if ($type === 'pdf') {
     $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
     echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
+} else if ($type === 'video') {
+    echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
 } else {
     echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
 }
