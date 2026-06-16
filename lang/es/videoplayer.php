@@ -39,6 +39,7 @@ $string['unsupportedprotectedresource'] = 'Este tipo de recurso protegido no est
 $string['protectedresourceunavailable'] = 'El recurso protegido no está disponible actualmente.';
 $string['pdfjsrequired'] = 'No se pudo cargar el visor local PDF.js.';
 $string['videonotsupported'] = 'Su navegador no puede reproducir este video.';
+$string['plyrmissing'] = 'No se pudo cargar el reproductor local Plyr. Se usará el reproductor HTML5 nativo.';
 $string['videojsmissing'] = 'Video.js local no está instalado. Se usará el reproductor HTML5 nativo.';
 $string['setting_enabletracking'] = 'Activar seguimiento de progreso';
 $string['setting_enabletracking_desc'] = 'Registra permanencia e interacción del usuario.';
