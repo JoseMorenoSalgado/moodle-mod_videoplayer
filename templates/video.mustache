@@ -1,0 +1,13 @@
+<div class="mod-videoplayer-container mod-videoplayer-native" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+    <div class="mod-videoplayer-meta mb-2">
+        <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
+        <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
+    </div>
+
+    <div class="mod-videoplayer-native-frame">
+        <video class="mod-videoplayer-native-video" controls controlslist="nodownload" playsinline preload="metadata" title="{{title}}">
+            <source src="{{videourl}}" type="video/mp4">
+            {{#str}} videonotsupported, mod_videoplayer {{/str}}
+        </video>
+    </div>
+</div>
