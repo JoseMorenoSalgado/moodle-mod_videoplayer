@@ -1,0 +1,46 @@
+.mod-videoplayer-ebook-stage {
+    position: relative !important;
+    display: block !important;
+    width: min(100%, 1040px) !important;
+    height: clamp(520px, 74vh, 860px) !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.mod-videoplayer-ebook-stage .stf__parent,
+.mod-videoplayer-ebook-stage .stf__wrapper,
+.mod-videoplayer-ebook-stage .stf__block {
+    width: 100% !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.mod-videoplayer-ebook-stage .stf__wrapper {
+    position: relative !important;
+}
+
+.mod-videoplayer-ebook-stage .stf__block,
+.mod-videoplayer-ebook-stage .stf__item {
+    position: absolute !important;
+}
+
+.mod-videoplayer-ebook-stage .mod-videoplayer-ebook-page {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    background: #fff !important;
+}
+
+.mod-videoplayer-ebook-stage .mod-videoplayer-ebook-page-canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+}
+
+@media (max-width: 767.98px) {
+    .mod-videoplayer-ebook-stage {
+        width: 100% !important;
+        height: clamp(520px, 76vh, 760px) !important;
+    }
+}
