@@ -96,7 +96,6 @@ function videoplayer_save_localpdf_file(stdClass $data, int $instanceid): void {
             'subdirs' => 0,
             'maxfiles' => 1,
             'accepted_types' => ['.pdf'],
-            'return_types' => FILE_INTERNAL,
         ]
     );
 }
