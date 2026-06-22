@@ -114,8 +114,6 @@ function xmldb_videoplayer_upgrade($oldversion) {
             $viewstable->add_key('fk_videoplayerid', XMLDB_KEY_FOREIGN, ['videoplayerid'], 'videoplayer', ['id']);
             $viewstable->add_key('fk_userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
             $viewstable->add_key('uniq_videoplayer_user', XMLDB_KEY_UNIQUE, ['videoplayerid', 'userid']);
-            $viewstable->add_index('videoplayerid_idx', XMLDB_INDEX_NOTUNIQUE, ['videoplayerid']);
-            $viewstable->add_index('userid_idx', XMLDB_INDEX_NOTUNIQUE, ['userid']);
             $viewstable->add_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']);
             $viewstable->add_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']);
             $dbman->create_table($viewstable);
@@ -136,8 +134,6 @@ function xmldb_videoplayer_upgrade($oldversion) {
             }
 
             $indexes = [
-                new xmldb_index('videoplayerid_idx', XMLDB_INDEX_NOTUNIQUE, ['videoplayerid']),
-                new xmldb_index('userid_idx', XMLDB_INDEX_NOTUNIQUE, ['userid']),
                 new xmldb_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']),
                 new xmldb_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']),
             ];
@@ -226,8 +222,6 @@ function xmldb_videoplayer_upgrade($oldversion) {
             $rewardstable->add_key('fk_videoplayerid', XMLDB_KEY_FOREIGN, ['videoplayerid'], 'videoplayer', ['id']);
             $rewardstable->add_key('fk_userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
             $rewardstable->add_key('uniq_reward', XMLDB_KEY_UNIQUE, ['videoplayerid', 'userid', 'rewardtype', 'rewardkey']);
-            $rewardstable->add_index('videoplayerid_idx', XMLDB_INDEX_NOTUNIQUE, ['videoplayerid']);
-            $rewardstable->add_index('userid_idx', XMLDB_INDEX_NOTUNIQUE, ['userid']);
             $rewardstable->add_index('rewardkey_idx', XMLDB_INDEX_NOTUNIQUE, ['rewardkey']);
             $dbman->create_table($rewardstable);
         }
