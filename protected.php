@@ -6,7 +6,7 @@ require_once(__DIR__ . '/lib.php');
 use mod_videoplayer\local\drive;
 
 /**
- * Send a locally cached file with safe byte-range support.
+ * Send a local file with safe byte-range support.
  *
  * @param string $path Absolute local path.
  * @param string $filename Safe download filename.
@@ -14,14 +14,24 @@ use mod_videoplayer\local\drive;
  * @return void
  */
 function mod_videoplayer_send_file(string $path, string $filename, string $contenttype): void {
+    if (!is_readable($path)) {
+        throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
+    }
+
     $size = filesize($path);
+    if ($size === false || $size <= 0) {
+        throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
+    }
+
     $range = '';
     if (!empty($_SERVER['HTTP_RANGE']) && preg_match('/^bytes=(\d*)-(\d*)$/', $_SERVER['HTTP_RANGE'])) {
         $range = $_SERVER['HTTP_RANGE'];
     }
+
     $start = 0;
     $end = $size - 1;
     $code = 200;
+
     if ($range !== '') {
         $parts = explode('-', substr($range, 6), 2);
         if ($parts[0] !== '') {
@@ -30,11 +40,16 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
         if ($parts[1] !== '') {
             $end = min($end, (int)$parts[1]);
         }
-        if ($start <= $end) {
-            $code = 206;
+        if ($start > $end || $start >= $size) {
+            http_response_code(416);
+            header('Content-Range: bytes */' . $size);
+            die;
         }
+        $code = 206;
     }
+
     $length = $end - $start + 1;
+
     http_response_code($code);
     header('Content-Type: ' . $contenttype);
     header('Content-Disposition: inline; filename="' . $filename . '"');
@@ -44,18 +59,21 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     header('Cache-Control: private, max-age=900, no-transform');
     header('Pragma: private');
     header('Content-Length: ' . $length);
+    header('Vary: Range');
     if ($code === 206) {
         header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
     }
+
     $fp = fopen($path, 'rb');
     if ($fp === false) {
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
+
     fseek($fp, $start);
     $left = $length;
     while ($left > 0 && !feof($fp)) {
         $chunk = fread($fp, min(131072, $left));
-        if ($chunk === false) {
+        if ($chunk === false || $chunk === '') {
             break;
         }
         echo $chunk;
@@ -64,6 +82,35 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     }
     fclose($fp);
     die;
+}
+
+/**
+ * Send a stored Moodle file through the Drive Resource streamer.
+ *
+ * PDF.js is strict: any Moodle HTML, redirect, debug notice or wrapper output makes
+ * the document fail with InvalidPDFException. Copying to request temp storage lets
+ * this endpoint serve exact PDF bytes with deterministic Range headers.
+ *
+ * @param stored_file $file Stored Moodle file.
+ * @param string $filename Safe filename.
+ * @return void
+ */
+function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): void {
+    $tmpdir = make_request_directory();
+    $tmppath = $tmpdir . '/' . sha1($file->get_contenthash() . ':' . $file->get_timemodified()) . '.pdf';
+
+    $file->copy_content_to($tmppath);
+
+    $fh = fopen($tmppath, 'rb');
+    if ($fh === false || fread($fh, 5) !== '%PDF-') {
+        if ($fh !== false) {
+            fclose($fh);
+        }
+        throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
+    }
+    fclose($fh);
+
+    mod_videoplayer_send_file($tmppath, $filename, 'application/pdf');
 }
 
 /**
@@ -122,13 +169,7 @@ if (($videoplayer->source ?? 'googledrive') === 'localpdf') {
         ob_end_clean();
     }
 
-    header('X-Content-Type-Options: nosniff');
-    header('X-Robots-Tag: noindex, nofollow, noarchive');
-    send_stored_file($file, 0, 0, false, [
-        'preview' => true,
-        'filename' => $filename,
-        'dontdie' => false,
-    ]);
+    mod_videoplayer_send_stored_pdf($file, $filename);
 }
 
 $fileid = drive::extract_file_id($videoplayer->videourl ?? '');
@@ -261,13 +302,18 @@ if (!$headerssent && $curlcode < 400) {
 
 if ($cachehandle) {
     fclose($cachehandle);
-    if ($result !== false && $curlcode < 400 && is_readable($tmpcachefile)) {
+    if ($result && $curlcode >= 200 && $curlcode < 300 && is_file($tmpcachefile) && filesize($tmpcachefile) > 0) {
         rename($tmpcachefile, $cachefile);
-    } else if (file_exists($tmpcachefile)) {
+    } else if (is_file($tmpcachefile)) {
         unlink($tmpcachefile);
     }
 }
+
 if ($result === false || $curlcode >= 400) {
-    debugging('Drive Resource protected stream failed: ' . $curlerror, DEBUG_DEVELOPER);
+    if (!$headerssent) {
+        http_response_code(502);
+    }
+    debugging('Drive Resource proxy failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
 }
+
 die;
