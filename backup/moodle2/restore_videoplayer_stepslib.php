@@ -46,6 +46,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
 
         $data = (object) $data;
         $oldid = $data->id;
+        unset($data->id);
 
         $data->course = $this->get_courseid();
 
@@ -94,6 +95,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
         global $DB;
 
         $data = (object) $data;
+        unset($data->id);
         $data->videoplayerid = $this->get_new_parentid('videoplayer');
         $data->userid = $this->get_mappingid('user', $data->userid);
 
@@ -118,6 +120,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
         global $DB;
 
         $data = (object) $data;
+        unset($data->id);
         $data->videoplayerid = $this->get_new_parentid('videoplayer');
         $data->userid = $this->get_mappingid('user', $data->userid);
 
