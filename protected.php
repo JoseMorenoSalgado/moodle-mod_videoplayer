@@ -43,6 +43,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
         if ($start > $end || $start >= $size) {
             http_response_code(416);
             header('Content-Range: bytes */' . $size);
+            header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
             die;
         }
         $code = 206;
@@ -56,8 +57,9 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     header('X-Content-Type-Options: nosniff');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
-    header('Cache-Control: private, max-age=900, no-transform');
-    header('Pragma: private');
+    header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     header('Content-Length: ' . $length);
     header('Vary: Range');
     if ($code === 206) {
@@ -85,11 +87,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
 }
 
 /**
- * Send a stored Moodle file through the Drive Resource streamer.
- *
- * PDF.js is strict: any Moodle HTML, redirect, debug notice or wrapper output makes
- * the document fail with InvalidPDFException. Copying to request temp storage lets
- * this endpoint serve exact PDF bytes with deterministic Range headers.
+ * Send a stored Moodle PDF through the Drive Resource streamer.
  *
  * @param stored_file $file Stored Moodle file.
  * @param string $filename Safe filename.
@@ -102,13 +100,14 @@ function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): v
     $file->copy_content_to($tmppath);
 
     $fh = fopen($tmppath, 'rb');
-    if ($fh === false || fread($fh, 5) !== '%PDF-') {
-        if ($fh !== false) {
-            fclose($fh);
-        }
+    $header = $fh === false ? '' : fread($fh, 1024);
+    if ($fh !== false) {
+        fclose($fh);
+    }
+    if (strpos($header, '%PDF-') === false) {
+        debugging('Drive Resource local PDF did not contain a PDF header in the first 1024 bytes.', DEBUG_DEVELOPER);
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
-    fclose($fh);
 
     mod_videoplayer_send_file($tmppath, $filename, 'application/pdf');
 }
@@ -129,8 +128,9 @@ function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype
     header('X-Content-Type-Options: nosniff');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
-    header('Cache-Control: private, max-age=900, no-transform');
-    header('Pragma: private');
+    header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     header('Vary: Range');
 
     if (!empty($headers['content-length'])) {
