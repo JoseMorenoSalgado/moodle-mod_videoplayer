@@ -183,6 +183,35 @@
         inset 14px 0 28px rgba(15, 23, 42, .05);
 }
 
+.mod-videoplayer-ebook-stage {
+    width: min(100%, 1080px);
+    min-height: 640px;
+    margin: 0 auto;
+    filter: drop-shadow(0 24px 48px rgba(15, 23, 42, .20));
+}
+
+.mod-videoplayer-ebook-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    overflow: hidden;
+    border-radius: .4rem;
+}
+
+.mod-videoplayer-ebook-page-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+}
+
+.mod-videoplayer-ebook .mod-videoplayer-pdfjs-canvas[hidden] {
+    display: none !important;
+}
+
 .mod-videoplayer-pdfjs-loading {
     position: absolute;
     inset: 0;
@@ -328,6 +357,11 @@
         padding: .5rem;
     }
 
+    .mod-videoplayer-ebook-stage {
+        width: 100%;
+        min-height: 460px;
+    }
+
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
     .mod-videoplayer-pdfjs-viewer.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
         padding: 2.75rem .4rem 3.25rem;
@@ -344,6 +378,10 @@
 
     .mod-videoplayer-pdfjs-canvas-wrap,
     .mod-videoplayer-pdf-wrapper {
+        min-height: 380px;
+    }
+
+    .mod-videoplayer-ebook-stage {
         min-height: 380px;
     }
 }
