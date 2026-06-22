@@ -1,116 +1,168 @@
 # Drive Resource Architecture
 
-Drive Resource is a Moodle activity module that embeds and tracks Google Drive resources inside Moodle courses.
+Drive Resource is a Moodle activity module for publishing protected Google Drive and Moodle-local resources inside courses.
 
-The internal component name is `mod_videoplayer` for compatibility. The product identity shown to users is **Drive Resource**.
+The internal component name remains `mod_videoplayer` for compatibility. The product identity shown to users is **Drive Resource**.
 
-## High-level flow
+## Target flow
 
 ```text
-Google Drive / Google Docs
-          |
-          v
-+----------------------+        +----------------------+
-|  Drive URL submitted | -----> |  mod_form.php        |
-+----------------------+        +----------------------+
-                                      |
-                                      v
-                              +----------------------+
-                              |  videoplayer table   |
-                              +----------------------+
-                                      |
-                                      v
-+----------------------+        +----------------------+
-|  Student opens CM    | -----> |  view.php            |
-+----------------------+        +----------------------+
-                                      |
-                  +-------------------+-------------------+
-                  |                   |                   |
-                  v                   v                   v
-        +------------------+ +------------------+ +------------------+
-        | resource.mustache| | progress.js      | | fullscreen.js    |
-        +------------------+ +------------------+ +------------------+
-                  |                   |                   |
-                  v                   v                   v
-        Embedded resource     AJAX progress       Fullscreen overlay
+Resource source
+↓
+Drive Resource activity instance
+↓
+protected.php
+↓
+Moodle access checks
+↓
+Secure proxy or Moodle File API delivery
+↓
+Local viewer
+↓
+Progress, completion and gamification
 ```
+
+## Resource sources
+
+Drive Resource currently supports two source families:
+
+1. **Google Drive URLs** parsed server-side and streamed through `protected.php` where supported.
+2. **Local protected PDFs** stored in Moodle private file storage under the `mod_videoplayer/localpdf` file area.
+
+Local PDFs are never placed in the web root. They are served only after Moodle validates course, module, context and capability access.
 
 ## Main components
 
 ### `mod_form.php`
 
-Defines the teacher-facing activity form. It validates supported Google Drive and Google Docs URLs and allows the teacher to configure:
+Defines the teacher-facing activity form. It supports:
 
-- resource name,
-- Drive URL,
-- resource type,
-- completion percentage,
-- standard Moodle activity settings.
+- Google Drive source.
+- Local protected PDF source.
+- resource type selection.
+- PDF display mode: standard or ebook.
+- download discouragement settings.
+- right-click/copy discouragement.
+- dynamic watermark.
+- gamification settings.
+- completion percentage.
 
-### `classes/local/drive.php`
+### `lib.php`
 
-Helper service for Google Drive URLs. It is responsible for:
+Handles Moodle module lifecycle operations:
 
-- extracting file IDs,
-- detecting resource types,
-- validating supported URLs,
-- generating preview URLs,
-- supporting protected resource URL construction.
-
-### `view.php`
-
-Main student-facing activity page. It:
-
-- validates course and module access,
-- triggers the Moodle viewed event,
-- marks the module as viewed for completion,
-- prepares the template context,
-- loads AMD modules for progress and fullscreen behavior,
-- renders `templates/resource.mustache`.
-
-### `templates/resource.mustache`
-
-Presentation layer for the embedded resource. It renders:
-
-- the resource toolbar,
-- the protected resource notice,
-- the embedded iframe,
-- the fullscreen overlay markup.
-
-### `classes/output/renderer.php`
-
-Renderer class for centralizing output logic. It wraps rendering of the resource template and error output.
-
-### `amd/src/progress.js`
-
-Tracks active presence in the activity page. Google Drive iframes do not expose exact playback time, so this module sends periodic heartbeat updates based on active page presence.
-
-### `classes/external/save_progress.php`
-
-AJAX external API endpoint that receives progress data and stores it in `videoplayer_views`.
-
-### `amd/src/fullscreen.js`
-
-Controls the plugin-owned fullscreen viewer. It opens the resource in an overlay inside Moodle instead of redirecting users to Google Drive.
+- supported features.
+- add/update/delete instance.
+- File API persistence for local PDFs.
+- cleanup of local files, progress and rewards.
 
 ### `protected.php`
 
-Authenticated endpoint intended to reduce direct exposure of the original Google Drive URL. It validates Moodle access before serving supported content through the plugin.
+Authenticated resource endpoint. It validates:
 
-## Backup and Restore
+- course module.
+- course.
+- activity instance.
+- `require_login()`.
+- `context_module`.
+- `mod/videoplayer:view` capability.
 
-Backup and Restore are implemented under:
+For local PDFs, it uses Moodle File API delivery. For supported Google Drive resources, it streams through a protected proxy.
+
+### `view.php`
+
+Main activity page. It:
+
+- validates access.
+- triggers `course_module_viewed`.
+- marks the module as viewed for completion.
+- loads the correct AMD viewer.
+- sends initial progress, page and gamification state to the template.
+
+## Viewers
+
+### Standard PDF viewer
+
+`amd/src/pdfviewer.js` renders protected PDFs with local PDF.js.
+
+### Ebook viewer
+
+`amd/src/ebookviewer.js` renders protected PDFs with local PDF.js and optional local StPageFlip.
+
+The ebook viewer is progressive:
 
 ```text
-backup/moodle2/
+PDF.js local
+↓
+Render PDF pages as canvas
+↓
+If PageFlip is available, use flipbook
+↓
+If PageFlip is missing, fallback to protected PDF.js flow
 ```
 
-They include the main activity record and user progress records when user data is included in the backup.
+Required optional PageFlip files:
+
+```text
+thirdpartylibs/pageflip/page-flip.browser.js
+thirdpartylibs/pageflip/page-flip.css
+```
+
+StPageFlip is documented upstream as MIT licensed and supports mobile devices, no dependencies, HTML pages and script-tag usage through `St.PageFlip`.
+
+### Video viewer
+
+HTML5 video playback uses local Plyr assets where available.
+
+## Progress and gamification
+
+Progress is saved through the AJAX function `mod_videoplayer_save_progress` and delegated to services:
+
+```text
+classes/local/progress/progress_service.php
+classes/local/gamification/reward_service.php
+```
+
+Progress data is stored in `videoplayer_views`:
+
+- last page.
+- total pages.
+- active time.
+- completion percentage.
+- completion state.
+- points.
+
+Rewards are stored in `videoplayer_rewards` and awarded without duplicates.
+
+## Events
+
+The module emits:
+
+- `course_module_viewed`
+- `progress_updated`
+- `resource_completed`
+- `reward_awarded`
+
+These support Moodle logs, reporting, completion workflows and future analytics.
+
+## Backup and restore
+
+Backup and restore include:
+
+- activity configuration.
+- local PDF files.
+- progress records when user data is included.
+- gamification rewards when user data is included.
 
 ## Privacy API
 
-User progress data is stored in `videoplayer_views`. The Privacy API declares this table and its user-related fields.
+Privacy API exports and deletes:
 
-## Security boundaries
+- progress records.
+- reading state.
+- completion data.
+- reward data.
 
-Drive Resource can restrict plugin-owned links and iframe permissions. However, Google controls its own embedded viewer. Controls rendered internally by Google cannot be removed by Moodle because of browser cross-origin security rules.
+## Security boundary
+
+Drive Resource prevents direct public file URLs for local PDFs and hides source URLs from the learner-facing UI. Browser-level restrictions such as disabling right click are only deterrents. The enforceable protection is server-side access control through Moodle and `protected.php`.
