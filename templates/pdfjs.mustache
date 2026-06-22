@@ -28,18 +28,42 @@
          data-points-per-page="{{pointsperpage}}"
          data-watermark="{{#enablewatermark}}{{watermark}}{{/enablewatermark}}"
          oncontextmenu="return false;">
-        <div class="mod-videoplayer-pdfjs-topbar" aria-label="{{title}}">
-            <button type="button" class="btn btn-sm btn-secondary" data-action="previous-page">{{#str}} previouspage, mod_videoplayer {{/str}}</button>
-            <span class="mod-videoplayer-pdfjs-page-status"><span data-region="current-page">1</span> / <span data-region="total-pages">-</span></span>
-            <button type="button" class="btn btn-sm btn-secondary" data-action="next-page">{{#str}} nextpage, mod_videoplayer {{/str}}</button>
-            <button type="button" class="btn btn-sm btn-primary" data-action="fullscreen">{{#str}} fullscreen, mod_videoplayer {{/str}}</button>
-        </div>
-
         <div class="mod-videoplayer-pdfjs-canvas-wrap" oncontextmenu="return false;">
             <div class="mod-videoplayer-pdfjs-loading" data-region="pdfjs-loading">
                 <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
                 <span>{{#str}} loadingpdf, mod_videoplayer {{/str}}</span>
             </div>
+
+            <div class="mod-videoplayer-pdfjs-overlay" aria-label="{{title}}">
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-prev"
+                        data-action="previous-page"
+                        title="{{#str}} previouspage, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} previouspage, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">‹</span>
+                </button>
+
+                <span class="mod-videoplayer-pdfjs-page-status" aria-live="polite">
+                    <span data-region="current-page">1</span> / <span data-region="total-pages">-</span>
+                </span>
+
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-next"
+                        data-action="next-page"
+                        title="{{#str}} nextpage, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} nextpage, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">›</span>
+                </button>
+
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fullscreen"
+                        data-action="fullscreen"
+                        title="{{#str}} fullscreen, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} fullscreen, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">⛶</span>
+                </button>
+            </div>
+
             {{#ebookmode}}
                 <div class="mod-videoplayer-ebook-stage" data-region="ebook-stage" hidden></div>
             {{/ebookmode}}
