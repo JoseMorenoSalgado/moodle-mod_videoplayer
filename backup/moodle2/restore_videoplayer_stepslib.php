@@ -30,6 +30,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
 
         if ($userinfo) {
             $paths[] = new restore_path_element('videoplayer_view', '/activity/videoplayer/views/view');
+            $paths[] = new restore_path_element('videoplayer_reward', '/activity/videoplayer/rewards/reward');
         }
 
         return $this->prepare_activity_structure($paths);
@@ -52,14 +53,35 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
             $data->source = 'googledrive';
         }
         if (empty($data->type)) {
-            $data->type = 'auto';
+            $data->type = $data->source === 'localpdf' ? 'pdf' : 'auto';
+        }
+        if (empty($data->displaymode)) {
+            $data->displaymode = $data->source === 'localpdf' ? 'ebook' : 'standard';
+        }
+        if (!isset($data->disabledownload)) {
+            $data->disabledownload = 1;
+        }
+        if (!isset($data->disablecontextmenu)) {
+            $data->disablecontextmenu = 1;
+        }
+        if (!isset($data->enablewatermark)) {
+            $data->enablewatermark = 0;
+        }
+        if (!isset($data->enablegamification)) {
+            $data->enablegamification = 0;
+        }
+        if (!isset($data->pointsperpage)) {
+            $data->pointsperpage = 1;
         }
         if (!isset($data->completionpercentage) || $data->completionpercentage === '') {
             $data->completionpercentage = 80;
         }
+        if ($data->source === 'localpdf') {
+            $data->videourl = '';
+        }
 
         $newitemid = $DB->insert_record('videoplayer', $data);
-        $this->set_mapping('videoplayer', $oldid, $newitemid);
+        $this->set_mapping('videoplayer', $oldid, $newitemid, true);
         $this->apply_activity_instance($newitemid);
     }
 
@@ -79,13 +101,38 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
             return;
         }
 
+        $data->lastpage = $data->lastpage ?? 0;
+        $data->totalpages = $data->totalpages ?? 0;
+        $data->timespent = $data->timespent ?? 0;
+        $data->points = $data->points ?? 0;
+
         $DB->insert_record('videoplayer_views', $data);
+    }
+
+    /**
+     * Restore user gamification rewards.
+     *
+     * @param array|stdClass $data
+     */
+    protected function process_videoplayer_reward($data) {
+        global $DB;
+
+        $data = (object) $data;
+        $data->videoplayerid = $this->get_new_parentid('videoplayer');
+        $data->userid = $this->get_mappingid('user', $data->userid);
+
+        if (empty($data->userid)) {
+            return;
+        }
+
+        $DB->insert_record('videoplayer_rewards', $data);
     }
 
     /**
      * Run after restore execution.
      */
     protected function after_execute() {
-        // No file areas currently used by this activity.
+        $this->add_related_files('mod_videoplayer', 'intro', null);
+        $this->add_related_files('mod_videoplayer', 'localpdf', null);
     }
 }
