@@ -1,22 +1,79 @@
+.mod-videoplayer-pdfjs {
+    width: 100%;
+}
+
+.mod-videoplayer-pdfjs-viewer {
+    width: 100%;
+    max-width: 100%;
+}
+
 .mod-videoplayer-pdfjs-canvas-wrap {
     align-items: center !important;
     justify-content: center !important;
-    min-height: clamp(560px, 76vh, 860px) !important;
+    width: 100% !important;
+    min-height: clamp(520px, 76vh, 860px) !important;
+    padding: clamp(.5rem, 1.2vw, 1rem) !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
 }
 
-.mod-videoplayer-pdfjs-canvas,
-.mod-videoplayer-ebook-stage {
+.mod-videoplayer-pdfjs-canvas {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: calc(76vh - 2rem) !important;
+    width: auto !important;
+    height: auto !important;
     margin: auto !important;
+    object-fit: contain !important;
 }
 
-.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
+.mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
     min-height: 100vh !important;
+    height: 100vh !important;
+    padding: .75rem !important;
 }
 
-@media (max-width: 767.98px) {
+.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas,
+.mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas {
+    max-height: calc(100vh - 1.5rem) !important;
+}
+
+@media (min-width: 1200px) {
+    .mod-videoplayer-pdfjs-canvas-wrap {
+        min-height: clamp(620px, 78vh, 920px) !important;
+    }
+
+    .mod-videoplayer-pdfjs-canvas {
+        max-height: calc(78vh - 2rem) !important;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .mod-videoplayer-pdfjs-canvas-wrap {
+        min-height: clamp(520px, 74vh, 760px) !important;
+        padding: .6rem !important;
+    }
+
+    .mod-videoplayer-pdfjs-canvas {
+        max-height: calc(74vh - 1.2rem) !important;
+    }
+}
+
+@media (max-width: 575.98px) {
     .mod-videoplayer-pdfjs-canvas-wrap {
         align-items: center !important;
-        min-height: clamp(560px, 78vh, 760px) !important;
-        padding: .6rem !important;
+        min-height: min(72svh, 620px) !important;
+        padding: .35rem !important;
+        border-radius: 12px !important;
+    }
+
+    .mod-videoplayer-pdfjs-canvas {
+        max-width: 100% !important;
+        max-height: calc(72svh - .7rem) !important;
+    }
+
+    .mod-videoplayer-pdfjs-overlay {
+        inset: .5rem !important;
     }
 }
