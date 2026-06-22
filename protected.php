@@ -39,6 +39,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     header('Content-Type: ' . $contenttype);
     header('Content-Disposition: inline; filename="' . $filename . '"');
     header('X-Content-Type-Options: nosniff');
+    header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
     header('Cache-Control: private, max-age=900, no-transform');
     header('Pragma: private');
@@ -79,6 +80,7 @@ function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype
     header('Content-Type: ' . ($headers['content-type'] ?? $fallbacktype));
     header('Content-Disposition: inline; filename="' . $filename . '"');
     header('X-Content-Type-Options: nosniff');
+    header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
     header('Cache-Control: private, max-age=900, no-transform');
     header('Pragma: private');
@@ -121,7 +123,7 @@ if (($videoplayer->source ?? 'googledrive') === 'localpdf') {
     }
 
     header('X-Content-Type-Options: nosniff');
-    header('Content-Security-Policy: sandbox allow-scripts allow-same-origin');
+    header('X-Robots-Tag: noindex, nofollow, noarchive');
     send_stored_file($file, 0, 0, false, [
         'preview' => true,
         'filename' => $filename,
