@@ -67,8 +67,6 @@
         <KEY NAME="uniq_videoplayer_user" TYPE="unique" FIELDS="videoplayerid, userid"/>
       </KEYS>
       <INDEXES>
-        <INDEX NAME="videoplayerid_idx" UNIQUE="false" FIELDS="videoplayerid"/>
-        <INDEX NAME="userid_idx" UNIQUE="false" FIELDS="userid"/>
         <INDEX NAME="completed_idx" UNIQUE="false" FIELDS="completed"/>
         <INDEX NAME="timemodified_idx" UNIQUE="false" FIELDS="timemodified"/>
       </INDEXES>
@@ -91,8 +89,6 @@
         <KEY NAME="uniq_reward" TYPE="unique" FIELDS="videoplayerid, userid, rewardtype, rewardkey"/>
       </KEYS>
       <INDEXES>
-        <INDEX NAME="videoplayerid_idx" UNIQUE="false" FIELDS="videoplayerid"/>
-        <INDEX NAME="userid_idx" UNIQUE="false" FIELDS="userid"/>
         <INDEX NAME="rewardkey_idx" UNIQUE="false" FIELDS="rewardkey"/>
       </INDEXES>
     </TABLE>
