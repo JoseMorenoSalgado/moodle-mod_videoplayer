@@ -16,7 +16,7 @@
  *
  * @package    mod_videoplayer
  * @category   backup
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -45,6 +45,12 @@ class backup_videoplayer_activity_structure_step extends backup_activity_structu
             'source',
             'videourl',
             'type',
+            'displaymode',
+            'disabledownload',
+            'disablecontextmenu',
+            'enablewatermark',
+            'enablegamification',
+            'pointsperpage',
             'video',
             'endscreentext',
             'displayasstartscreen',
@@ -65,16 +71,35 @@ class backup_videoplayer_activity_structure_step extends backup_activity_structu
             'progress',
             'completed',
             'completionpercentage',
+            'lastpage',
+            'totalpages',
+            'timespent',
+            'points',
+        ]);
+
+        $rewards = new backup_nested_element('rewards');
+        $reward = new backup_nested_element('reward', ['id'], [
+            'userid',
+            'rewardtype',
+            'rewardkey',
+            'points',
+            'timecreated',
         ]);
 
         $videoplayer->add_child($views);
         $views->add_child($view);
+        $videoplayer->add_child($rewards);
+        $rewards->add_child($reward);
 
         $videoplayer->set_source_table('videoplayer', ['id' => backup::VAR_ACTIVITYID]);
+        $videoplayer->annotate_files('mod_videoplayer', 'localpdf', null);
 
         if ($userinfo) {
             $view->set_source_table('videoplayer_views', ['videoplayerid' => backup::VAR_PARENTID]);
             $view->annotate_ids('user', 'userid');
+
+            $reward->set_source_table('videoplayer_rewards', ['videoplayerid' => backup::VAR_PARENTID]);
+            $reward->annotate_ids('user', 'userid');
         }
 
         return $this->prepare_activity_structure($videoplayer);
