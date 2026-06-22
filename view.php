@@ -103,6 +103,7 @@ if ($type === 'pdf') {
     $PAGE->requires->css('/mod/videoplayer/styles_pdf_overlay.css');
     if ($displaymode === 'ebook') {
         $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/pageflip/page-flip.css');
+        $PAGE->requires->css('/mod/videoplayer/styles_pageflip_fix.css');
         $PAGE->requires->js_call_amd('mod_videoplayer/ebookviewer', 'init');
     } else {
         $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
