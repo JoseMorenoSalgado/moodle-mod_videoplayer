@@ -64,14 +64,9 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         $mform->setDefault('type', 'auto');
         $mform->disabledIf('type', 'source', 'eq', 'localpdf');
 
-        $displaymodes = [
-            'standard' => get_string('displaymodestandard', 'mod_videoplayer'),
-            'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
-        ];
-        $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
-        $mform->setDefault('displaymode', 'ebook');
-        $mform->addHelpButton('displaymode', 'displaymode', 'mod_videoplayer');
-        $mform->hideIf('displaymode', 'source', 'eq', 'googledrive');
+        $mform->addElement('hidden', 'displaymode', 'standard');
+        $mform->setType('displaymode', PARAM_ALPHANUMEXT);
+        $mform->setDefault('displaymode', 'standard');
 
         $mform->addElement('advcheckbox', 'disabledownload', get_string('disabledownload', 'mod_videoplayer'));
         $mform->setDefault('disabledownload', 1);
@@ -82,17 +77,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
 
         $mform->addElement('advcheckbox', 'enablewatermark', get_string('enablewatermark', 'mod_videoplayer'));
         $mform->setDefault('enablewatermark', 1);
-
-        $mform->addElement('header', 'gamificationheader', get_string('gamification', 'mod_videoplayer'));
-
-        $mform->addElement('advcheckbox', 'enablegamification', get_string('enablegamification', 'mod_videoplayer'));
-        $mform->setDefault('enablegamification', 1);
-        $mform->addHelpButton('enablegamification', 'enablegamification', 'mod_videoplayer');
-
-        $mform->addElement('text', 'pointsperpage', get_string('pointsperpage', 'mod_videoplayer'), ['size' => 5]);
-        $mform->setType('pointsperpage', PARAM_INT);
-        $mform->setDefault('pointsperpage', 1);
-        $mform->addRule('pointsperpage', null, 'numeric', null, 'client');
 
         $mform->addElement('text', 'completionpercentage', get_string('completionpercentage', 'mod_videoplayer'), ['size' => 5]);
         $mform->setType('completionpercentage', PARAM_INT);
@@ -123,6 +107,7 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             );
             $defaultvalues['localpdffile'] = $draftitemid;
         }
+        $defaultvalues['displaymode'] = 'standard';
     }
 
     /**
@@ -160,10 +145,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
 
         if (isset($data['completionpercentage']) && ($data['completionpercentage'] < 0 || $data['completionpercentage'] > 100)) {
             $errors['completionpercentage'] = get_string('invalidcompletionpercentage', 'mod_videoplayer');
-        }
-
-        if (isset($data['pointsperpage']) && ($data['pointsperpage'] < 0 || $data['pointsperpage'] > 100)) {
-            $errors['pointsperpage'] = get_string('invalidpointsperpage', 'mod_videoplayer');
         }
 
         return $errors;
