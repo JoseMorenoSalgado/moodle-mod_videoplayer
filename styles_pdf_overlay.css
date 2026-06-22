@@ -13,18 +13,27 @@
     width: 100% !important;
     min-height: clamp(520px, 76vh, 860px) !important;
     padding: clamp(.5rem, 1.2vw, 1rem) !important;
-    overflow: hidden !important;
+    overflow: auto !important;
     box-sizing: border-box !important;
 }
 
 .mod-videoplayer-pdfjs-canvas {
     display: block !important;
-    max-width: 100% !important;
-    max-height: calc(76vh - 2rem) !important;
+    max-width: none !important;
+    max-height: none !important;
     width: auto !important;
     height: auto !important;
     margin: auto !important;
     object-fit: contain !important;
+}
+
+.mod-videoplayer-pdfjs-zoom-status {
+    display: inline-block;
+    margin-left: .35rem;
+    padding-left: .35rem;
+    border-left: 1px solid rgba(255, 255, 255, .35);
+    font-size: .78rem;
+    opacity: .9;
 }
 
 .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
@@ -34,18 +43,9 @@
     padding: .75rem !important;
 }
 
-.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas,
-.mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas {
-    max-height: calc(100vh - 1.5rem) !important;
-}
-
 @media (min-width: 1200px) {
     .mod-videoplayer-pdfjs-canvas-wrap {
         min-height: clamp(620px, 78vh, 920px) !important;
-    }
-
-    .mod-videoplayer-pdfjs-canvas {
-        max-height: calc(78vh - 2rem) !important;
     }
 }
 
@@ -53,10 +53,6 @@
     .mod-videoplayer-pdfjs-canvas-wrap {
         min-height: clamp(520px, 74vh, 760px) !important;
         padding: .6rem !important;
-    }
-
-    .mod-videoplayer-pdfjs-canvas {
-        max-height: calc(74vh - 1.2rem) !important;
     }
 }
 
@@ -68,12 +64,23 @@
         border-radius: 12px !important;
     }
 
-    .mod-videoplayer-pdfjs-canvas {
-        max-width: 100% !important;
-        max-height: calc(72svh - .7rem) !important;
-    }
-
     .mod-videoplayer-pdfjs-overlay {
         inset: .5rem !important;
+        gap: .3rem !important;
+    }
+
+    .mod-videoplayer-pdfjs-control {
+        min-width: 2rem !important;
+        min-height: 2rem !important;
+        padding: .25rem !important;
+    }
+
+    .mod-videoplayer-pdfjs-page-status {
+        font-size: .75rem !important;
+        padding: .35rem .45rem !important;
+    }
+
+    .mod-videoplayer-pdfjs-zoom-status {
+        display: none;
     }
 }
