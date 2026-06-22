@@ -237,5 +237,13 @@ function xmldb_videoplayer_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026062201, 'videoplayer');
     }
 
+    if ($oldversion < 2026062202) {
+        upgrade_mod_savepoint(true, 2026062202, 'videoplayer');
+    }
+
+    if ($oldversion < 2026062203) {
+        upgrade_mod_savepoint(true, 2026062203, 'videoplayer');
+    }
+
     return true;
 }
