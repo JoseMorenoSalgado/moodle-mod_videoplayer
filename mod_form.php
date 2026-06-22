@@ -71,7 +71,7 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
         $mform->setDefault('displaymode', 'ebook');
         $mform->addHelpButton('displaymode', 'displaymode', 'mod_videoplayer');
-        $mform->hideIf('displaymode', 'type', 'neq', 'pdf');
+        $mform->hideIf('displaymode', 'source', 'eq', 'googledrive');
 
         $mform->addElement('advcheckbox', 'disabledownload', get_string('disabledownload', 'mod_videoplayer'));
         $mform->setDefault('disabledownload', 1);
@@ -133,6 +133,8 @@ class mod_videoplayer_mod_form extends moodleform_mod {
      * @return array
      */
     public function validation($data, $files) {
+        global $USER;
+
         $errors = parent::validation($data, $files);
         $source = $data['source'] ?? 'googledrive';
 
@@ -143,12 +145,12 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         if ($source === 'localpdf') {
             $draftitemid = (int)($data['localpdffile'] ?? 0);
             $fs = get_file_storage();
-            $context = context_user::instance($GLOBALS['USER']->id);
-            $files = $fs->get_area_files($context->id, 'user', 'draft', $draftitemid, 'id', false);
-            if (empty($files)) {
+            $context = context_user::instance($USER->id);
+            $draftfiles = $fs->get_area_files($context->id, 'user', 'draft', $draftitemid, 'id', false);
+            if (empty($draftfiles)) {
                 $errors['localpdffile'] = get_string('requiredlocalpdf', 'mod_videoplayer');
             }
-            foreach ($files as $file) {
+            foreach ($draftfiles as $file) {
                 if ($file->get_mimetype() !== 'application/pdf') {
                     $errors['localpdffile'] = get_string('invalidlocalpdf', 'mod_videoplayer');
                     break;
@@ -173,9 +175,11 @@ class mod_videoplayer_mod_form extends moodleform_mod {
      * @return array
      */
     private function get_localpdf_filemanager_options(): array {
+        global $CFG;
+
         return [
             'subdirs' => 0,
-            'maxbytes' => get_max_upload_file_size($GLOBALS['CFG']->maxbytes, $this->course->maxbytes ?? 0),
+            'maxbytes' => get_max_upload_file_size($CFG->maxbytes, $this->course->maxbytes ?? 0),
             'maxfiles' => 1,
             'accepted_types' => ['.pdf'],
             'return_types' => FILE_INTERNAL,
