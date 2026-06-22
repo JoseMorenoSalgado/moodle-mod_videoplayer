@@ -35,15 +35,20 @@ $completion->set_module_viewed($cm);
 $source = $videoplayer->source ?? 'googledrive';
 $type = 'pdf';
 $previewurl = null;
-$protectedurl = new moodle_url('/mod/videoplayer/protected.php', ['id' => $cm->id]);
+$protectedurl = new moodle_url('/mod/videoplayer/protected.php', [
+    'id' => $cm->id,
+    'v' => $videoplayer->timemodified ?? time(),
+]);
 
 if ($source === 'localpdf') {
-    if (!videoplayer_get_localpdf_file($context)) {
+    $localpdffile = videoplayer_get_localpdf_file($context);
+    if (!$localpdffile) {
         echo $OUTPUT->header();
         echo html_writer::div(get_string('protectedresourceunavailable', 'mod_videoplayer'), 'alert alert-danger');
         echo $OUTPUT->footer();
         exit;
     }
+    $protectedurl->param('fh', substr($localpdffile->get_contenthash(), 0, 12));
 } else {
     $fileid = drive::extract_file_id($videoplayer->videourl ?? '');
     if (!$fileid) {
