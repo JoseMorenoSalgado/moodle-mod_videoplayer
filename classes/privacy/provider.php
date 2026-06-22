@@ -19,17 +19,17 @@ namespace mod_videoplayer\privacy;
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\contextlist;
-use core_privacy\local\request\deletion_criteria;
 use core_privacy\local\request\helper;
 use core_privacy\local\request\userlist;
 use core_privacy\local\request\approved_userlist;
+use core_privacy\local\request\transform;
 use core_privacy\local\request\writer;
 
 /**
  * Privacy provider for mod_videoplayer.
  *
  * @package    mod_videoplayer
- * @copyright  2025 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements
@@ -50,9 +50,22 @@ class provider implements
             'progress' => 'privacy:metadata:videoplayer_views:progress',
             'completed' => 'privacy:metadata:videoplayer_views:completed',
             'completionpercentage' => 'privacy:metadata:videoplayer_views:completionpercentage',
+            'lastpage' => 'privacy:metadata:videoplayer_views:lastpage',
+            'totalpages' => 'privacy:metadata:videoplayer_views:totalpages',
+            'timespent' => 'privacy:metadata:videoplayer_views:timespent',
+            'points' => 'privacy:metadata:videoplayer_views:points',
             'timecreated' => 'privacy:metadata:videoplayer_views:timecreated',
             'timemodified' => 'privacy:metadata:videoplayer_views:timemodified',
         ], 'privacy:metadata:videoplayer_views');
+
+        $collection->add_database_table('videoplayer_rewards', [
+            'videoplayerid' => 'privacy:metadata:videoplayer_rewards:videoplayerid',
+            'userid' => 'privacy:metadata:videoplayer_rewards:userid',
+            'rewardtype' => 'privacy:metadata:videoplayer_rewards:rewardtype',
+            'rewardkey' => 'privacy:metadata:videoplayer_rewards:rewardkey',
+            'points' => 'privacy:metadata:videoplayer_rewards:points',
+            'timecreated' => 'privacy:metadata:videoplayer_rewards:timecreated',
+        ], 'privacy:metadata:videoplayer_rewards');
 
         return $collection;
     }
@@ -70,13 +83,15 @@ class provider implements
                   JOIN {course_modules} cm ON cm.id = ctx.instanceid AND ctx.contextlevel = :contextmodule
                   JOIN {modules} m ON m.id = cm.module AND m.name = :modname
                   JOIN {videoplayer} v ON v.id = cm.instance
-                  JOIN {videoplayer_views} vv ON vv.videoplayerid = v.id
-                 WHERE vv.userid = :userid";
+             LEFT JOIN {videoplayer_views} vv ON vv.videoplayerid = v.id AND vv.userid = :viewuserid
+             LEFT JOIN {videoplayer_rewards} vr ON vr.videoplayerid = v.id AND vr.userid = :rewarduserid
+                 WHERE vv.userid IS NOT NULL OR vr.userid IS NOT NULL";
 
         $params = [
             'contextmodule' => CONTEXT_MODULE,
             'modname' => 'videoplayer',
-            'userid' => $userid,
+            'viewuserid' => $userid,
+            'rewarduserid' => $userid,
         ];
         $contextlist->add_from_sql($sql, $params);
 
@@ -108,23 +123,43 @@ class provider implements
                 'userid' => $userid,
             ]);
 
-            if (!$records) {
-                continue;
-            }
-
-            $data = [];
+            $views = [];
             foreach ($records as $record) {
-                $data[] = (object) [
+                $views[] = (object) [
                     'progress' => $record->progress,
                     'completed' => (bool) $record->completed,
                     'completionpercentage' => $record->completionpercentage,
+                    'lastpage' => $record->lastpage ?? 0,
+                    'totalpages' => $record->totalpages ?? 0,
+                    'timespent' => $record->timespent ?? 0,
+                    'points' => $record->points ?? 0,
                     'timecreated' => transform::datetime($record->timecreated),
                     'timemodified' => transform::datetime($record->timemodified),
                 ];
             }
 
+            $rewardrecords = $DB->get_records('videoplayer_rewards', [
+                'videoplayerid' => $cm->instance,
+                'userid' => $userid,
+            ]);
+
+            $rewards = [];
+            foreach ($rewardrecords as $reward) {
+                $rewards[] = (object) [
+                    'rewardtype' => $reward->rewardtype,
+                    'rewardkey' => $reward->rewardkey,
+                    'points' => $reward->points,
+                    'timecreated' => transform::datetime($reward->timecreated),
+                ];
+            }
+
+            if (!$views && !$rewards) {
+                continue;
+            }
+
             $contextdata = helper::get_context_data($context, $contextlist->get_user());
-            $contextdata->views = $data;
+            $contextdata->views = $views;
+            $contextdata->rewards = $rewards;
             writer::with_context($context)->export_data([], $contextdata);
         }
     }
@@ -146,6 +181,7 @@ class provider implements
             return;
         }
 
+        $DB->delete_records('videoplayer_rewards', ['videoplayerid' => $cm->instance]);
         $DB->delete_records('videoplayer_views', ['videoplayerid' => $cm->instance]);
     }
 
@@ -169,10 +205,12 @@ class provider implements
                 continue;
             }
 
-            $DB->delete_records('videoplayer_views', [
+            $conditions = [
                 'videoplayerid' => $cm->instance,
                 'userid' => $userid,
-            ]);
+            ];
+            $DB->delete_records('videoplayer_rewards', $conditions);
+            $DB->delete_records('videoplayer_views', $conditions);
         }
     }
 
@@ -192,10 +230,19 @@ class provider implements
                   JOIN {modules} m ON m.id = cm.module AND m.name = :modname
                   JOIN {videoplayer} v ON v.id = cm.instance
                   JOIN {videoplayer_views} vv ON vv.videoplayerid = v.id
-                 WHERE cm.id = :cmid";
+                 WHERE cm.id = :cmid
+                 UNION
+                SELECT vr.userid
+                  FROM {course_modules} cm
+                  JOIN {modules} m ON m.id = cm.module AND m.name = :modname2
+                  JOIN {videoplayer} v ON v.id = cm.instance
+                  JOIN {videoplayer_rewards} vr ON vr.videoplayerid = v.id
+                 WHERE cm.id = :cmid2";
         $userlist->add_from_sql('userid', $sql, [
             'modname' => 'videoplayer',
+            'modname2' => 'videoplayer',
             'cmid' => $context->instanceid,
+            'cmid2' => $context->instanceid,
         ]);
     }
 
@@ -219,6 +266,7 @@ class provider implements
 
         [$insql, $params] = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED);
         $params['videoplayerid'] = $cm->instance;
+        $DB->delete_records_select('videoplayer_rewards', "videoplayerid = :videoplayerid AND userid {$insql}", $params);
         $DB->delete_records_select('videoplayer_views', "videoplayerid = :videoplayerid AND userid {$insql}", $params);
     }
 }
