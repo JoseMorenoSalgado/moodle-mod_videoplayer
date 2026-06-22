@@ -1,10 +1,21 @@
+.mod-videoplayer-ebook .mod-videoplayer-pdfjs-canvas-wrap {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: clamp(.5rem, 1.5vw, 1rem) !important;
+}
+
 .mod-videoplayer-ebook-stage {
+    --mod-videoplayer-ebook-width: min(100%, 1120px);
+    --mod-videoplayer-ebook-height: min(78vh, 760px);
     position: relative !important;
     display: block !important;
-    width: min(100%, 1040px) !important;
-    height: clamp(520px, 74vh, 860px) !important;
-    min-height: 0 !important;
+    width: var(--mod-videoplayer-ebook-width) !important;
+    height: var(--mod-videoplayer-ebook-height) !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
     overflow: hidden !important;
+    background: #f8fafc !important;
+    border-radius: 18px !important;
 }
 
 .mod-videoplayer-ebook-stage .stf__parent,
@@ -12,16 +23,24 @@
 .mod-videoplayer-ebook-stage .stf__block {
     width: 100% !important;
     height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
     box-sizing: border-box !important;
 }
 
 .mod-videoplayer-ebook-stage .stf__wrapper {
     position: relative !important;
+    margin: 0 auto !important;
 }
 
 .mod-videoplayer-ebook-stage .stf__block,
 .mod-videoplayer-ebook-stage .stf__item {
     position: absolute !important;
+}
+
+.mod-videoplayer-ebook-stage .stf__item {
+    overflow: hidden !important;
+    background: #fff !important;
 }
 
 .mod-videoplayer-ebook-stage .mod-videoplayer-ebook-page {
@@ -36,11 +55,34 @@
     width: 100% !important;
     height: 100% !important;
     object-fit: contain !important;
+    background: #fff !important;
 }
 
-@media (max-width: 767.98px) {
+@media (min-width: 992px) {
     .mod-videoplayer-ebook-stage {
-        width: 100% !important;
-        height: clamp(520px, 76vh, 760px) !important;
+        --mod-videoplayer-ebook-height: min(76vh, 820px);
+    }
+}
+
+@media (max-width: 991.98px) {
+    .mod-videoplayer-ebook-stage {
+        --mod-videoplayer-ebook-width: 100%;
+        --mod-videoplayer-ebook-height: min(76vh, 720px);
+        border-radius: 14px !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .mod-videoplayer-ebook .mod-videoplayer-pdfjs-canvas-wrap {
+        padding: .35rem !important;
+    }
+
+    .mod-videoplayer-ebook-stage {
+        --mod-videoplayer-ebook-height: min(72vh, 640px);
+        border-radius: 12px !important;
+    }
+
+    .mod-videoplayer-ebook .mod-videoplayer-pdfjs-overlay {
+        inset: .5rem !important;
     }
 }
