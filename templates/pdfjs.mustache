@@ -1,33 +1,26 @@
-<div class="mod-videoplayer-container mod-videoplayer-pdfjs {{#ebookmode}}mod-videoplayer-ebook{{/ebookmode}}" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+<div class="mod-videoplayer-container mod-videoplayer-pdfjs" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">
         <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
         <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
-        {{#enablegamification}}
-            <span class="mod-videoplayer-meta-item" data-region="ebook-points">{{#str}} points, mod_videoplayer {{/str}}: {{points}}</span>
-        {{/enablegamification}}
         {{#completionpercent}}
-            <span class="mod-videoplayer-meta-item" data-region="ebook-progress">{{completionpercent}}%</span>
+            <span class="mod-videoplayer-meta-item" data-region="pdfjs-progress">{{completionpercent}}%</span>
         {{/completionpercent}}
     </div>
 
-    {{^ebookmode}}
-        {{#initialpage}}
-            <div class="mod-videoplayer-resume alert alert-info" data-region="ebook-resume" {{^totalpages}}hidden{{/totalpages}}>
-                {{#str}} resumereading, mod_videoplayer {{/str}}
-                <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
-            </div>
-        {{/initialpage}}
-    {{/ebookmode}}
+    {{#initialpage}}
+        <div class="mod-videoplayer-resume alert alert-info" data-region="pdfjs-resume" {{^totalpages}}hidden{{/totalpages}}>
+            {{#str}} resumereading, mod_videoplayer {{/str}}
+            <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
+        </div>
+    {{/initialpage}}
 
     <div class="mod-videoplayer-pdfjs-viewer"
          data-pdf-url="{{pdfurl}}"
          data-title="{{title}}"
          data-cmid="{{cmid}}"
-         data-initial-page="{{#ebookmode}}1{{/ebookmode}}{{^ebookmode}}{{initialpage}}{{/ebookmode}}"
-         data-display-mode="{{displaymode}}"
+         data-initial-page="{{initialpage}}"
+         data-display-mode="standard"
          data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
-         data-enable-gamification="{{#enablegamification}}1{{/enablegamification}}{{^enablegamification}}0{{/enablegamification}}"
-         data-points-per-page="{{pointsperpage}}"
          data-watermark="{{#enablewatermark}}{{watermark}}{{/enablewatermark}}"
          oncontextmenu="return false;">
         <div class="mod-videoplayer-pdfjs-canvas-wrap" oncontextmenu="return false;">
@@ -54,18 +47,11 @@
                 </button>
             </div>
 
-            {{#ebookmode}}
-                <div class="mod-videoplayer-ebook-stage" data-region="ebook-stage" hidden></div>
-            {{/ebookmode}}
             <canvas class="mod-videoplayer-pdfjs-canvas" draggable="false" oncontextmenu="return false;"></canvas>
             {{#enablewatermark}}
                 <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
             {{/enablewatermark}}
         </div>
-
-        {{#enablegamification}}
-            <div class="mod-videoplayer-achievements mt-3" data-region="ebook-achievements" aria-live="polite"></div>
-        {{/enablegamification}}
 
         <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>{{#str}} pdfjsrequired, mod_videoplayer {{/str}}</div>
     </div>
