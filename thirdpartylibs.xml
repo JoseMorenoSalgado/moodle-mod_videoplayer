@@ -6,5 +6,25 @@
         <version>6.0.227</version>
         <license>Apache</license>
         <licenseversion>2.0</licenseversion>
+        <repository>https://github.com/mozilla/pdf.js</repository>
+        <description>Local PDF rendering engine used by Drive Resource protected PDF and ebook viewers.</description>
+    </library>
+    <library>
+        <location>thirdpartylibs/plyr</location>
+        <name>Plyr</name>
+        <version>Bundled local build</version>
+        <license>MIT</license>
+        <licenseversion></licenseversion>
+        <repository>https://github.com/sampotts/plyr</repository>
+        <description>Local HTML5 media player used by Drive Resource protected video playback.</description>
+    </library>
+    <library>
+        <location>thirdpartylibs/pageflip</location>
+        <name>StPageFlip</name>
+        <version>2.0.0 or compatible local browser build</version>
+        <license>MIT</license>
+        <licenseversion></licenseversion>
+        <repository>https://github.com/Nodlik/StPageFlip</repository>
+        <description>Optional local page turning library used by Drive Resource protected ebook mode.</description>
     </library>
 </thirdpartylibs>
