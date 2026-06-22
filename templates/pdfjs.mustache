@@ -10,18 +10,20 @@
         {{/completionpercent}}
     </div>
 
-    {{#initialpage}}
-        <div class="mod-videoplayer-resume alert alert-info" data-region="ebook-resume" {{^totalpages}}hidden{{/totalpages}}>
-            {{#str}} resumereading, mod_videoplayer {{/str}}
-            <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
-        </div>
-    {{/initialpage}}
+    {{^ebookmode}}
+        {{#initialpage}}
+            <div class="mod-videoplayer-resume alert alert-info" data-region="ebook-resume" {{^totalpages}}hidden{{/totalpages}}>
+                {{#str}} resumereading, mod_videoplayer {{/str}}
+                <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
+            </div>
+        {{/initialpage}}
+    {{/ebookmode}}
 
     <div class="mod-videoplayer-pdfjs-viewer"
          data-pdf-url="{{pdfurl}}"
          data-title="{{title}}"
          data-cmid="{{cmid}}"
-         data-initial-page="{{initialpage}}"
+         data-initial-page="{{#ebookmode}}1{{/ebookmode}}{{^ebookmode}}{{initialpage}}{{/ebookmode}}"
          data-display-mode="{{displaymode}}"
          data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
          data-enable-gamification="{{#enablegamification}}1{{/enablegamification}}{{^enablegamification}}0{{/enablegamification}}"
@@ -35,11 +37,7 @@
             </div>
 
             <div class="mod-videoplayer-pdfjs-overlay" aria-label="{{title}}">
-                <button type="button"
-                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-prev"
-                        data-action="previous-page"
-                        title="{{#str}} previouspage, mod_videoplayer {{/str}}"
-                        aria-label="{{#str}} previouspage, mod_videoplayer {{/str}}">
+                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-prev" data-action="previous-page" title="{{#str}} previouspage, mod_videoplayer {{/str}}" aria-label="{{#str}} previouspage, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">‹</span>
                 </button>
 
@@ -47,19 +45,11 @@
                     <span data-region="current-page">1</span> / <span data-region="total-pages">-</span>
                 </span>
 
-                <button type="button"
-                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-next"
-                        data-action="next-page"
-                        title="{{#str}} nextpage, mod_videoplayer {{/str}}"
-                        aria-label="{{#str}} nextpage, mod_videoplayer {{/str}}">
+                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-next" data-action="next-page" title="{{#str}} nextpage, mod_videoplayer {{/str}}" aria-label="{{#str}} nextpage, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">›</span>
                 </button>
 
-                <button type="button"
-                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fullscreen"
-                        data-action="fullscreen"
-                        title="{{#str}} fullscreen, mod_videoplayer {{/str}}"
-                        aria-label="{{#str}} fullscreen, mod_videoplayer {{/str}}">
+                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fullscreen" data-action="fullscreen" title="{{#str}} fullscreen, mod_videoplayer {{/str}}" aria-label="{{#str}} fullscreen, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">⛶</span>
                 </button>
             </div>
