@@ -1,0 +1,22 @@
+.mod-videoplayer-pdfjs-canvas-wrap {
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: clamp(560px, 76vh, 860px) !important;
+}
+
+.mod-videoplayer-pdfjs-canvas,
+.mod-videoplayer-ebook-stage {
+    margin: auto !important;
+}
+
+.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+    min-height: 100vh !important;
+}
+
+@media (max-width: 767.98px) {
+    .mod-videoplayer-pdfjs-canvas-wrap {
+        align-items: center !important;
+        min-height: clamp(560px, 78vh, 760px) !important;
+        padding: .6rem !important;
+    }
+}
