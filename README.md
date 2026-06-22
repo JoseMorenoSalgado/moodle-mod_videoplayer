@@ -1,30 +1,53 @@
 # Drive Resource for Moodle
 
-**Drive Resource** is a Moodle activity module for embedding and tracking learning resources hosted in Google Drive.
+**Drive Resource** is a Moodle activity module for publishing protected learning resources from Google Drive and Moodle local private storage.
 
 The internal Moodle component remains `mod_videoplayer` for compatibility with existing installations, but the user-facing product name is **Drive Resource**.
 
 ## Features
 
-- Embed Google Drive resources inside Moodle courses.
+- Publish Google Drive resources inside Moodle courses.
+- Publish local protected PDFs stored in Moodle private file storage.
 - Support for videos, PDFs, images, documents, spreadsheets and presentations.
-- Automatic resource type detection.
-- Protected interface that hides direct Google Drive navigation links from the Moodle page.
+- Automatic resource type detection for supported Google Drive URLs.
+- Protected `protected.php` delivery endpoint.
+- Local PDF.js viewer without CDN.
+- Protected ebook mode with optional local StPageFlip.
+- HTML5 video playback with local Plyr assets.
 - Plugin-owned fullscreen viewer for mobile and desktop.
-- Presence-based progress tracking for Google Drive embedded resources.
-- Teacher progress report per activity.
+- Reading progress by page, percentage and active time.
+- Resume reading from the last saved page.
+- Optional watermark deterrent.
+- Optional personal gamification milestones and points.
 - Moodle Completion API integration.
-- Backup and Restore support.
-- Privacy API support.
-- English and Spanish language strings.
+- Moodle Events API integration.
+- Backup and Restore support, including local PDF files.
+- Privacy API support for progress and rewards.
+- Teacher progress report per activity.
 - Admin settings for tracking, protected mode and default completion behavior.
 
 ## Requirements
 
-- Moodle 4.5 or later.
-- PHP version supported by the target Moodle release.
+- Moodle 4.x or Moodle 5.x.
+- PHP 8.2 or newer recommended.
 - HTTPS-enabled Moodle site.
-- Google Drive resources shared with permissions that allow Moodle users to view them.
+- Local PDF.js files installed under `thirdpartylibs/pdfjs/`.
+- Local Plyr files installed under `thirdpartylibs/plyr/` when enhanced video playback is required.
+- Local PageFlip files installed under `thirdpartylibs/pageflip/` when ebook flipbook mode is required.
+
+## Required local libraries
+
+Drive Resource must not use CDN assets in production.
+
+```text
+thirdpartylibs/pdfjs/pdf.min.mjs
+thirdpartylibs/pdfjs/pdf.worker.min.mjs
+thirdpartylibs/plyr/plyr.css
+thirdpartylibs/pageflip/page-flip.browser.js
+thirdpartylibs/pageflip/page-flip.css
+```
+
+PageFlip is optional. If it is missing, ebook mode falls back to the protected PDF.js viewer.
 
 ## Installation
 
@@ -34,74 +57,87 @@ The internal Moodle component remains `mod_videoplayer` for compatibility with e
    mod/videoplayer
    ```
 
-2. Visit Moodle site administration to complete the plugin installation.
+2. Run Moodle upgrade:
 
-3. Go to:
+   ```bash
+   php admin/cli/upgrade.php
+   ```
+
+3. Purge Moodle caches.
+
+4. Go to:
 
    ```text
    Site administration > Plugins > Activity modules > Drive Resource
    ```
 
-4. Configure the default tracking and protected mode settings.
+5. Configure the default tracking and protected mode settings.
 
-## Usage
+## Usage: local protected PDF
 
 1. Enter a Moodle course.
 2. Turn editing on.
-3. Add a new activity.
-4. Select **Drive Resource**.
-5. Enter the activity name.
-6. Paste a supported Google Drive or Google Docs URL.
-7. Select the resource type or leave it as **Automatic**.
-8. Configure the completion percentage if needed.
+3. Add a new **Drive Resource** activity.
+4. Select **Local protected PDF**.
+5. Upload one PDF file.
+6. Choose **Standard PDF viewer** or **Protected ebook viewer**.
+7. Optionally enable watermark and gamification.
+8. Configure the required completion percentage.
 9. Save and display.
+
+## Usage: Google Drive resource
+
+1. Enter a Moodle course.
+2. Turn editing on.
+3. Add a new **Drive Resource** activity.
+4. Select **Google Drive**.
+5. Paste a supported Google Drive or Google Docs URL.
+6. Select the resource type or leave it as **Automatic**.
+7. Configure completion if needed.
+8. Save and display.
 
 ## Supported resources
 
 Drive Resource supports common Google Drive and Google Docs URLs, including:
 
-- Videos from Google Drive.
+- videos from Google Drive.
 - PDF files.
-- Images.
+- images.
 - Google Docs documents.
 - Google Sheets spreadsheets.
 - Google Slides presentations.
-- Generic Drive files supported by the Google Drive preview viewer.
+- generic Drive files supported by the configured delivery flow.
 
-## Protected mode
+## Security model
 
-Protected mode hides plugin-owned direct links to Google Drive and restricts iframe popup permissions.
+The enforceable protection is server-side Moodle access control:
 
-Important limitation: Google Drive controls its own embedded viewer. If Google displays internal controls, Moodle cannot remove those controls from inside the iframe because of browser cross-origin restrictions.
+```text
+require_login()
+context_module
+mod/videoplayer:view
+protected.php
+Moodle File API or secure proxy streaming
+```
 
-The plugin also includes a `protected.php` endpoint intended to reduce direct URL exposure by authorizing access through Moodle. This mode is designed to avoid permanent storage in `moodledata`.
-
-## Fullscreen viewer
-
-Drive Resource includes its own fullscreen overlay. This allows students to expand the resource on mobile and desktop while staying inside Moodle.
-
-The fullscreen overlay does not intentionally open Google Drive in a new browser tab.
+Browser controls such as disabling right click, hiding download buttons and showing watermarks are deterrents, not DRM.
 
 ## Progress tracking
 
-Google Drive iframes do not expose exact video playback time to Moodle. For that reason, Drive Resource uses presence-based tracking:
+Drive Resource tracks:
 
-- active time in the resource page,
-- periodic heartbeat updates,
-- completion when the configured threshold is reached.
+- active time.
+- completion percentage.
+- last page.
+- total pages.
+- completion state.
+- points and rewards when gamification is enabled.
 
-For providers that expose playback APIs, future versions may support real video playback percentage tracking.
+For Google Drive iframes that do not expose playback APIs, presence-based tracking is used.
 
 ## Teacher reports
 
-Teachers with the `mod/videoplayer:viewreport` capability can access the progress report for each activity. The report shows:
-
-- student name,
-- email,
-- progress time,
-- completion percentage,
-- completion state,
-- last update time.
+Teachers with the `mod/videoplayer:viewreport` capability can access the progress report for each activity.
 
 ## JavaScript AMD build
 
@@ -130,14 +166,6 @@ or, inside a Moodle development environment:
 grunt amd
 ```
 
-## Compatibility
-
-Current stable release:
-
-- Release: `1.0.0`
-- Component: `mod_videoplayer`
-- Supported Moodle versions: 4.5 to 5.1
-
 ## Documentation
 
 Additional technical documentation is available in the `docs/` directory:
@@ -145,10 +173,24 @@ Additional technical documentation is available in the `docs/` directory:
 - `docs/architecture.md`
 - `docs/database.md`
 - `docs/developer-guide.md`
+- `docs/installation.md`
+- `docs/manual-test-checklist.md`
+- `docs/security.md`
+
+## Compatibility
+
+Current development branch:
+
+- Release: `1.1.0-beta`
+- Component: `mod_videoplayer`
+- Product name: Drive Resource
+- Supported Moodle versions: 4.x and 5.x target
 
 ## License
 
 GNU GPL v3 or later.
+
+Third-party libraries are documented in `thirdpartylibs.xml` and must remain locally bundled for production use.
 
 ## Maintainer
 

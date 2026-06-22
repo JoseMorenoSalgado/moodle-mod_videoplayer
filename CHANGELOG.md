@@ -4,6 +4,50 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.0-beta - 2026-06-22
+
+### Added
+
+- Local protected PDF source stored through Moodle File API.
+- Protected PDF delivery through `protected.php` for Moodle-local PDF files.
+- Standard PDF.js viewer using local PDF.js assets.
+- Protected ebook display mode.
+- Optional local StPageFlip integration for realistic page turning.
+- Fallback from ebook mode to protected PDF.js when PageFlip is unavailable.
+- Reading resume support using last saved page.
+- Reading progress by page, total pages, percentage and active time.
+- Optional dynamic watermark deterrent.
+- Optional gamification with personal milestones and points.
+- `videoplayer_rewards` table for earned rewards.
+- Progress service layer.
+- Reward service layer.
+- Moodle events: `progress_updated`, `resource_completed`, `reward_awarded`.
+- Backup and Restore support for local PDF files, progress and rewards.
+- Privacy API support for reading state and reward records.
+- `thirdpartylibs.xml` entries for PDF.js, Plyr and StPageFlip.
+- Documentation for architecture, installation, security, development and manual testing.
+
+### Changed
+
+- `save_progress.php` now delegates business logic to internal services.
+- PDF rendering context now supports both standard and ebook modes.
+- Activity form now supports Google Drive and local protected PDF sources.
+- Completion can be calculated from PDF page progress.
+- README updated for protected local PDF and ebook workflows.
+
+### Security
+
+- Local PDFs are stored outside the web root in Moodle private file storage.
+- Local PDF access requires Moodle login, module context and `mod/videoplayer:view` capability.
+- Direct local PDF URLs are not exposed to learners.
+- Viewer-level copy/right-click/download controls are implemented as deterrents only, not DRM.
+
+### Notes
+
+- PageFlip files must be installed locally under `thirdpartylibs/pageflip/`.
+- StPageFlip is documented upstream as MIT licensed.
+- Production release still requires Moodle staging validation, AMD build generation and manual QA.
+
 ## v1.0.0 - 2026-06-14
 
 ### Added

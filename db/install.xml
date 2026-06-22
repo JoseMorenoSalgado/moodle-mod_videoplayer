@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/videoplayer/db" VERSION="20260614" COMMENT="XMLDB file for Moodle mod_videoplayer"
+<XMLDB PATH="mod/videoplayer/db" VERSION="20260621" COMMENT="XMLDB file for Moodle mod_videoplayer"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
   <TABLES>
 
-    <TABLE NAME="videoplayer" COMMENT="Stores Google Drive resource activity module instances.">
+    <TABLE NAME="videoplayer" COMMENT="Stores Drive Resource activity module instances.">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="course" TYPE="int" LENGTH="10" NOTNULL="true"/>
@@ -15,8 +15,14 @@
         <FIELD NAME="intro" TYPE="text" NOTNULL="false"/>
         <FIELD NAME="introformat" TYPE="int" LENGTH="4" NOTNULL="true" DEFAULT="0"/>
         <FIELD NAME="source" TYPE="char" LENGTH="32" NOTNULL="true" DEFAULT="googledrive"/>
-        <FIELD NAME="videourl" TYPE="char" LENGTH="1024" NOTNULL="true"/>
+        <FIELD NAME="videourl" TYPE="char" LENGTH="1024" NOTNULL="true" DEFAULT=""/>
         <FIELD NAME="type" TYPE="char" LENGTH="32" NOTNULL="true" DEFAULT="auto"/>
+        <FIELD NAME="displaymode" TYPE="char" LENGTH="32" NOTNULL="true" DEFAULT="standard"/>
+        <FIELD NAME="disabledownload" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="disablecontextmenu" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1"/>
+        <FIELD NAME="enablewatermark" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="enablegamification" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="pointsperpage" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="1"/>
         <FIELD NAME="video" TYPE="char" LENGTH="255" NOTNULL="false"/>
         <FIELD NAME="endscreentext" TYPE="text" NOTNULL="false"/>
         <FIELD NAME="displayasstartscreen" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
@@ -39,7 +45,7 @@
       </INDEXES>
     </TABLE>
 
-    <TABLE NAME="videoplayer_views" COMMENT="Tracks Google Drive resource views and progress per user.">
+    <TABLE NAME="videoplayer_views" COMMENT="Tracks Drive Resource views, reading state and completion per user.">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="videoplayerid" TYPE="int" LENGTH="10" NOTNULL="true"/>
@@ -49,6 +55,10 @@
         <FIELD NAME="progress" TYPE="number" LENGTH="10" NOTNULL="true" DEFAULT="0" DECIMALS="2"/>
         <FIELD NAME="completed" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0"/>
         <FIELD NAME="completionpercentage" TYPE="number" LENGTH="5" NOTNULL="true" DEFAULT="0" DECIMALS="2"/>
+        <FIELD NAME="lastpage" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="totalpages" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timespent" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="points" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
@@ -61,6 +71,29 @@
         <INDEX NAME="userid_idx" UNIQUE="false" FIELDS="userid"/>
         <INDEX NAME="completed_idx" UNIQUE="false" FIELDS="completed"/>
         <INDEX NAME="timemodified_idx" UNIQUE="false" FIELDS="timemodified"/>
+      </INDEXES>
+    </TABLE>
+
+    <TABLE NAME="videoplayer_rewards" COMMENT="Stores Drive Resource gamification rewards earned by users.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="videoplayerid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true"/>
+        <FIELD NAME="rewardtype" TYPE="char" LENGTH="32" NOTNULL="true"/>
+        <FIELD NAME="rewardkey" TYPE="char" LENGTH="64" NOTNULL="true"/>
+        <FIELD NAME="points" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="fk_videoplayerid" TYPE="foreign" FIELDS="videoplayerid" REFTABLE="videoplayer" REFFIELDS="id"/>
+        <KEY NAME="fk_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="uniq_reward" TYPE="unique" FIELDS="videoplayerid, userid, rewardtype, rewardkey"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="videoplayerid_idx" UNIQUE="false" FIELDS="videoplayerid"/>
+        <INDEX NAME="userid_idx" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="rewardkey_idx" UNIQUE="false" FIELDS="rewardkey"/>
       </INDEXES>
     </TABLE>
 
