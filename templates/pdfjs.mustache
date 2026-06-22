@@ -40,6 +40,9 @@
                 <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
                 <span>{{#str}} loadingpdf, mod_videoplayer {{/str}}</span>
             </div>
+            {{#ebookmode}}
+                <div class="mod-videoplayer-ebook-stage" data-region="ebook-stage" hidden></div>
+            {{/ebookmode}}
             <canvas class="mod-videoplayer-pdfjs-canvas" draggable="false" oncontextmenu="return false;"></canvas>
             {{#enablewatermark}}
                 <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
