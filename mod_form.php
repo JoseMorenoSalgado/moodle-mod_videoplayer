@@ -182,7 +182,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             'maxbytes' => get_max_upload_file_size($CFG->maxbytes, $this->course->maxbytes ?? 0),
             'maxfiles' => 1,
             'accepted_types' => ['.pdf'],
-            'return_types' => FILE_INTERNAL,
         ];
     }
 }
