@@ -175,5 +175,65 @@ function xmldb_videoplayer_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026061400, 'videoplayer');
     }
 
+    if ($oldversion < 2026062100) {
+        $table = new xmldb_table('videoplayer');
+        if ($dbman->table_exists($table)) {
+            $fields = [
+                new xmldb_field('displaymode', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'standard', 'type'),
+                new xmldb_field('disabledownload', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1', 'displaymode'),
+                new xmldb_field('disablecontextmenu', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1', 'disabledownload'),
+                new xmldb_field('enablewatermark', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'disablecontextmenu'),
+                new xmldb_field('enablegamification', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'enablewatermark'),
+                new xmldb_field('pointsperpage', XMLDB_TYPE_INTEGER, '5', null, XMLDB_NOTNULL, null, '1', 'enablegamification'),
+            ];
+            foreach ($fields as $field) {
+                if (!$dbman->field_exists($table, $field)) {
+                    $dbman->add_field($table, $field);
+                }
+            }
+
+            $videourlfield = new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, '', 'source');
+            if ($dbman->field_exists($table, $videourlfield)) {
+                $dbman->change_field_default($table, $videourlfield);
+            }
+        }
+
+        $viewstable = new xmldb_table('videoplayer_views');
+        if ($dbman->table_exists($viewstable)) {
+            $fields = [
+                new xmldb_field('lastpage', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'completionpercentage'),
+                new xmldb_field('totalpages', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'lastpage'),
+                new xmldb_field('timespent', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'totalpages'),
+                new xmldb_field('points', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0', 'timespent'),
+            ];
+            foreach ($fields as $field) {
+                if (!$dbman->field_exists($viewstable, $field)) {
+                    $dbman->add_field($viewstable, $field);
+                }
+            }
+        }
+
+        $rewardstable = new xmldb_table('videoplayer_rewards');
+        if (!$dbman->table_exists($rewardstable)) {
+            $rewardstable->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $rewardstable->add_field('videoplayerid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $rewardstable->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $rewardstable->add_field('rewardtype', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, null);
+            $rewardstable->add_field('rewardkey', XMLDB_TYPE_CHAR, '64', null, XMLDB_NOTNULL, null, null);
+            $rewardstable->add_field('points', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rewardstable->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $rewardstable->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $rewardstable->add_key('fk_videoplayerid', XMLDB_KEY_FOREIGN, ['videoplayerid'], 'videoplayer', ['id']);
+            $rewardstable->add_key('fk_userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
+            $rewardstable->add_key('uniq_reward', XMLDB_KEY_UNIQUE, ['videoplayerid', 'userid', 'rewardtype', 'rewardkey']);
+            $rewardstable->add_index('videoplayerid_idx', XMLDB_INDEX_NOTUNIQUE, ['videoplayerid']);
+            $rewardstable->add_index('userid_idx', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+            $rewardstable->add_index('rewardkey_idx', XMLDB_INDEX_NOTUNIQUE, ['rewardkey']);
+            $dbman->create_table($rewardstable);
+        }
+
+        upgrade_mod_savepoint(true, 2026062100, 'videoplayer');
+    }
+
     return true;
 }
