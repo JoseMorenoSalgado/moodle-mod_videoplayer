@@ -131,7 +131,12 @@ class save_progress extends external_api {
         $rewards = [];
         if (!empty($videoplayer->enablegamification)) {
             $rewards = self::award_rewards($videoplayer, $record, (int)$USER->id);
-            $record->points = (int)$DB->get_field('videoplayer_rewards', 'COALESCE(SUM(points), 0)', $conditions) ?: 0;
+            $record->points = (int)$DB->get_field_sql(
+                'SELECT COALESCE(SUM(points), 0)
+                   FROM {videoplayer_rewards}
+                  WHERE videoplayerid = :videoplayerid AND userid = :userid',
+                $conditions
+            );
         }
 
         if (!empty($record->id)) {
