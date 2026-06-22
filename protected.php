@@ -100,6 +100,35 @@ require_login($course, true, $cm);
 $context = context_module::instance($cm->id);
 require_capability('mod/videoplayer:view', $context);
 
+$filename = clean_filename(format_string($videoplayer->name, true, ['context' => $context]));
+if ($filename === '') {
+    $filename = 'drive-resource';
+}
+
+if (($videoplayer->source ?? 'googledrive') === 'localpdf') {
+    $file = videoplayer_get_localpdf_file($context);
+    if (!$file) {
+        throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
+    }
+    if (!preg_match('/\.pdf$/i', $filename)) {
+        $filename .= '.pdf';
+    }
+
+    \core\session\manager::write_close();
+    @set_time_limit(0);
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
+    header('X-Content-Type-Options: nosniff');
+    header('Content-Security-Policy: sandbox allow-scripts allow-same-origin');
+    send_stored_file($file, 0, 0, false, [
+        'preview' => true,
+        'filename' => $filename,
+        'dontdie' => false,
+    ]);
+}
+
 $fileid = drive::extract_file_id($videoplayer->videourl ?? '');
 if (!$fileid) {
     throw new moodle_exception('invaliddriveurl', 'mod_videoplayer');
@@ -113,10 +142,6 @@ if (!$url) {
     throw new moodle_exception('unsupportedprotectedresource', 'mod_videoplayer');
 }
 $contenttype = drive::default_mimetype($type);
-$filename = clean_filename(format_string($videoplayer->name, true, ['context' => $context]));
-if ($filename === '') {
-    $filename = 'drive-resource';
-}
 if (drive::is_pdf_type($type) && !preg_match('/\.pdf$/i', $filename)) {
     $filename .= '.pdf';
 } else if ($type === 'video' && !preg_match('/\.(mp4|webm|m4v|mov)$/i', $filename)) {
