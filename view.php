@@ -115,8 +115,8 @@ if (get_config('mod_videoplayer', 'playercolormode') === 'custom') {
     }
 }
 
-$initialpage = $progressrecord && !empty($progressrecord->lastpage) ? (int)$progressrecord->lastpage : 1;
-$totalpages = $progressrecord && !empty($progressrecord->totalpages) ? (int)$progressrecord->totalpages : 0;
+$initialpage = ($source === 'localpdf') ? 1 : ($progressrecord && !empty($progressrecord->lastpage) ? (int)$progressrecord->lastpage : 1);
+$totalpages = ($source === 'localpdf') ? 0 : ($progressrecord && !empty($progressrecord->totalpages) ? (int)$progressrecord->totalpages : 0);
 $points = $progressrecord && !empty($progressrecord->points) ? (int)$progressrecord->points : 0;
 $completionpercent = $progressrecord ? (float)$progressrecord->completionpercentage : 0;
 $watermark = fullname($USER) . ' · ' . userdate(time(), get_string('strftimedatetimeshort', 'langconfig'));
