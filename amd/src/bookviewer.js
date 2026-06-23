@@ -20,11 +20,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     const PREFETCH_DELAY = 80;
     let pdfjsPromise = null;
 
-    /**
-     * Load local PDF.js once.
-     *
-     * @returns {Promise<Object>}
-     */
     const loadPdfJs = function() {
         if (!pdfjsPromise) {
             pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
@@ -35,46 +30,22 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         return pdfjsPromise;
     };
 
-    /**
-     * Whether current viewport is mobile.
-     *
-     * @returns {boolean}
-     */
     const isMobile = function() {
         return window.matchMedia(MOBILE_QUERY).matches;
     };
 
-    /**
-     * Hide or show a DOM node.
-     *
-     * @param {HTMLElement|null} node
-     * @param {boolean} value
-     * @returns {void}
-     */
     const hide = function(node, value) {
         if (node) {
             node.hidden = value;
         }
     };
 
-    /**
-     * Block unsafe viewer interactions.
-     *
-     * @param {Event} event
-     * @returns {boolean}
-     */
     const block = function(event) {
         event.preventDefault();
         event.stopPropagation();
         return false;
     };
 
-    /**
-     * Apply viewer-level deterrents. Server-side authorization remains mandatory.
-     *
-     * @param {HTMLElement} root
-     * @returns {void}
-     */
     const hardenViewer = function(root) {
         if (root.getAttribute('data-disable-context-menu') !== '1') {
             return;
@@ -90,13 +61,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         }, true);
     };
 
-    /**
-     * Initialise one book viewer.
-     *
-     * @param {HTMLElement} root
-     * @param {Object} pdfjsLib
-     * @returns {void}
-     */
     const initViewer = function(root, pdfjsLib) {
         const pdfUrl = root.getAttribute('data-pdf-url');
         const cmid = parseInt(root.getAttribute('data-cmid'), 10) || 0;
@@ -138,12 +102,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const pageCache = new Map();
         const renderPromises = new Map();
 
-        /**
-         * Get start page for desktop spread.
-         *
-         * @param {number} num
-         * @returns {number}
-         */
         const getSpreadStart = function(num) {
             if (isMobile()) {
                 return num;
@@ -151,11 +109,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return num <= 1 ? 1 : (num % 2 === 0 ? num : num - 1);
         };
 
-        /**
-         * Get currently visible pages.
-         *
-         * @returns {number[]}
-         */
         const getVisiblePages = function() {
             if (!pdfDocument) {
                 return [];
@@ -171,21 +124,15 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return pages;
         };
 
-        /**
-         * Build a cache key tied to layout mode and page width.
-         *
-         * @param {number} pageIndex
-         * @returns {string}
-         */
+        const getPageWidth = function() {
+            const stageWidth = Math.max(stage.clientWidth - (isMobile() ? 24 : 128), 280);
+            return isMobile() ? Math.min(stageWidth, 720) : Math.min(stageWidth / 2, 560);
+        };
+
         const getCacheKey = function(pageIndex) {
             return [isMobile() ? 'm' : 'd', Math.round(getPageWidth()), pageIndex].join(':');
         };
 
-        /**
-         * Limit rendered canvas cache to avoid memory pressure.
-         *
-         * @returns {void}
-         */
         const pruneCache = function() {
             const limit = isMobile() ? MOBILE_CACHE_LIMIT : DESKTOP_CACHE_LIMIT;
             while (pageCache.size > limit) {
@@ -194,21 +141,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
         };
 
-        /**
-         * Clear cached pages after layout dimension changes.
-         *
-         * @returns {void}
-         */
         const clearPageCache = function() {
             pageCache.clear();
             renderPromises.clear();
         };
 
-        /**
-         * Update page counter and navigation state.
-         *
-         * @returns {void}
-         */
         const updateStatus = function() {
             if (!pdfDocument) {
                 return;
@@ -228,11 +165,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
         };
 
-        /**
-         * Current completion percentage.
-         *
-         * @returns {number}
-         */
         const completionPercent = function() {
             if (!pdfDocument || !pdfDocument.numPages) {
                 return 0;
@@ -240,12 +172,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return Math.min(100, Math.round((pageNumber / pdfDocument.numPages) * 10000) / 100);
         };
 
-        /**
-         * Save reading progress.
-         *
-         * @param {boolean} force
-         * @returns {Promise}
-         */
         const saveProgress = function(force) {
             if (!cmid || !pdfDocument) {
                 return Promise.resolve();
@@ -282,22 +208,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }).catch(Notification.exception);
         };
 
-        /**
-         * Calculate target page width for current layout.
-         *
-         * @returns {number}
-         */
-        const getPageWidth = function() {
-            const stageWidth = Math.max(stage.clientWidth - (isMobile() ? 24 : 128), 280);
-            return isMobile() ? Math.min(stageWidth, 720) : Math.min(stageWidth / 2, 560);
-        };
-
-        /**
-         * Render one page to canvas with in-memory cache.
-         *
-         * @param {number} pageIndex
-         * @returns {Promise<HTMLCanvasElement>}
-         */
         const renderPageCanvas = function(pageIndex) {
             const cacheKey = getCacheKey(pageIndex);
 
@@ -344,35 +254,23 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return promise;
         };
 
-        /**
-         * Get neighbor pages to prefetch.
-         *
-         * @returns {number[]}
-         */
         const getPrefetchPages = function() {
             if (!pdfDocument) {
                 return [];
             }
 
             if (isMobile()) {
-                return [pageNumber + 1, pageNumber - 1]
-                    .filter(function(num) {
-                        return num >= 1 && num <= pdfDocument.numPages;
-                    });
+                return [pageNumber + 1, pageNumber - 1].filter(function(num) {
+                    return num >= 1 && num <= pdfDocument.numPages;
+                });
             }
 
             const start = getSpreadStart(pageNumber);
-            return [start + 2, start + 3, start - 1, start - 2]
-                .filter(function(num) {
-                    return num >= 1 && num <= pdfDocument.numPages;
-                });
+            return [start + 2, start + 3, start - 1, start - 2].filter(function(num) {
+                return num >= 1 && num <= pdfDocument.numPages;
+            });
         };
 
-        /**
-         * Prefetch neighbor pages after visible pages are ready.
-         *
-         * @returns {void}
-         */
         const prefetchPages = function() {
             window.setTimeout(function() {
                 getPrefetchPages().forEach(function(num) {
@@ -383,14 +281,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }, PREFETCH_DELAY);
         };
 
-        /**
-         * Build one page node with book-side classes.
-         *
-         * @param {HTMLCanvasElement} canvas
-         * @param {number} pageIndex
-         * @param {number} position
-         * @returns {HTMLElement}
-         */
         const createPageNode = function(canvas, pageIndex, position) {
             const pageNode = document.createElement('div');
             pageNode.className = 'mod-videoplayer-book-page';
@@ -413,11 +303,34 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return pageNode;
         };
 
-        /**
-         * Render current spread or mobile page.
-         *
-         * @returns {void}
-         */
+        const createPlaceholderNode = function(referenceCanvas, position) {
+            const pageNode = document.createElement('div');
+            const side = position === 0 ? 'left' : 'right';
+            pageNode.className = 'mod-videoplayer-book-page mod-videoplayer-book-page-' + side + ' is-page-loading';
+            if (referenceCanvas) {
+                pageNode.style.width = referenceCanvas.style.width;
+                pageNode.style.height = referenceCanvas.style.height;
+            }
+            return pageNode;
+        };
+
+        const finishRender = function(currentRenderVersion) {
+            if (currentRenderVersion !== renderVersion) {
+                return;
+            }
+            rendering = false;
+            hide(loading, true);
+            pagesRegion.classList.remove('is-turning', 'is-turning-forward', 'is-turning-backward');
+            updateStatus();
+            saveProgress(false);
+            prefetchPages();
+            if (pendingPage !== null) {
+                const queued = pendingPage;
+                pendingPage = null;
+                goToPage(queued);
+            }
+        };
+
         const renderSpread = function() {
             if (!pdfDocument || rendering) {
                 return;
@@ -431,35 +344,49 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             pagesRegion.innerHTML = '';
 
             const visiblePages = getVisiblePages();
-            const renderers = visiblePages.map(function(num, position) {
-                return renderPageCanvas(num).then(function(canvas) {
-                    if (currentRenderVersion !== renderVersion) {
-                        return;
-                    }
-                    pagesRegion.appendChild(createPageNode(canvas, num, position));
-                });
-            });
+            if (!visiblePages.length) {
+                finishRender(currentRenderVersion);
+                return;
+            }
 
-            Promise.all(renderers).then(function() {
+            renderPageCanvas(visiblePages[0]).then(function(firstCanvas) {
                 if (currentRenderVersion !== renderVersion) {
-                    return;
+                    return Promise.resolve();
                 }
-                if (!isMobile() && visiblePages.length === 1) {
-                    const empty = document.createElement('div');
-                    empty.className = 'mod-videoplayer-book-page mod-videoplayer-book-page-right is-empty';
+
+                pagesRegion.appendChild(createPageNode(firstCanvas, visiblePages[0], 0));
+                let placeholder = null;
+
+                if (!isMobile() && visiblePages.length > 1) {
+                    placeholder = createPlaceholderNode(firstCanvas, 1);
+                    pagesRegion.appendChild(placeholder);
+                } else if (!isMobile() && visiblePages.length === 1) {
+                    const empty = createPlaceholderNode(firstCanvas, 1);
+                    empty.classList.add('is-empty');
                     pagesRegion.appendChild(empty);
                 }
-                rendering = false;
+
                 hide(loading, true);
-                pagesRegion.classList.remove('is-turning', 'is-turning-forward', 'is-turning-backward');
                 updateStatus();
-                saveProgress(false);
-                prefetchPages();
-                if (pendingPage !== null) {
-                    const queued = pendingPage;
-                    pendingPage = null;
-                    goToPage(queued);
-                }
+
+                const remaining = visiblePages.slice(1).map(function(num, index) {
+                    const position = index + 1;
+                    return renderPageCanvas(num).then(function(canvas) {
+                        if (currentRenderVersion !== renderVersion) {
+                            return;
+                        }
+                        const node = createPageNode(canvas, num, position);
+                        if (placeholder && placeholder.parentNode) {
+                            placeholder.parentNode.replaceChild(node, placeholder);
+                        } else {
+                            pagesRegion.appendChild(node);
+                        }
+                    });
+                });
+
+                return Promise.all(remaining).then(function() {
+                    finishRender(currentRenderVersion);
+                });
             }).catch(function(err) {
                 rendering = false;
                 hide(loading, true);
@@ -469,12 +396,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             });
         };
 
-        /**
-         * Go to target page.
-         *
-         * @param {number} num
-         * @returns {void}
-         */
         const goToPage = function(num) {
             if (!pdfDocument) {
                 return;
@@ -593,11 +514,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         });
     };
 
-    /**
-     * Initialise all book viewers.
-     *
-     * @returns {void}
-     */
     const init = function() {
         const roots = Array.prototype.slice.call(document.querySelectorAll('.mod-videoplayer-book-reader'));
         if (!roots.length) {
