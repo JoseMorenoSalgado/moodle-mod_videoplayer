@@ -26,6 +26,8 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Privacy API support for reading state and reward records.
 - `thirdpartylibs.xml` entries for PDF.js, Plyr and StPageFlip.
 - Documentation for architecture, installation, security, development and manual testing.
+- Mobile PDF viewport stabilizer for iOS/Safari rendering edge cases.
+- Dedicated visual refinement stylesheet for Drive Resource activity presentation.
 
 ### Changed
 
@@ -34,6 +36,8 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Activity form now supports Google Drive and local protected PDF sources.
 - Completion can be calculated from PDF page progress.
 - README updated for protected local PDF and ebook workflows.
+- PDF viewer mobile layout now uses larger touch targets, safer viewport units and reduced chrome spacing.
+- PDF visual presentation was refactored into focused stylesheets for maintainability.
 
 ### Security
 
