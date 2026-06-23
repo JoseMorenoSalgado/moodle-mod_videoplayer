@@ -4,7 +4,7 @@
     --drive-book-border: rgba(100, 116, 139, .22);
     --drive-book-shadow: 0 22px 54px rgba(15, 23, 42, .16);
     --drive-book-accent: var(--bs-primary, var(--primary, #06b6c9));
-    --drive-book-spine: rgba(15, 23, 42, .22);
+    --drive-book-spine: rgba(15, 23, 42, .34);
 }
 
 .mod-videoplayer-book-reader {
@@ -39,7 +39,7 @@
     z-index: 2;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
+    gap: clamp(.16rem, .5vw, .46rem);
     align-items: center;
     justify-content: center;
     width: min(100%, 1040px);
@@ -54,30 +54,48 @@
     top: 0;
     bottom: 0;
     left: 50%;
-    z-index: 7;
-    width: clamp(1.6rem, 2.8vw, 2.7rem);
     content: "";
     pointer-events: none;
     transform: translateX(-50%);
 }
 
 .mod-videoplayer-book-pages::before {
+    z-index: 7;
+    width: clamp(2.6rem, 4.2vw, 4.4rem);
     background:
         linear-gradient(90deg,
-            rgba(15, 23, 42, .20) 0%,
-            rgba(15, 23, 42, .08) 20%,
-            rgba(255, 255, 255, .78) 46%,
-            rgba(15, 23, 42, .13) 54%,
-            rgba(15, 23, 42, .07) 78%,
-            rgba(15, 23, 42, .18) 100%);
-    filter: blur(.15px);
-    opacity: .9;
+            rgba(15, 23, 42, .22) 0%,
+            rgba(15, 23, 42, .10) 12%,
+            rgba(255, 255, 255, .82) 28%,
+            rgba(226, 232, 240, .72) 40%,
+            rgba(15, 23, 42, .35) 49%,
+            rgba(15, 23, 42, .42) 50%,
+            rgba(15, 23, 42, .35) 51%,
+            rgba(226, 232, 240, .72) 60%,
+            rgba(255, 255, 255, .82) 72%,
+            rgba(15, 23, 42, .10) 88%,
+            rgba(15, 23, 42, .22) 100%);
+    opacity: .96;
+    mix-blend-mode: multiply;
 }
 
 .mod-videoplayer-book-pages::after {
-    width: .18rem;
-    background: linear-gradient(180deg, transparent, rgba(15, 23, 42, .42), transparent);
-    opacity: .55;
+    z-index: 8;
+    width: clamp(.32rem, .7vw, .58rem);
+    background:
+        linear-gradient(180deg,
+            transparent 0%,
+            rgba(15, 23, 42, .18) 12%,
+            rgba(15, 23, 42, .66) 48%,
+            rgba(15, 23, 42, .72) 52%,
+            rgba(15, 23, 42, .18) 88%,
+            transparent 100%);
+    border-radius: 999px;
+    box-shadow:
+        -1.1rem 0 1.8rem rgba(15, 23, 42, .12),
+        1.1rem 0 1.8rem rgba(15, 23, 42, .12),
+        inset 0 0 .35rem rgba(15, 23, 42, .38);
+    opacity: .86;
 }
 
 .mod-videoplayer-book-pages.is-turning {
@@ -117,45 +135,67 @@
 }
 
 .mod-videoplayer-book-page-left {
-    border-radius: .85rem 0 0 .85rem;
+    border-radius: .9rem .18rem .18rem .9rem;
     transform-origin: right center;
     box-shadow:
         0 18px 42px rgba(15, 23, 42, .16),
-        inset -2rem 0 2.6rem rgba(15, 23, 42, .08),
-        inset -.35rem 0 .7rem rgba(15, 23, 42, .18);
+        inset -3rem 0 3.2rem rgba(15, 23, 42, .105),
+        inset -.75rem 0 1.1rem rgba(15, 23, 42, .24),
+        inset .3rem 0 .8rem rgba(255, 255, 255, .62);
 }
 
 .mod-videoplayer-book-page-right {
-    border-radius: 0 .85rem .85rem 0;
+    border-radius: .18rem .9rem .9rem .18rem;
     transform-origin: left center;
     box-shadow:
         0 18px 42px rgba(15, 23, 42, .16),
-        inset 2rem 0 2.6rem rgba(15, 23, 42, .08),
-        inset .35rem 0 .7rem rgba(15, 23, 42, .18);
+        inset 3rem 0 3.2rem rgba(15, 23, 42, .105),
+        inset .75rem 0 1.1rem rgba(15, 23, 42, .24),
+        inset -.3rem 0 .8rem rgba(255, 255, 255, .62);
 }
 
 .mod-videoplayer-book-page-left::before {
     right: 0;
-    width: clamp(1.1rem, 2.2vw, 2rem);
-    background: linear-gradient(90deg, transparent, rgba(15, 23, 42, .16));
+    width: clamp(2rem, 3.4vw, 3.3rem);
+    background:
+        linear-gradient(90deg,
+            transparent 0%,
+            rgba(15, 23, 42, .08) 38%,
+            rgba(15, 23, 42, .22) 78%,
+            rgba(15, 23, 42, .36) 100%);
 }
 
 .mod-videoplayer-book-page-right::before {
     left: 0;
-    width: clamp(1.1rem, 2.2vw, 2rem);
-    background: linear-gradient(90deg, rgba(15, 23, 42, .16), transparent);
+    width: clamp(2rem, 3.4vw, 3.3rem);
+    background:
+        linear-gradient(90deg,
+            rgba(15, 23, 42, .36) 0%,
+            rgba(15, 23, 42, .22) 22%,
+            rgba(15, 23, 42, .08) 62%,
+            transparent 100%);
 }
 
 .mod-videoplayer-book-page-left::after {
     right: 0;
-    width: 1px;
-    background: rgba(15, 23, 42, .24);
+    width: .22rem;
+    background:
+        linear-gradient(180deg,
+            transparent,
+            rgba(15, 23, 42, .38),
+            transparent);
+    box-shadow: -.45rem 0 .95rem rgba(15, 23, 42, .16);
 }
 
 .mod-videoplayer-book-page-right::after {
     left: 0;
-    width: 1px;
-    background: rgba(15, 23, 42, .24);
+    width: .22rem;
+    background:
+        linear-gradient(180deg,
+            transparent,
+            rgba(15, 23, 42, .38),
+            transparent);
+    box-shadow: .45rem 0 .95rem rgba(15, 23, 42, .16);
 }
 
 .mod-videoplayer-book-page.is-turning-forward {
