@@ -8,12 +8,11 @@ use mod_videoplayer\local\drive;
 /** Private browser cache lifetime for authorized protected streams. */
 const MOD_VIDEOPLAYER_PRIVATE_CACHE_SECONDS = 300;
 
+/** Stream chunk size in bytes. */
+const MOD_VIDEOPLAYER_STREAM_CHUNK_SIZE = 262144;
+
 /**
  * Send private cache headers that preserve byte-range semantics.
- *
- * Protected resources may be cached only by the authenticated browser. The
- * `no-transform` directive is required because dynamic gzip/brotli would break
- * byte offsets used by PDF.js and media players.
  *
  * @param string $etag Stable entity tag without quotes.
  * @param int $lastmodified Unix timestamp.
@@ -56,6 +55,27 @@ function mod_videoplayer_get_stored_file_path(stored_file $file): ?string {
 
     $path = $CFG->dataroot . '/filedir/' . substr($hash, 0, 2) . '/' . substr($hash, 2, 2) . '/' . $hash;
     return is_readable($path) ? $path : null;
+}
+
+/**
+ * Check whether a local file looks like a PDF.
+ *
+ * @param string $path Absolute path.
+ * @return bool
+ */
+function mod_videoplayer_is_pdf_file(string $path): bool {
+    if (!is_readable($path) || filesize($path) <= 0) {
+        return false;
+    }
+
+    $fh = fopen($path, 'rb');
+    if ($fh === false) {
+        return false;
+    }
+    $header = fread($fh, 1024);
+    fclose($fh);
+
+    return is_string($header) && strpos($header, '%PDF-') !== false;
 }
 
 /**
@@ -140,7 +160,7 @@ function mod_videoplayer_send_file(
     fseek($fp, $start);
     $left = $length;
     while ($left > 0 && !feof($fp)) {
-        $chunk = fread($fp, min(262144, $left));
+        $chunk = fread($fp, min(MOD_VIDEOPLAYER_STREAM_CHUNK_SIZE, $left));
         if ($chunk === false || $chunk === '') {
             break;
         }
@@ -167,12 +187,7 @@ function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): v
         $file->copy_content_to($path);
     }
 
-    $fh = fopen($path, 'rb');
-    $header = $fh === false ? '' : fread($fh, 1024);
-    if ($fh !== false) {
-        fclose($fh);
-    }
-    if (strpos($header, '%PDF-') === false) {
+    if (!mod_videoplayer_is_pdf_file($path)) {
         debugging('Drive Resource local PDF did not contain a PDF header in the first 1024 bytes.', DEBUG_DEVELOPER);
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
@@ -207,6 +222,89 @@ function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype
     if (!empty($headers['content-range'])) {
         header('Content-Range: ' . $headers['content-range']);
     }
+}
+
+/**
+ * Download a Google Drive PDF into the plugin cache before serving ranges.
+ *
+ * This intentionally downloads the full PDF once. Afterwards PDF.js range
+ * requests are served from Moodle local storage instead of repeatedly hitting
+ * Google Drive.
+ *
+ * @param string $url Resolved upstream download URL.
+ * @param string $cachefile Final cache file path.
+ * @return bool Whether a valid PDF was cached.
+ */
+function mod_videoplayer_cache_drive_pdf(string $url, string $cachefile): bool {
+    $cachedir = dirname($cachefile);
+    if (!is_dir($cachedir)) {
+        make_writable_directory($cachedir);
+    }
+
+    $lockfile = $cachefile . '.lock';
+    $lockhandle = fopen($lockfile, 'c');
+    if ($lockhandle === false) {
+        return false;
+    }
+
+    $locked = flock($lockhandle, LOCK_EX);
+    if (!$locked) {
+        fclose($lockhandle);
+        return false;
+    }
+
+    clearstatcache(true, $cachefile);
+    if (is_readable($cachefile) && mod_videoplayer_is_pdf_file($cachefile)) {
+        flock($lockhandle, LOCK_UN);
+        fclose($lockhandle);
+        return true;
+    }
+
+    $tmpfile = $cachefile . '.tmp.' . getmypid();
+    if (is_file($tmpfile)) {
+        unlink($tmpfile);
+    }
+
+    $handle = fopen($tmpfile, 'wb');
+    if ($handle === false) {
+        flock($lockhandle, LOCK_UN);
+        fclose($lockhandle);
+        return false;
+    }
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_BUFFERSIZE => MOD_VIDEOPLAYER_STREAM_CHUNK_SIZE,
+        CURLOPT_HTTPHEADER => ['Accept-Encoding: identity'],
+        CURLOPT_FILE => $handle,
+    ]);
+
+    $result = curl_exec($ch);
+    $curlerror = curl_error($ch);
+    $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    fclose($handle);
+
+    $valid = $result !== false && $curlcode >= 200 && $curlcode < 300 && mod_videoplayer_is_pdf_file($tmpfile);
+    if ($valid) {
+        rename($tmpfile, $cachefile);
+    } else {
+        if (is_file($tmpfile)) {
+            unlink($tmpfile);
+        }
+        debugging('Drive Resource PDF cache warm failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
+    }
+
+    flock($lockhandle, LOCK_UN);
+    fclose($lockhandle);
+
+    return $valid;
 }
 
 $id = required_param('id', PARAM_INT);
@@ -275,13 +373,15 @@ if (!empty($_SERVER['HTTP_RANGE'])) {
     }
 }
 
-$pdfcache = drive::is_pdf_type($type) && get_config('mod_videoplayer', 'pdfcacheenabled');
+$pdfcacheconfig = get_config('mod_videoplayer', 'pdfcacheenabled');
+$pdfcache = drive::is_pdf_type($type) && (string)$pdfcacheconfig !== '0';
 $cachettl = (int)get_config('mod_videoplayer', 'pdfcachettl');
 if ($cachettl <= 0) {
-    $cachettl = 86400;
+    $cachettl = 2592000;
 }
 $cachefile = '';
 $cachestatus = $pdfcache ? 'MISS' : 'BYPASS';
+
 if ($pdfcache) {
     $cachedir = $CFG->localcachedir . '/mod_videoplayer/pdf';
     if (!is_dir($cachedir)) {
@@ -289,9 +389,16 @@ if ($pdfcache) {
     }
     $cachekey = sha1($fileid . ':' . $type);
     $cachefile = $cachedir . '/' . $cachekey . '.pdf';
-    if (is_readable($cachefile) && filemtime($cachefile) + $cachettl > time()) {
+
+    if (is_readable($cachefile) && filemtime($cachefile) + $cachettl > time() && mod_videoplayer_is_pdf_file($cachefile)) {
         mod_videoplayer_send_file($cachefile, $filename, $contenttype, $cachekey, filemtime($cachefile) ?: time(), 'HIT');
     }
+
+    if (mod_videoplayer_cache_drive_pdf($url, $cachefile)) {
+        mod_videoplayer_send_file($cachefile, $filename, $contenttype, $cachekey, filemtime($cachefile) ?: time(), 'WARMED');
+    }
+
+    $cachestatus = 'MISS';
 }
 
 $requestheaders = [
@@ -325,13 +432,6 @@ $headercallback = function($curl, string $header) use (&$responseheaders): int {
     return $length;
 };
 
-$cachehandle = null;
-$tmpcachefile = '';
-if ($pdfcache && $range === '' && $cachefile !== '') {
-    $tmpcachefile = $cachefile . '.tmp.' . getmypid();
-    $cachehandle = fopen($tmpcachefile, 'wb');
-}
-
 $ch = curl_init($url);
 $options = [
     CURLOPT_FOLLOWLOCATION => true,
@@ -340,16 +440,13 @@ $options = [
     CURLOPT_TIMEOUT => 0,
     CURLOPT_SSL_VERIFYPEER => true,
     CURLOPT_SSL_VERIFYHOST => 2,
-    CURLOPT_BUFFERSIZE => 262144,
+    CURLOPT_BUFFERSIZE => MOD_VIDEOPLAYER_STREAM_CHUNK_SIZE,
     CURLOPT_HTTPHEADER => $requestheaders,
     CURLOPT_HEADERFUNCTION => $headercallback,
-    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename, $cachestatus): int {
+    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$headerssent, &$responseheaders, $contenttype, $filename, $cachestatus): int {
         if (!$headerssent) {
             mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $cachestatus);
             $headerssent = true;
-        }
-        if ($cachehandle) {
-            fwrite($cachehandle, $data);
         }
         echo $data;
         flush();
@@ -367,15 +464,6 @@ curl_close($ch);
 
 if (!$headerssent && $curlcode < 400) {
     mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $cachestatus);
-}
-
-if ($cachehandle) {
-    fclose($cachehandle);
-    if ($result && $curlcode >= 200 && $curlcode < 300 && is_file($tmpcachefile) && filesize($tmpcachefile) > 0) {
-        rename($tmpcachefile, $cachefile);
-    } else if (is_file($tmpcachefile)) {
-        unlink($tmpcachefile);
-    }
 }
 
 if ($result === false || $curlcode >= 400) {
