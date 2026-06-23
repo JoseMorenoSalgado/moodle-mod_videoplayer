@@ -78,6 +78,10 @@
 }
 
 @media (max-width: 767.98px) {
+    .mod-videoplayer-book-stage {
+        padding: .6rem .4rem .85rem;
+    }
+
     .mod-videoplayer-book-topbar {
         top: .65rem;
         right: .65rem;
@@ -98,17 +102,23 @@
     }
 
     .mod-videoplayer-book-nav {
-        bottom: .85rem;
-        width: 3.15rem;
-        height: 3.15rem;
+        top: 50%;
+        bottom: auto;
+        width: 2.75rem;
+        height: 2.75rem;
+        font-size: 2rem;
+        background: rgba(255, 255, 255, .82);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .2);
+        opacity: .9;
+        transform: translateY(-50%);
     }
 
     .mod-videoplayer-book-nav-prev {
-        left: .85rem;
+        left: .55rem;
     }
 
     .mod-videoplayer-book-nav-next {
-        right: .85rem;
+        right: .55rem;
     }
 
     .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-topbar,
@@ -120,6 +130,18 @@
 
     .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-nav,
     .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-nav {
-        bottom: calc(env(safe-area-inset-bottom, 0px) + .85rem);
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+    }
+
+    .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-nav-prev,
+    .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-nav-prev {
+        left: calc(env(safe-area-inset-left, 0px) + .55rem);
+    }
+
+    .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-nav-next,
+    .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-nav-next {
+        right: calc(env(safe-area-inset-right, 0px) + .55rem);
     }
 }
