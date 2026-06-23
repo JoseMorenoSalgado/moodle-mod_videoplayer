@@ -33,6 +33,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Desktop book spine, center fold shadows and directional ebook-style page turn effects.
 - Dedicated book control placement stylesheet for coherent navigation and fullscreen UI.
 - Protected stream cache diagnostic header `X-Drive-Resource-Cache`.
+- Deterministic server-side cache warming for protected Google Drive PDFs.
 
 ### Changed
 
@@ -51,6 +52,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Protected book PDFs now start from page 1 on every page load instead of resuming the last viewed page.
 - Book viewer now hides the loading overlay as soon as the first visible page is rendered instead of waiting for the full desktop spread.
 - Local Moodle PDFs are streamed directly from Moodle File API storage when possible, avoiding a full temporary copy before delivery.
+- Google Drive PDFs are now downloaded once into Moodle local cache before serving PDF.js byte-range requests.
 
 ### Security
 
@@ -59,6 +61,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Direct local PDF URLs are not exposed to learners.
 - Viewer-level copy/right-click/download controls are implemented as deterrents only, not DRM.
 - Protected resource caching is private to the authenticated browser and keeps `no-transform` to preserve byte ranges.
+- Cached Google Drive PDFs remain under Moodle `localcachedir` and are served only after Moodle login, module context and capability validation.
 
 ### Notes
 
