@@ -101,6 +101,7 @@ if (!isguestuser()) {
 
 if ($type === 'pdf') {
     $PAGE->requires->css('/mod/videoplayer/styles_pdf_overlay.css');
+    $PAGE->requires->css('/mod/videoplayer/styles_pdf_mobile.css');
     $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
 } else if ($type === 'video') {
     $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
