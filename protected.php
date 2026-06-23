@@ -5,15 +5,42 @@ require_once(__DIR__ . '/lib.php');
 
 use mod_videoplayer\local\drive;
 
+/** Private browser cache lifetime for authorized protected streams. */
+const MOD_VIDEOPLAYER_PRIVATE_CACHE_SECONDS = 300;
+
+/**
+ * Send private cache headers that preserve byte-range semantics.
+ *
+ * Protected resources may be cached only by the authenticated browser. The
+ * `no-transform` directive is required because dynamic gzip/brotli would break
+ * byte offsets used by PDF.js and media players.
+ *
+ * @param string $etag Stable entity tag without quotes.
+ * @param int $lastmodified Unix timestamp.
+ * @return void
+ */
+function mod_videoplayer_send_private_cache_headers(string $etag = '', int $lastmodified = 0): void {
+    header('Cache-Control: private, max-age=' . MOD_VIDEOPLAYER_PRIVATE_CACHE_SECONDS . ', must-revalidate, no-transform');
+    header('Expires: ' . gmdate('D, d M Y H:i:s', time() + MOD_VIDEOPLAYER_PRIVATE_CACHE_SECONDS) . ' GMT');
+    if ($etag !== '') {
+        header('ETag: "' . preg_replace('/[^a-zA-Z0-9_\-.]/', '', $etag) . '"');
+    }
+    if ($lastmodified > 0) {
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastmodified) . ' GMT');
+    }
+}
+
 /**
  * Send a local file with safe byte-range support.
  *
  * @param string $path Absolute local path.
  * @param string $filename Safe download filename.
  * @param string $contenttype MIME type.
+ * @param string $etag Optional stable entity tag.
+ * @param int $lastmodified Optional unix timestamp.
  * @return void
  */
-function mod_videoplayer_send_file(string $path, string $filename, string $contenttype): void {
+function mod_videoplayer_send_file(string $path, string $filename, string $contenttype, string $etag = '', int $lastmodified = 0): void {
     if (!is_readable($path)) {
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
@@ -22,6 +49,9 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     if ($size === false || $size <= 0) {
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
+
+    $lastmodified = $lastmodified > 0 ? $lastmodified : (filemtime($path) ?: time());
+    $etag = $etag !== '' ? $etag : sha1($size . ':' . $lastmodified);
 
     $range = '';
     if (!empty($_SERVER['HTTP_RANGE']) && preg_match('/^bytes=(\d*)-(\d*)$/', $_SERVER['HTTP_RANGE'])) {
@@ -57,9 +87,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     header('X-Content-Type-Options: nosniff');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
-    header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
-    header('Pragma: no-cache');
-    header('Expires: 0');
+    mod_videoplayer_send_private_cache_headers($etag, $lastmodified);
     header('Content-Length: ' . $length);
     header('Vary: Range');
     if ($code === 206) {
@@ -74,7 +102,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     fseek($fp, $start);
     $left = $length;
     while ($left > 0 && !feof($fp)) {
-        $chunk = fread($fp, min(131072, $left));
+        $chunk = fread($fp, min(262144, $left));
         if ($chunk === false || $chunk === '') {
             break;
         }
@@ -109,7 +137,7 @@ function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): v
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
 
-    mod_videoplayer_send_file($tmppath, $filename, 'application/pdf');
+    mod_videoplayer_send_file($tmppath, $filename, 'application/pdf', $file->get_contenthash(), (int)$file->get_timemodified());
 }
 
 /**
@@ -128,9 +156,7 @@ function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype
     header('X-Content-Type-Options: nosniff');
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
-    header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
-    header('Pragma: no-cache');
-    header('Expires: 0');
+    mod_videoplayer_send_private_cache_headers();
     header('Vary: Range');
 
     if (!empty($headers['content-length'])) {
@@ -221,7 +247,7 @@ if ($pdfcache) {
     $cachekey = sha1($fileid . ':' . $type);
     $cachefile = $cachedir . '/' . $cachekey . '.pdf';
     if (is_readable($cachefile) && filemtime($cachefile) + $cachettl > time()) {
-        mod_videoplayer_send_file($cachefile, $filename, $contenttype);
+        mod_videoplayer_send_file($cachefile, $filename, $contenttype, $cachekey, filemtime($cachefile) ?: time());
     }
 }
 
@@ -271,7 +297,7 @@ $options = [
     CURLOPT_TIMEOUT => 0,
     CURLOPT_SSL_VERIFYPEER => true,
     CURLOPT_SSL_VERIFYHOST => 2,
-    CURLOPT_BUFFERSIZE => 131072,
+    CURLOPT_BUFFERSIZE => 262144,
     CURLOPT_HTTPHEADER => $requestheaders,
     CURLOPT_HEADERFUNCTION => $headercallback,
     CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename): int {
