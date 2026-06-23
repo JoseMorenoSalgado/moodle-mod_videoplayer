@@ -133,6 +133,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         let touchStartY = 0;
         let touchMoved = false;
         let renderVersion = 0;
+        let turnDirection = 'forward';
 
         const pageCache = new Map();
         const renderPromises = new Map();
@@ -383,6 +384,36 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         };
 
         /**
+         * Build one page node with book-side classes.
+         *
+         * @param {HTMLCanvasElement} canvas
+         * @param {number} pageIndex
+         * @param {number} position
+         * @returns {HTMLElement}
+         */
+        const createPageNode = function(canvas, pageIndex, position) {
+            const pageNode = document.createElement('div');
+            pageNode.className = 'mod-videoplayer-book-page';
+            pageNode.setAttribute('data-page-number', String(pageIndex));
+
+            if (isMobile()) {
+                pageNode.classList.add('mod-videoplayer-book-page-single', 'is-mobile-turning');
+                pageNode.classList.add(turnDirection === 'backward' ? 'is-mobile-turning-backward' : 'is-mobile-turning-forward');
+            } else {
+                const side = position === 0 ? 'left' : 'right';
+                pageNode.classList.add('mod-videoplayer-book-page-' + side);
+                if (turnDirection === 'forward' && side === 'right') {
+                    pageNode.classList.add('is-turning-forward');
+                } else if (turnDirection === 'backward' && side === 'left') {
+                    pageNode.classList.add('is-turning-backward');
+                }
+            }
+
+            pageNode.appendChild(canvas);
+            return pageNode;
+        };
+
+        /**
          * Render current spread or mobile page.
          *
          * @returns {void}
@@ -394,24 +425,18 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
             const currentRenderVersion = ++renderVersion;
             rendering = true;
-            pagesRegion.classList.add('is-turning');
+            pagesRegion.classList.remove('is-turning-forward', 'is-turning-backward');
+            pagesRegion.classList.add('is-turning', turnDirection === 'backward' ? 'is-turning-backward' : 'is-turning-forward');
             hide(loading, false);
             pagesRegion.innerHTML = '';
 
             const visiblePages = getVisiblePages();
-            const renderers = visiblePages.map(function(num) {
+            const renderers = visiblePages.map(function(num, position) {
                 return renderPageCanvas(num).then(function(canvas) {
                     if (currentRenderVersion !== renderVersion) {
                         return;
                     }
-                    const pageNode = document.createElement('div');
-                    pageNode.className = 'mod-videoplayer-book-page';
-                    pageNode.setAttribute('data-page-number', String(num));
-                    if (isMobile()) {
-                        pageNode.classList.add('is-mobile-turning');
-                    }
-                    pageNode.appendChild(canvas);
-                    pagesRegion.appendChild(pageNode);
+                    pagesRegion.appendChild(createPageNode(canvas, num, position));
                 });
             });
 
@@ -421,12 +446,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }
                 if (!isMobile() && visiblePages.length === 1) {
                     const empty = document.createElement('div');
-                    empty.className = 'mod-videoplayer-book-page is-empty';
+                    empty.className = 'mod-videoplayer-book-page mod-videoplayer-book-page-right is-empty';
                     pagesRegion.appendChild(empty);
                 }
                 rendering = false;
                 hide(loading, true);
-                pagesRegion.classList.remove('is-turning');
+                pagesRegion.classList.remove('is-turning', 'is-turning-forward', 'is-turning-backward');
                 updateStatus();
                 saveProgress(false);
                 prefetchPages();
@@ -438,6 +463,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }).catch(function(err) {
                 rendering = false;
                 hide(loading, true);
+                pagesRegion.classList.remove('is-turning', 'is-turning-forward', 'is-turning-backward');
                 hide(error, false);
                 Notification.exception(err);
             });
@@ -453,8 +479,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (!pdfDocument) {
                 return;
             }
+            const previousPage = pageNumber;
             const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
-            pageNumber = isMobile() ? safe : getSpreadStart(safe);
+            const targetPage = isMobile() ? safe : getSpreadStart(safe);
+            turnDirection = targetPage < previousPage ? 'backward' : 'forward';
+            pageNumber = targetPage;
             if (rendering) {
                 pendingPage = pageNumber;
                 return;
