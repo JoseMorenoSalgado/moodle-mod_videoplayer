@@ -1,0 +1,58 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template mod_videoplayer/book
+
+    Protected PDF book reader for Drive Resource.
+}}
+<div class="mod-videoplayer-container mod-videoplayer-book" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+    <div class="mod-videoplayer-meta mb-2">
+        <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
+        <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
+        {{#completionpercent}}
+            <span class="mod-videoplayer-meta-item" data-region="book-progress">{{completionpercent}}%</span>
+        {{/completionpercent}}
+    </div>
+
+    <div class="mod-videoplayer-book-reader"
+         data-pdf-url="{{pdfurl}}"
+         data-title="{{title}}"
+         data-cmid="{{cmid}}"
+         data-initial-page="{{initialpage}}"
+         data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
+         data-watermark="{{#enablewatermark}}{{watermark}}{{/enablewatermark}}"
+         oncontextmenu="return false;">
+
+        <div class="mod-videoplayer-book-stage" data-region="book-stage" aria-label="{{title}}">
+            <div class="mod-videoplayer-book-loading" data-region="book-loading">
+                <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
+                <span>{{#str}} loadingpdf, mod_videoplayer {{/str}}</span>
+            </div>
+
+            <button type="button" class="mod-videoplayer-book-nav mod-videoplayer-book-nav-prev" data-action="previous-page" title="{{#str}} previouspage, mod_videoplayer {{/str}}" aria-label="{{#str}} previouspage, mod_videoplayer {{/str}}">
+                <span aria-hidden="true">‹</span>
+            </button>
+
+            <div class="mod-videoplayer-book-pages" data-region="book-pages"></div>
+
+            <button type="button" class="mod-videoplayer-book-nav mod-videoplayer-book-nav-next" data-action="next-page" title="{{#str}} nextpage, mod_videoplayer {{/str}}" aria-label="{{#str}} nextpage, mod_videoplayer {{/str}}">
+                <span aria-hidden="true">›</span>
+            </button>
+
+            <div class="mod-videoplayer-book-topbar">
+                <span class="mod-videoplayer-book-status" aria-live="polite">
+                    <span data-region="current-page">1</span> / <span data-region="total-pages">-</span>
+                </span>
+                <button type="button" class="mod-videoplayer-book-fullscreen" data-action="fullscreen" title="{{#str}} fullscreen, mod_videoplayer {{/str}}" aria-label="{{#str}} fullscreen, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">⛶</span>
+                </button>
+            </div>
+
+            {{#enablewatermark}}
+                <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
+            {{/enablewatermark}}
+        </div>
+
+        <div class="mod-videoplayer-book-error alert alert-danger" data-region="book-error" hidden>{{#str}} pdfjsrequired, mod_videoplayer {{/str}}</div>
+    </div>
+</div>
