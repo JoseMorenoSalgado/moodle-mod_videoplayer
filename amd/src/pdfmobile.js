@@ -17,6 +17,7 @@ define([], function() {
     const CANVAS_SELECTOR = '.mod-videoplayer-pdfjs-canvas';
     const STABILIZE_DELAY = 120;
     const MAX_ATTEMPTS = 20;
+    const VIEWPORT_GUTTER = 12;
 
     /**
      * Whether current viewport should use the mobile stabilizer.
@@ -25,6 +26,48 @@ define([], function() {
      */
     const isMobile = function() {
         return window.matchMedia(MOBILE_QUERY).matches;
+    };
+
+    /**
+     * Return a reliable canvas aspect ratio based on the rendered bitmap.
+     *
+     * @param {HTMLCanvasElement} canvas Rendered PDF canvas.
+     * @returns {number}
+     */
+    const getCanvasRatio = function(canvas) {
+        if (!canvas || !canvas.width || !canvas.height) {
+            return 1;
+        }
+
+        return canvas.width / canvas.height;
+    };
+
+    /**
+     * Force mobile PDF pages to open in a safe fit-page mode.
+     *
+     * @param {HTMLElement} wrap Canvas wrapper.
+     * @param {HTMLCanvasElement} canvas Rendered PDF canvas.
+     * @returns {void}
+     */
+    const applySafeFitPage = function(wrap, canvas) {
+        const ratio = getCanvasRatio(canvas);
+        const availableWidth = Math.max(wrap.clientWidth - VIEWPORT_GUTTER, 260);
+        const availableHeight = Math.max(wrap.clientHeight - VIEWPORT_GUTTER, 320);
+        let targetWidth = availableWidth;
+        let targetHeight = targetWidth / ratio;
+
+        if (targetHeight > availableHeight) {
+            targetHeight = availableHeight;
+            targetWidth = targetHeight * ratio;
+        }
+
+        canvas.style.width = Math.floor(targetWidth) + 'px';
+        canvas.style.height = Math.floor(targetHeight) + 'px';
+        canvas.style.maxWidth = '100%';
+        canvas.style.maxHeight = 'none';
+        canvas.style.marginLeft = 'auto';
+        canvas.style.marginRight = 'auto';
+        canvas.style.display = 'block';
     };
 
     /**
@@ -44,28 +87,10 @@ define([], function() {
             return;
         }
 
-        const availableWidth = Math.max(wrap.clientWidth - 8, 280);
-        const inlineWidth = parseFloat(canvas.style.width || '0');
-        const inlineHeight = parseFloat(canvas.style.height || '0');
+        applySafeFitPage(wrap, canvas);
 
-        if (!inlineWidth || !inlineHeight) {
-            return;
-        }
-
-        if (inlineWidth > availableWidth) {
-            const ratio = availableWidth / inlineWidth;
-            canvas.style.width = Math.floor(availableWidth) + 'px';
-            canvas.style.height = Math.floor(inlineHeight * ratio) + 'px';
-        }
-
-        canvas.style.maxWidth = '100%';
-        canvas.style.marginLeft = 'auto';
-        canvas.style.marginRight = 'auto';
-        canvas.style.display = 'block';
-
-        if (wrap.scrollLeft !== 0) {
-            wrap.scrollLeft = 0;
-        }
+        wrap.scrollLeft = 0;
+        wrap.scrollTop = 0;
     };
 
     /**
