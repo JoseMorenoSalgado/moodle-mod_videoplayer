@@ -1,0 +1,118 @@
+/*
+ * Drive Resource book viewer control placement.
+ *
+ * Keeps navigation and fullscreen controls predictable in desktop, fullscreen
+ * and mobile layouts without changing the protected streaming flow.
+ */
+
+.mod-videoplayer-book-stage {
+    --drive-book-control-offset: clamp(.85rem, 1.8vw, 1.45rem);
+}
+
+.mod-videoplayer-book-nav {
+    z-index: 14;
+    opacity: .96;
+}
+
+.mod-videoplayer-book-nav-prev {
+    left: var(--drive-book-control-offset);
+}
+
+.mod-videoplayer-book-nav-next {
+    right: var(--drive-book-control-offset);
+}
+
+.mod-videoplayer-book-topbar {
+    top: .85rem;
+    right: .95rem;
+    left: .95rem;
+    z-index: 15;
+    display: block;
+    height: 2.8rem;
+    pointer-events: none;
+    transform: none;
+}
+
+.mod-videoplayer-book-status {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    min-width: 4.25rem;
+    justify-content: center;
+    transform: translateX(-50%);
+}
+
+.mod-videoplayer-book-fullscreen {
+    position: absolute;
+    top: 0;
+    right: 0;
+    pointer-events: auto;
+}
+
+.mod-videoplayer-book-status {
+    pointer-events: none;
+}
+
+.mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-nav-prev,
+.is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-nav-prev {
+    left: max(1.25rem, env(safe-area-inset-left, 0px));
+}
+
+.mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-nav-next,
+.is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-nav-next {
+    right: max(1.25rem, env(safe-area-inset-right, 0px));
+}
+
+.mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-topbar,
+.is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-topbar {
+    top: max(1rem, env(safe-area-inset-top, 0px));
+    right: max(1.25rem, env(safe-area-inset-right, 0px));
+    left: max(1.25rem, env(safe-area-inset-left, 0px));
+}
+
+@media (max-width: 767.98px) {
+    .mod-videoplayer-book-topbar {
+        top: .65rem;
+        right: .65rem;
+        left: .65rem;
+        height: 2.75rem;
+    }
+
+    .mod-videoplayer-book-status {
+        min-width: 3.9rem;
+        min-height: 2.35rem;
+        padding: .38rem .7rem;
+        font-size: .88rem;
+    }
+
+    .mod-videoplayer-book-fullscreen {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
+    .mod-videoplayer-book-nav {
+        bottom: .85rem;
+        width: 3.15rem;
+        height: 3.15rem;
+    }
+
+    .mod-videoplayer-book-nav-prev {
+        left: .85rem;
+    }
+
+    .mod-videoplayer-book-nav-next {
+        right: .85rem;
+    }
+
+    .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-topbar,
+    .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-topbar {
+        top: calc(env(safe-area-inset-top, 0px) + .75rem);
+        right: calc(env(safe-area-inset-right, 0px) + .75rem);
+        left: calc(env(safe-area-inset-left, 0px) + .75rem);
+    }
+
+    .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-nav,
+    .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-nav {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + .85rem);
+    }
+}
