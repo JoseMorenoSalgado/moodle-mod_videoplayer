@@ -102,6 +102,7 @@ if (!isguestuser()) {
 
 if ($type === 'pdf') {
     $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
+    $PAGE->requires->css('/mod/videoplayer/styles_book_controls.css');
     $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
 } else if ($type === 'video') {
     $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
@@ -116,7 +117,7 @@ if (get_config('mod_videoplayer', 'playercolormode') === 'custom') {
     }
 }
 
-$initialpage = ($source === 'localpdf') ? 1 : ($progressrecord && !empty($progressrecord->lastpage) ? (int)$progressrecord->lastpage : 1);
+$initialpage = 1;
 $totalpages = ($source === 'localpdf') ? 0 : ($progressrecord && !empty($progressrecord->totalpages) ? (int)$progressrecord->totalpages : 0);
 $points = $progressrecord && !empty($progressrecord->points) ? (int)$progressrecord->points : 0;
 $completionpercent = $progressrecord ? (float)$progressrecord->completionpercentage : 0;
@@ -139,7 +140,7 @@ $templatecontext = [
     'enablewatermark' => !empty($videoplayer->enablewatermark),
     'enablegamification' => !empty($videoplayer->enablegamification),
     'pointsperpage' => (int)($videoplayer->pointsperpage ?? 1),
-    'initialpage' => max(1, $initialpage),
+    'initialpage' => 1,
     'totalpages' => $totalpages,
     'points' => $points,
     'completionpercent' => round($completionpercent, 2),
