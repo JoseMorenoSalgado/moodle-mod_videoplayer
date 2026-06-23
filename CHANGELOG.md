@@ -28,6 +28,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Documentation for architecture, installation, security, development and manual testing.
 - Mobile PDF viewport stabilizer for iOS/Safari rendering edge cases.
 - Dedicated visual refinement stylesheet for Drive Resource activity presentation.
+- Protected responsive book viewer with desktop two-page spread and mobile one-page reading mode.
 
 ### Changed
 
@@ -38,6 +39,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - README updated for protected local PDF and ebook workflows.
 - PDF viewer mobile layout now uses larger touch targets, safer viewport units and reduced chrome spacing.
 - PDF visual presentation was refactored into focused stylesheets for maintainability.
+- PDF resources now render through the protected book viewer by default.
 
 ### Security
 
