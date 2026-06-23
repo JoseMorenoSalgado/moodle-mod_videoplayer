@@ -1,0 +1,390 @@
+// This file is part of Moodle - http://moodle.org/
+
+/**
+ * Protected responsive book viewer for Drive Resource.
+ *
+ * Desktop renders a two-page spread. Mobile renders one page with a light
+ * flip-style transition. The PDF source remains protected through Moodle.
+ *
+ * @module     mod_videoplayer/bookviewer
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
+    const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
+    const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
+    const SAVE_INTERVAL = 10000;
+    const MOBILE_QUERY = '(max-width: 767.98px)';
+    let pdfjsPromise = null;
+
+    const loadPdfJs = function() {
+        if (!pdfjsPromise) {
+            pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+                return pdfjsLib;
+            });
+        }
+        return pdfjsPromise;
+    };
+
+    const isMobile = function() {
+        return window.matchMedia(MOBILE_QUERY).matches;
+    };
+
+    const hide = function(node, value) {
+        if (node) {
+            node.hidden = value;
+        }
+    };
+
+    const block = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    };
+
+    const hardenViewer = function(root) {
+        if (root.getAttribute('data-disable-context-menu') !== '1') {
+            return;
+        }
+        ['contextmenu', 'dragstart', 'copy', 'cut', 'paste', 'selectstart'].forEach(function(name) {
+            root.addEventListener(name, block, true);
+        });
+        root.addEventListener('keydown', function(event) {
+            const key = (event.key || '').toLowerCase();
+            if ((event.ctrlKey || event.metaKey) && ['s', 'p', 'c', 'a'].indexOf(key) !== -1) {
+                block(event);
+            }
+        }, true);
+    };
+
+    const initViewer = function(root, pdfjsLib) {
+        const pdfUrl = root.getAttribute('data-pdf-url');
+        const cmid = parseInt(root.getAttribute('data-cmid'), 10) || 0;
+        const initialPage = Math.max(1, parseInt(root.getAttribute('data-initial-page'), 10) || 1);
+        const reader = root.closest('.mod-videoplayer-book-reader') || root;
+        const stage = root.querySelector('[data-region="book-stage"]');
+        const pagesRegion = root.querySelector('[data-region="book-pages"]');
+        const previous = root.querySelector('[data-action="previous-page"]');
+        const next = root.querySelector('[data-action="next-page"]');
+        const fullscreen = root.querySelector('[data-action="fullscreen"]');
+        const currentPageNode = root.querySelector('[data-region="current-page"]');
+        const totalPagesNode = root.querySelector('[data-region="total-pages"]');
+        const loading = root.querySelector('[data-region="book-loading"]');
+        const error = root.querySelector('[data-region="book-error"]');
+        const progressNode = (root.closest('.mod-videoplayer-container') || document).querySelector('[data-region="book-progress"]');
+
+        if (!pdfUrl || !stage || !pagesRegion) {
+            hide(error, false);
+            return;
+        }
+
+        hardenViewer(root);
+
+        let pdfDocument = null;
+        let pageNumber = initialPage;
+        let rendering = false;
+        let pendingPage = null;
+        let lastSave = 0;
+        let activeSeconds = 0;
+        let lastTick = Date.now();
+        let completed = false;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchMoved = false;
+
+        const getSpreadStart = function(num) {
+            if (isMobile()) {
+                return num;
+            }
+            return num <= 1 ? 1 : (num % 2 === 0 ? num : num - 1);
+        };
+
+        const getVisiblePages = function() {
+            if (!pdfDocument) {
+                return [];
+            }
+            if (isMobile()) {
+                return [pageNumber];
+            }
+            const start = getSpreadStart(pageNumber);
+            const pages = [start];
+            if (start + 1 <= pdfDocument.numPages) {
+                pages.push(start + 1);
+            }
+            return pages;
+        };
+
+        const updateStatus = function() {
+            if (!pdfDocument) {
+                return;
+            }
+            if (currentPageNode) {
+                const pages = getVisiblePages();
+                currentPageNode.textContent = pages.length > 1 ? pages[0] + '-' + pages[1] : String(pageNumber);
+            }
+            if (totalPagesNode) {
+                totalPagesNode.textContent = String(pdfDocument.numPages);
+            }
+            if (previous) {
+                previous.disabled = pageNumber <= 1;
+            }
+            if (next) {
+                next.disabled = pageNumber >= pdfDocument.numPages;
+            }
+        };
+
+        const completionPercent = function() {
+            if (!pdfDocument || !pdfDocument.numPages) {
+                return 0;
+            }
+            return Math.min(100, Math.round((pageNumber / pdfDocument.numPages) * 10000) / 100);
+        };
+
+        const saveProgress = function(force) {
+            if (!cmid || !pdfDocument) {
+                return Promise.resolve();
+            }
+            const now = Date.now();
+            if (!force && now - lastSave < SAVE_INTERVAL) {
+                return Promise.resolve();
+            }
+            activeSeconds += Math.max(0, Math.round((now - lastTick) / 1000));
+            lastTick = now;
+            lastSave = now;
+            const percent = completionPercent();
+            completed = completed || percent >= 100;
+
+            return Ajax.call([{
+                methodname: 'mod_videoplayer_save_progress',
+                args: {
+                    cmid: cmid,
+                    progress: activeSeconds,
+                    completed: completed,
+                    completionpercentage: percent,
+                    lastpage: pageNumber,
+                    totalpages: pdfDocument.numPages,
+                    timespent: activeSeconds
+                }
+            }])[0].then(function(response) {
+                if (response) {
+                    completed = Boolean(response.completed);
+                    if (progressNode) {
+                        progressNode.textContent = response.completionpercentage + '%';
+                    }
+                }
+                return response;
+            }).catch(Notification.exception);
+        };
+
+        const getPageWidth = function() {
+            const stageWidth = Math.max(stage.clientWidth - (isMobile() ? 24 : 128), 280);
+            return isMobile() ? Math.min(stageWidth, 720) : Math.min(stageWidth / 2, 560);
+        };
+
+        const renderPageCanvas = function(pageIndex) {
+            return pdfDocument.getPage(pageIndex).then(function(page) {
+                const base = page.getViewport({scale: 1});
+                const targetWidth = getPageWidth();
+                const scale = Math.min(Math.max(targetWidth / base.width, 0.5), 2.2);
+                const viewport = page.getViewport({scale: scale});
+                const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+
+                canvas.width = Math.floor(viewport.width * outputScale);
+                canvas.height = Math.floor(viewport.height * outputScale);
+                canvas.style.width = Math.floor(viewport.width) + 'px';
+                canvas.style.height = Math.floor(viewport.height) + 'px';
+                canvas.setAttribute('draggable', 'false');
+
+                return page.render({
+                    canvasContext: context,
+                    viewport: viewport,
+                    transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
+                }).promise.then(function() {
+                    return canvas;
+                });
+            });
+        };
+
+        const renderSpread = function() {
+            if (!pdfDocument || rendering) {
+                return;
+            }
+            rendering = true;
+            pagesRegion.classList.add('is-turning');
+            hide(loading, false);
+            pagesRegion.innerHTML = '';
+
+            const visiblePages = getVisiblePages();
+            const renderers = visiblePages.map(function(num) {
+                return renderPageCanvas(num).then(function(canvas) {
+                    const pageNode = document.createElement('div');
+                    pageNode.className = 'mod-videoplayer-book-page';
+                    pageNode.setAttribute('data-page-number', String(num));
+                    if (isMobile()) {
+                        pageNode.classList.add('is-mobile-turning');
+                    }
+                    pageNode.appendChild(canvas);
+                    pagesRegion.appendChild(pageNode);
+                });
+            });
+
+            if (!isMobile() && visiblePages.length === 1) {
+                const empty = document.createElement('div');
+                empty.className = 'mod-videoplayer-book-page is-empty';
+                pagesRegion.appendChild(empty);
+            }
+
+            Promise.all(renderers).then(function() {
+                rendering = false;
+                hide(loading, true);
+                pagesRegion.classList.remove('is-turning');
+                updateStatus();
+                saveProgress(false);
+                if (pendingPage !== null) {
+                    const queued = pendingPage;
+                    pendingPage = null;
+                    goToPage(queued);
+                }
+            }).catch(function(err) {
+                rendering = false;
+                hide(loading, true);
+                hide(error, false);
+                Notification.exception(err);
+            });
+        };
+
+        const goToPage = function(num) {
+            if (!pdfDocument) {
+                return;
+            }
+            const step = isMobile() ? 1 : 2;
+            const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
+            pageNumber = isMobile() ? safe : getSpreadStart(safe);
+            if (rendering) {
+                pendingPage = pageNumber;
+                return;
+            }
+            renderSpread();
+            saveProgress(false);
+        };
+
+        if (previous) {
+            previous.addEventListener('click', function() {
+                goToPage(pageNumber - (isMobile() ? 1 : 2));
+            });
+        }
+        if (next) {
+            next.addEventListener('click', function() {
+                goToPage(pageNumber + (isMobile() ? 1 : 2));
+            });
+        }
+        if (fullscreen) {
+            fullscreen.addEventListener('click', function() {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    return;
+                }
+                if (reader.requestFullscreen) {
+                    reader.requestFullscreen().catch(function() {
+                        reader.classList.add('is-fallback-fullscreen');
+                    });
+                } else {
+                    reader.classList.add('is-fallback-fullscreen');
+                }
+            });
+            document.addEventListener('fullscreenchange', function() {
+                if (!document.fullscreenElement) {
+                    reader.classList.remove('is-fallback-fullscreen');
+                }
+                window.setTimeout(renderSpread, 160);
+            });
+        }
+
+        stage.addEventListener('touchstart', function(event) {
+            if (!event.touches || event.touches.length !== 1) {
+                return;
+            }
+            touchMoved = false;
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+        }, {passive: true});
+
+        stage.addEventListener('touchmove', function(event) {
+            if (!event.touches || event.touches.length !== 1) {
+                return;
+            }
+            const dx = event.touches[0].clientX - touchStartX;
+            const dy = event.touches[0].clientY - touchStartY;
+            touchMoved = Math.abs(dx) > 20 || Math.abs(dy) > 20;
+        }, {passive: true});
+
+        stage.addEventListener('touchend', function(event) {
+            if (!touchMoved || !pdfDocument) {
+                return;
+            }
+            const changed = event.changedTouches && event.changedTouches[0];
+            if (!changed) {
+                return;
+            }
+            const dx = changed.clientX - touchStartX;
+            const dy = changed.clientY - touchStartY;
+            if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.35) {
+                return;
+            }
+            goToPage(pageNumber + (dx < 0 ? 1 : -1));
+        }, {passive: true});
+
+        window.addEventListener('resize', function() {
+            window.setTimeout(renderSpread, 120);
+        });
+        window.addEventListener('orientationchange', function() {
+            window.setTimeout(renderSpread, 280);
+        });
+        window.addEventListener('beforeunload', function() {
+            saveProgress(true);
+        });
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                saveProgress(true);
+            } else {
+                lastTick = Date.now();
+            }
+        });
+
+        hide(loading, false);
+        pdfjsLib.getDocument({url: pdfUrl, withCredentials: true, rangeChunkSize: 262144}).promise.then(function(pdf) {
+            pdfDocument = pdf;
+            pageNumber = Math.min(initialPage, pdfDocument.numPages);
+            if (!isMobile()) {
+                pageNumber = getSpreadStart(pageNumber);
+            }
+            updateStatus();
+            renderSpread();
+        }).catch(function(err) {
+            hide(loading, true);
+            hide(error, false);
+            Notification.exception(err);
+        });
+    };
+
+    const init = function() {
+        const roots = Array.prototype.slice.call(document.querySelectorAll('.mod-videoplayer-book-reader'));
+        if (!roots.length) {
+            return;
+        }
+        loadPdfJs().then(function(pdfjsLib) {
+            roots.forEach(function(root) {
+                initViewer(root, pdfjsLib);
+            });
+        }).catch(function(err) {
+            Notification.exception(err);
+        });
+    };
+
+    return {
+        init: init
+    };
+});

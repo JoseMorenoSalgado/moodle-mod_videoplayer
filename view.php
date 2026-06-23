@@ -88,7 +88,7 @@ if (!isguestuser()) {
 $initialprogress = $progressrecord ? (float) $progressrecord->progress : 0;
 $completed = $progressrecord ? (bool) $progressrecord->completed : false;
 $requiredseconds = max(60, ((int) ($videoplayer->completionpercentage ?? 80)) * 6);
-$displaymode = 'standard';
+$displaymode = 'book';
 
 if (!isguestuser()) {
     $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
@@ -101,10 +101,8 @@ if (!isguestuser()) {
 }
 
 if ($type === 'pdf') {
-    $PAGE->requires->css('/mod/videoplayer/styles_pdf_overlay.css');
-    $PAGE->requires->css('/mod/videoplayer/styles_pdf_mobile.css');
-    $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
-    $PAGE->requires->js_call_amd('mod_videoplayer/pdfmobile', 'init');
+    $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
+    $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
 } else if ($type === 'video') {
     $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
     $PAGE->requires->js_call_amd('mod_videoplayer/plyr', 'init');
@@ -135,7 +133,7 @@ $templatecontext = [
     'title' => format_string($videoplayer->name),
     'playerstyle' => $playerstyle,
     'displaymode' => $displaymode,
-    'ebookmode' => false,
+    'ebookmode' => true,
     'disabledownload' => !empty($videoplayer->disabledownload),
     'disablecontextmenu' => !empty($videoplayer->disablecontextmenu),
     'enablewatermark' => !empty($videoplayer->enablewatermark),
@@ -159,7 +157,7 @@ if (!empty($videoplayer->intro)) {
 }
 
 if ($type === 'pdf') {
-    echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
+    echo $OUTPUT->render_from_template('mod_videoplayer/book', $templatecontext);
 } else if ($type === 'video') {
     echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
 } else {
