@@ -31,6 +31,34 @@ function mod_videoplayer_send_private_cache_headers(string $etag = '', int $last
 }
 
 /**
+ * Send a safe cache diagnostic header.
+ *
+ * @param string $status Cache status.
+ * @return void
+ */
+function mod_videoplayer_send_cache_status(string $status): void {
+    header('X-Drive-Resource-Cache: ' . preg_replace('/[^A-Z_-]/', '', strtoupper($status)));
+}
+
+/**
+ * Resolve the physical Moodle File API path for a stored file when available.
+ *
+ * @param stored_file $file Stored file.
+ * @return string|null Absolute path or null when not readable.
+ */
+function mod_videoplayer_get_stored_file_path(stored_file $file): ?string {
+    global $CFG;
+
+    $hash = $file->get_contenthash();
+    if ($hash === '' || strlen($hash) < 4) {
+        return null;
+    }
+
+    $path = $CFG->dataroot . '/filedir/' . substr($hash, 0, 2) . '/' . substr($hash, 2, 2) . '/' . $hash;
+    return is_readable($path) ? $path : null;
+}
+
+/**
  * Send a local file with safe byte-range support.
  *
  * @param string $path Absolute local path.
@@ -38,9 +66,17 @@ function mod_videoplayer_send_private_cache_headers(string $etag = '', int $last
  * @param string $contenttype MIME type.
  * @param string $etag Optional stable entity tag.
  * @param int $lastmodified Optional unix timestamp.
+ * @param string $cachestatus Cache diagnostic status.
  * @return void
  */
-function mod_videoplayer_send_file(string $path, string $filename, string $contenttype, string $etag = '', int $lastmodified = 0): void {
+function mod_videoplayer_send_file(
+    string $path,
+    string $filename,
+    string $contenttype,
+    string $etag = '',
+    int $lastmodified = 0,
+    string $cachestatus = 'LOCAL'
+): void {
     if (!is_readable($path)) {
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
@@ -74,6 +110,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
             http_response_code(416);
             header('Content-Range: bytes */' . $size);
             header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
+            mod_videoplayer_send_cache_status('RANGE_INVALID');
             die;
         }
         $code = 206;
@@ -88,6 +125,7 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
     mod_videoplayer_send_private_cache_headers($etag, $lastmodified);
+    mod_videoplayer_send_cache_status($cachestatus);
     header('Content-Length: ' . $length);
     header('Vary: Range');
     if ($code === 206) {
@@ -122,12 +160,14 @@ function mod_videoplayer_send_file(string $path, string $filename, string $conte
  * @return void
  */
 function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): void {
-    $tmpdir = make_request_directory();
-    $tmppath = $tmpdir . '/' . sha1($file->get_contenthash() . ':' . $file->get_timemodified()) . '.pdf';
+    $path = mod_videoplayer_get_stored_file_path($file);
+    if ($path === null) {
+        $tmpdir = make_request_directory();
+        $path = $tmpdir . '/' . sha1($file->get_contenthash() . ':' . $file->get_timemodified()) . '.pdf';
+        $file->copy_content_to($path);
+    }
 
-    $file->copy_content_to($tmppath);
-
-    $fh = fopen($tmppath, 'rb');
+    $fh = fopen($path, 'rb');
     $header = $fh === false ? '' : fread($fh, 1024);
     if ($fh !== false) {
         fclose($fh);
@@ -137,7 +177,7 @@ function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): v
         throw new moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
     }
 
-    mod_videoplayer_send_file($tmppath, $filename, 'application/pdf', $file->get_contenthash(), (int)$file->get_timemodified());
+    mod_videoplayer_send_file($path, $filename, 'application/pdf', $file->get_contenthash(), (int)$file->get_timemodified(), 'LOCAL');
 }
 
 /**
@@ -146,9 +186,10 @@ function mod_videoplayer_send_stored_pdf(stored_file $file, string $filename): v
  * @param array $headers Captured upstream headers.
  * @param string $fallbacktype Fallback MIME type.
  * @param string $filename Safe filename.
+ * @param string $cachestatus Cache diagnostic status.
  * @return void
  */
-function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype, string $filename): void {
+function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype, string $filename, string $cachestatus = 'BYPASS'): void {
     $ispartial = !empty($headers['content-range']) || ((int)($headers['status'] ?? 0) === 206);
     http_response_code($ispartial ? 206 : 200);
     header('Content-Type: ' . ($headers['content-type'] ?? $fallbacktype));
@@ -157,6 +198,7 @@ function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype
     header('X-Robots-Tag: noindex, nofollow, noarchive');
     header('Accept-Ranges: bytes');
     mod_videoplayer_send_private_cache_headers();
+    mod_videoplayer_send_cache_status($cachestatus);
     header('Vary: Range');
 
     if (!empty($headers['content-length'])) {
@@ -239,6 +281,7 @@ if ($cachettl <= 0) {
     $cachettl = 86400;
 }
 $cachefile = '';
+$cachestatus = $pdfcache ? 'MISS' : 'BYPASS';
 if ($pdfcache) {
     $cachedir = $CFG->localcachedir . '/mod_videoplayer/pdf';
     if (!is_dir($cachedir)) {
@@ -247,7 +290,7 @@ if ($pdfcache) {
     $cachekey = sha1($fileid . ':' . $type);
     $cachefile = $cachedir . '/' . $cachekey . '.pdf';
     if (is_readable($cachefile) && filemtime($cachefile) + $cachettl > time()) {
-        mod_videoplayer_send_file($cachefile, $filename, $contenttype, $cachekey, filemtime($cachefile) ?: time());
+        mod_videoplayer_send_file($cachefile, $filename, $contenttype, $cachekey, filemtime($cachefile) ?: time(), 'HIT');
     }
 }
 
@@ -300,9 +343,9 @@ $options = [
     CURLOPT_BUFFERSIZE => 262144,
     CURLOPT_HTTPHEADER => $requestheaders,
     CURLOPT_HEADERFUNCTION => $headercallback,
-    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename): int {
+    CURLOPT_WRITEFUNCTION => function($curl, string $data) use (&$cachehandle, &$headerssent, &$responseheaders, $contenttype, $filename, $cachestatus): int {
         if (!$headerssent) {
-            mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename);
+            mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $cachestatus);
             $headerssent = true;
         }
         if ($cachehandle) {
@@ -323,7 +366,7 @@ $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if (!$headerssent && $curlcode < 400) {
-    mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename);
+    mod_videoplayer_send_proxy_headers($responseheaders, $contenttype, $filename, $cachestatus);
 }
 
 if ($cachehandle) {

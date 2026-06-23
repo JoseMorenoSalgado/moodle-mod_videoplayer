@@ -9,6 +9,13 @@
     --drive-book-control-offset: clamp(.85rem, 1.8vw, 1.45rem);
 }
 
+.mod-videoplayer-book-page.is-page-loading {
+    min-height: 16rem;
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, .8), rgba(226, 232, 240, .65), rgba(255, 255, 255, .8)),
+        #ffffff;
+}
+
 .mod-videoplayer-book-nav {
     z-index: 14;
     opacity: .96;
