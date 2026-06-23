@@ -17,7 +17,7 @@ define([], function() {
     const CANVAS_SELECTOR = '.mod-videoplayer-pdfjs-canvas';
     const STABILIZE_DELAY = 120;
     const MAX_ATTEMPTS = 20;
-    const VIEWPORT_GUTTER = 12;
+    const VIEWPORT_GUTTER = 10;
 
     /**
      * Whether current viewport should use the mobile stabilizer.
@@ -43,23 +43,21 @@ define([], function() {
     };
 
     /**
-     * Force mobile PDF pages to open in a safe fit-page mode.
+     * Force mobile PDF pages to use safe fit-width mode.
+     *
+     * The page uses the full available width, keeps the PDF aspect ratio and
+     * avoids the previous fit-page behavior that left excessive blank space
+     * below short/cover pages.
      *
      * @param {HTMLElement} wrap Canvas wrapper.
      * @param {HTMLCanvasElement} canvas Rendered PDF canvas.
      * @returns {void}
      */
-    const applySafeFitPage = function(wrap, canvas) {
+    const applySafeFitWidth = function(wrap, canvas) {
         const ratio = getCanvasRatio(canvas);
         const availableWidth = Math.max(wrap.clientWidth - VIEWPORT_GUTTER, 260);
-        const availableHeight = Math.max(wrap.clientHeight - VIEWPORT_GUTTER, 320);
-        let targetWidth = availableWidth;
-        let targetHeight = targetWidth / ratio;
-
-        if (targetHeight > availableHeight) {
-            targetHeight = availableHeight;
-            targetWidth = targetHeight * ratio;
-        }
+        const targetWidth = availableWidth;
+        const targetHeight = targetWidth / ratio;
 
         canvas.style.width = Math.floor(targetWidth) + 'px';
         canvas.style.height = Math.floor(targetHeight) + 'px';
@@ -68,6 +66,12 @@ define([], function() {
         canvas.style.marginLeft = 'auto';
         canvas.style.marginRight = 'auto';
         canvas.style.display = 'block';
+
+        wrap.style.height = Math.floor(targetHeight) + 'px';
+        wrap.style.minHeight = Math.floor(targetHeight) + 'px';
+        wrap.style.maxHeight = 'none';
+        wrap.style.overflowX = 'hidden';
+        wrap.style.overflowY = 'hidden';
     };
 
     /**
@@ -87,7 +91,7 @@ define([], function() {
             return;
         }
 
-        applySafeFitPage(wrap, canvas);
+        applySafeFitWidth(wrap, canvas);
 
         wrap.scrollLeft = 0;
         wrap.scrollTop = 0;
