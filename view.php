@@ -19,6 +19,7 @@ $PAGE->set_url('/mod/videoplayer/view.php', ['id' => $cm->id]);
 $PAGE->set_title(format_string($videoplayer->name));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
+$PAGE->requires->css('/mod/videoplayer/styles_visual_refinements.css');
 
 $event = \mod_videoplayer\event\course_module_viewed::create([
     'objectid' => $videoplayer->id,
