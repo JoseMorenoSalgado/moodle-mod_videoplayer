@@ -60,7 +60,7 @@ The external API should validate parameters, context, login and capability, then
 ## Progress save flow
 
 ```text
-ebookviewer.js / pdfviewer.js
+bookviewer.js / ebookviewer.js / pdfviewer.js
 ↓
 core/ajax
 ↓
@@ -79,9 +79,24 @@ Moodle events + Completion API
 
 ## Viewer development
 
+### Protected book viewer
+
+Use `amd/src/bookviewer.js` with `templates/book.mustache` for the default protected PDF book experience.
+
+Expected behavior:
+
+- Desktop renders a two-page spread to behave like a real book.
+- Mobile renders one page at a time, similar to FlipHTML5-style reading.
+- Fullscreen keeps previous/next buttons inside the PDF stage.
+- Navigation works through buttons and mobile swipe gestures.
+- Progress is saved by last visible page.
+- PDF content is still delivered only through `protected.php`.
+
+Do not expose raw Google Drive URLs, file IDs, preview URLs or direct download URLs in this viewer.
+
 ### Standard PDF viewer
 
-Use `amd/src/pdfviewer.js` for one-page protected PDF rendering.
+Use `amd/src/pdfviewer.js` for one-page protected PDF rendering when a non-book fallback is required.
 
 ### Mobile PDF stabilizer
 
@@ -102,6 +117,7 @@ Presentation CSS is split by responsibility:
 
 ```text
 styles.css                         Base plugin styles loaded by Moodle.
+styles_bookviewer.css              Protected book viewer layout and fullscreen navigation.
 styles_pdf_overlay.css             PDF.js overlay and canvas behavior.
 styles_pdf_mobile.css              Mobile PDF-specific viewport rules.
 styles_visual_refinements.css      Product-level visual polish for Drive Resource.
@@ -111,12 +127,12 @@ Keep mobile fixes isolated from the generic styles whenever possible. This reduc
 
 ### Ebook viewer
 
-Use `amd/src/ebookviewer.js` for ebook rendering.
+Use `amd/src/ebookviewer.js` for optional legacy ebook rendering.
 
 Rules:
 
 - Load PDF.js locally.
-- Load PageFlip locally from `thirdpartylibs/pageflip`.
+- Load PageFlip locally from `thirdpartylibs/pageflip` when using PageFlip-specific behavior.
 - Keep fallback to `pdfviewer.js` if PageFlip is missing.
 - Do not use CDN.
 - Do not expose raw source URLs.
@@ -195,3 +211,4 @@ Before release:
 - PHP warnings clean.
 - JavaScript console clean.
 - mobile PDF viewer tested on iOS Safari, Android Chrome and Moodle app WebView.
+- desktop book viewer tested with portrait PDFs and landscape PDFs.
