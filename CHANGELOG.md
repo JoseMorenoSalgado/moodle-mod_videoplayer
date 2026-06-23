@@ -30,6 +30,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Dedicated visual refinement stylesheet for Drive Resource activity presentation.
 - Protected responsive book viewer with desktop two-page spread and mobile one-page reading mode.
 - In-memory rendered page cache and neighbor-page prefetch for the protected book viewer.
+- Desktop book spine, center fold shadows and directional ebook-style page turn effects.
 
 ### Changed
 
@@ -43,6 +44,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - PDF resources now render through the protected book viewer by default.
 - Protected range responses now use short private browser caching with `no-transform` instead of global `no-store`.
 - Protected streaming chunk size increased to reduce PHP flush overhead.
+- Book viewer pages now receive left/right page classes and turn-direction classes for realistic desktop transitions.
 
 ### Security
 
