@@ -101,9 +101,9 @@
     .mod-videoplayer-pdfjs-canvas-wrap {
         min-height: 80svh !important;
         height: 80svh !important;
-        padding: .15rem !important;
+        padding: .25rem !important;
         align-items: flex-start !important;
-        justify-content: flex-start !important;
+        justify-content: center !important;
         overflow: auto !important;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
@@ -113,10 +113,11 @@
     }
 
     .mod-videoplayer-pdfjs-canvas {
-        max-width: none !important;
+        display: block !important;
+        max-width: 100% !important;
         width: auto !important;
         height: auto !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         border-radius: 8px !important;
         box-shadow: 0 8px 18px rgba(15, 23, 42, .18) !important;
     }
@@ -217,7 +218,7 @@
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
         min-height: 100svh !important;
         height: 100svh !important;
-        padding: calc(env(safe-area-inset-top, 0px) + .45rem) .15rem calc(env(safe-area-inset-bottom, 0px) + .45rem) !important;
+        padding: calc(env(safe-area-inset-top, 0px) + .45rem) .25rem calc(env(safe-area-inset-bottom, 0px) + .45rem) !important;
     }
 }
 
