@@ -49,6 +49,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Protected streaming chunk size increased to reduce PHP flush overhead.
 - Book viewer pages now receive left/right page classes and turn-direction classes for realistic desktop transitions.
 - Book viewer controls now place page status at the top center, fullscreen at the top right and previous/next controls at the viewer sides.
+- Mobile book navigation now overlays previous/next controls inside the PDF area instead of placing them below the document.
 - Protected book PDFs now start from page 1 on every page load instead of resuming the last viewed page.
 - Book viewer now hides the loading overlay as soon as the first visible page is rendered instead of waiting for the full desktop spread.
 - Local Moodle PDFs are streamed directly from Moodle File API storage when possible, avoiding a full temporary copy before delivery.
