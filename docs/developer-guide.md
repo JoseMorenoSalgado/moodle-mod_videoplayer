@@ -83,6 +83,32 @@ Moodle events + Completion API
 
 Use `amd/src/pdfviewer.js` for one-page protected PDF rendering.
 
+### Mobile PDF stabilizer
+
+Use `amd/src/pdfmobile.js` for mobile viewport corrections that should remain independent from the PDF.js rendering pipeline.
+
+This module is intentionally small and should only handle mobile layout stabilization, including:
+
+- iOS/Safari canvas overflow correction.
+- initial horizontal scroll correction.
+- viewport re-stabilization after orientation changes.
+- late PDF.js canvas rendering edge cases.
+
+Do not move authorization, file access, progress calculation or PDF.js document loading into this module.
+
+### Visual stylesheets
+
+Presentation CSS is split by responsibility:
+
+```text
+styles.css                         Base plugin styles loaded by Moodle.
+styles_pdf_overlay.css             PDF.js overlay and canvas behavior.
+styles_pdf_mobile.css              Mobile PDF-specific viewport rules.
+styles_visual_refinements.css      Product-level visual polish for Drive Resource.
+```
+
+Keep mobile fixes isolated from the generic styles whenever possible. This reduces regression risk for desktop Moodle themes.
+
 ### Ebook viewer
 
 Use `amd/src/ebookviewer.js` for ebook rendering.
@@ -168,3 +194,4 @@ Before release:
 - Moodle debug developer mode clean.
 - PHP warnings clean.
 - JavaScript console clean.
+- mobile PDF viewer tested on iOS Safari, Android Chrome and Moodle app WebView.
