@@ -1,0 +1,277 @@
+.mod-videoplayer-book {
+    --drive-book-bg: #f8fafc;
+    --drive-book-panel: #ffffff;
+    --drive-book-border: rgba(100, 116, 139, .22);
+    --drive-book-shadow: 0 22px 54px rgba(15, 23, 42, .16);
+    --drive-book-accent: var(--bs-primary, var(--primary, #06b6c9));
+}
+
+.mod-videoplayer-book-reader {
+    width: 100%;
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.mod-videoplayer-book-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: clamp(560px, 78vh, 900px);
+    padding: clamp(1rem, 2vw, 1.5rem);
+    overflow: hidden;
+    border: 1px solid var(--drive-book-border);
+    border-radius: 1.25rem;
+    background:
+        radial-gradient(circle at 15% 0%, rgba(6, 182, 201, .12), transparent 22rem),
+        radial-gradient(circle at 85% 0%, rgba(59, 130, 246, .10), transparent 24rem),
+        linear-gradient(135deg, #f8fafc, #e2e8f0);
+    box-shadow: var(--drive-book-shadow);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.mod-videoplayer-book-pages {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(.6rem, 1.4vw, 1.25rem);
+    align-items: center;
+    justify-content: center;
+    width: min(100%, 1040px);
+    transition: transform .24s ease, opacity .2s ease;
+}
+
+.mod-videoplayer-book-pages.is-turning {
+    opacity: .72;
+    transform: scale(.985) rotateY(-2deg);
+}
+
+.mod-videoplayer-book-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: .75rem;
+    background: var(--drive-book-panel);
+    box-shadow:
+        0 18px 42px rgba(15, 23, 42, .18),
+        inset 10px 0 26px rgba(15, 23, 42, .045);
+}
+
+.mod-videoplayer-book-page.is-empty {
+    visibility: hidden;
+}
+
+.mod-videoplayer-book-page canvas {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+}
+
+.mod-videoplayer-book-nav,
+.mod-videoplayer-book-fullscreen {
+    position: absolute;
+    z-index: 8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .94);
+    color: #0f172a;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    cursor: pointer;
+}
+
+.mod-videoplayer-book-nav {
+    top: 50%;
+    width: 3.25rem;
+    height: 3.25rem;
+    font-size: 2.5rem;
+    line-height: 1;
+    transform: translateY(-50%);
+}
+
+.mod-videoplayer-book-nav:hover,
+.mod-videoplayer-book-nav:focus,
+.mod-videoplayer-book-fullscreen:hover,
+.mod-videoplayer-book-fullscreen:focus {
+    outline: 3px solid rgba(6, 182, 201, .22);
+    outline-offset: 2px;
+    background: #ffffff;
+}
+
+.mod-videoplayer-book-nav:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.mod-videoplayer-book-nav-prev {
+    left: .9rem;
+}
+
+.mod-videoplayer-book-nav-next {
+    right: .9rem;
+}
+
+.mod-videoplayer-book-topbar {
+    position: absolute;
+    top: .85rem;
+    left: 50%;
+    z-index: 9;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    transform: translateX(-50%);
+}
+
+.mod-videoplayer-book-status,
+.mod-videoplayer-book-fullscreen {
+    min-height: 2.5rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .95);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .14);
+}
+
+.mod-videoplayer-book-status {
+    display: inline-flex;
+    align-items: center;
+    padding: .45rem .8rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.mod-videoplayer-book-fullscreen {
+    position: static;
+    width: 2.5rem;
+    height: 2.5rem;
+    color: #ffffff;
+    background: var(--drive-book-accent);
+}
+
+.mod-videoplayer-book-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    gap: .8rem;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #475569;
+    background: rgba(248, 250, 252, .96);
+}
+
+.mod-videoplayer-book-error {
+    margin-top: 1rem;
+}
+
+.mod-videoplayer-book-reader:fullscreen,
+.is-fallback-fullscreen.mod-videoplayer-book-reader {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    padding: 0 !important;
+    background: #0f172a;
+}
+
+.mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-stage,
+.is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-stage {
+    width: 100vw !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    border: 0;
+    border-radius: 0;
+    background: #0f172a;
+}
+
+.mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-pages,
+.is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-pages {
+    width: min(100vw - 7rem, 1280px);
+}
+
+@media (max-width: 767.98px) {
+    .mod-videoplayer-book-reader {
+        max-width: none;
+        margin: 0;
+    }
+
+    .mod-videoplayer-book-stage {
+        min-height: auto;
+        padding: .6rem .4rem 4.25rem;
+        border-radius: 1rem;
+        background: #f8fafc;
+    }
+
+    .mod-videoplayer-book-pages {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .mod-videoplayer-book-page {
+        width: 100%;
+        max-width: 100%;
+        border-radius: .8rem;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .18);
+        transform-origin: center right;
+    }
+
+    .mod-videoplayer-book-page.is-mobile-turning {
+        animation: mod-videoplayer-mobile-flip .22s ease;
+    }
+
+    .mod-videoplayer-book-nav {
+        top: auto;
+        bottom: .7rem;
+        width: 3rem;
+        height: 3rem;
+        font-size: 2.15rem;
+        transform: none;
+    }
+
+    .mod-videoplayer-book-nav-prev {
+        left: .75rem;
+    }
+
+    .mod-videoplayer-book-nav-next {
+        right: .75rem;
+    }
+
+    .mod-videoplayer-book-topbar {
+        top: .7rem;
+    }
+
+    .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-stage,
+    .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-stage {
+        min-height: 100svh !important;
+        height: 100svh !important;
+        padding: calc(env(safe-area-inset-top, 0px) + .75rem) .45rem calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
+    }
+
+    .mod-videoplayer-book-reader:fullscreen .mod-videoplayer-book-pages,
+    .is-fallback-fullscreen.mod-videoplayer-book-reader .mod-videoplayer-book-pages {
+        width: 100%;
+    }
+}
+
+@keyframes mod-videoplayer-mobile-flip {
+    from {
+        opacity: .55;
+        transform: translateX(1rem) rotateY(-8deg) scale(.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) rotateY(0) scale(1);
+    }
+}
