@@ -225,6 +225,95 @@ function mod_videoplayer_send_proxy_headers(array $headers, string $fallbacktype
 }
 
 /**
+ * Extract the Google Drive download confirmation token from a warning page.
+ *
+ * @param string $path HTML response path.
+ * @return string|null Confirmation token.
+ */
+function mod_videoplayer_extract_drive_confirm_token(string $path): ?string {
+    if (!is_readable($path)) {
+        return null;
+    }
+
+    $html = file_get_contents($path, false, null, 0, 1048576);
+    if (!is_string($html) || $html === '') {
+        return null;
+    }
+
+    $html = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $patterns = [
+        '/[?&]confirm=([0-9A-Za-z_\-]+)/',
+        '/name=["\']confirm["\'][^>]*value=["\']([^"\']+)["\']/i',
+        '/confirm=([0-9A-Za-z_\-]+)/',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $html, $matches)) {
+            return clean_param($matches[1], PARAM_ALPHANUMEXT);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Append a Google Drive confirmation token to a download URL.
+ *
+ * @param string $url Download URL.
+ * @param string $token Confirmation token.
+ * @return string URL with confirmation token.
+ */
+function mod_videoplayer_add_drive_confirm_token(string $url, string $token): string {
+    $separator = strpos($url, '?') === false ? '?' : '&';
+    return $url . $separator . 'confirm=' . rawurlencode($token);
+}
+
+/**
+ * Download an upstream file into a target path.
+ *
+ * @param string $url Download URL.
+ * @param string $targetpath Target file path.
+ * @param string $cookiejar Cookie jar path.
+ * @return array Download result.
+ */
+function mod_videoplayer_download_to_file(string $url, string $targetpath, string $cookiejar): array {
+    $handle = fopen($targetpath, 'wb');
+    if ($handle === false) {
+        return ['ok' => false, 'httpcode' => 0, 'error' => 'target_not_writable'];
+    }
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_BUFFERSIZE => MOD_VIDEOPLAYER_STREAM_CHUNK_SIZE,
+        CURLOPT_HTTPHEADER => ['Accept-Encoding: identity'],
+        CURLOPT_USERAGENT => 'Mozilla/5.0 DriveResourceMoodleProxy/1.0',
+        CURLOPT_COOKIEJAR => $cookiejar,
+        CURLOPT_COOKIEFILE => $cookiejar,
+        CURLOPT_FILE => $handle,
+    ]);
+
+    $result = curl_exec($ch);
+    $curlerror = curl_error($ch);
+    $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $contenttype = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+    curl_close($ch);
+    fclose($handle);
+
+    return [
+        'ok' => $result !== false && $curlcode >= 200 && $curlcode < 300,
+        'httpcode' => $curlcode,
+        'error' => $curlerror,
+        'contenttype' => $contenttype,
+    ];
+}
+
+/**
  * Download a Google Drive PDF into the plugin cache before serving ranges.
  *
  * This intentionally downloads the full PDF once. Afterwards PDF.js range
@@ -240,16 +329,22 @@ function mod_videoplayer_cache_drive_pdf(string $url, string $cachefile): bool {
     if (!is_dir($cachedir)) {
         make_writable_directory($cachedir);
     }
+    if (!is_writable($cachedir)) {
+        debugging('Drive Resource PDF cache warm failed: cache directory is not writable.', DEBUG_DEVELOPER);
+        return false;
+    }
 
     $lockfile = $cachefile . '.lock';
     $lockhandle = fopen($lockfile, 'c');
     if ($lockhandle === false) {
+        debugging('Drive Resource PDF cache warm failed: lock file is not writable.', DEBUG_DEVELOPER);
         return false;
     }
 
     $locked = flock($lockhandle, LOCK_EX);
     if (!$locked) {
         fclose($lockhandle);
+        debugging('Drive Resource PDF cache warm failed: lock could not be acquired.', DEBUG_DEVELOPER);
         return false;
     }
 
@@ -261,44 +356,41 @@ function mod_videoplayer_cache_drive_pdf(string $url, string $cachefile): bool {
     }
 
     $tmpfile = $cachefile . '.tmp.' . getmypid();
-    if (is_file($tmpfile)) {
-        unlink($tmpfile);
+    $cookiejar = $cachefile . '.cookies.' . getmypid();
+    foreach ([$tmpfile, $cookiejar] as $path) {
+        if (is_file($path)) {
+            unlink($path);
+        }
     }
 
-    $handle = fopen($tmpfile, 'wb');
-    if ($handle === false) {
-        flock($lockhandle, LOCK_UN);
-        fclose($lockhandle);
-        return false;
+    $download = mod_videoplayer_download_to_file($url, $tmpfile, $cookiejar);
+    $valid = $download['ok'] && mod_videoplayer_is_pdf_file($tmpfile);
+
+    if (!$valid && is_file($tmpfile)) {
+        $confirmtoken = mod_videoplayer_extract_drive_confirm_token($tmpfile);
+        if ($confirmtoken !== null) {
+            unlink($tmpfile);
+            $confirmedurl = mod_videoplayer_add_drive_confirm_token($url, $confirmtoken);
+            $download = mod_videoplayer_download_to_file($confirmedurl, $tmpfile, $cookiejar);
+            $valid = $download['ok'] && mod_videoplayer_is_pdf_file($tmpfile);
+        }
     }
 
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_CONNECTTIMEOUT => 15,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_BUFFERSIZE => MOD_VIDEOPLAYER_STREAM_CHUNK_SIZE,
-        CURLOPT_HTTPHEADER => ['Accept-Encoding: identity'],
-        CURLOPT_FILE => $handle,
-    ]);
-
-    $result = curl_exec($ch);
-    $curlerror = curl_error($ch);
-    $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    fclose($handle);
-
-    $valid = $result !== false && $curlcode >= 200 && $curlcode < 300 && mod_videoplayer_is_pdf_file($tmpfile);
     if ($valid) {
         rename($tmpfile, $cachefile);
     } else {
         if (is_file($tmpfile)) {
             unlink($tmpfile);
         }
-        debugging('Drive Resource PDF cache warm failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
+        debugging(
+            'Drive Resource PDF cache warm failed: HTTP ' . ($download['httpcode'] ?? 0) . ' ' .
+            ($download['error'] ?? '') . ' content-type=' . ($download['contenttype'] ?? ''),
+            DEBUG_DEVELOPER
+        );
+    }
+
+    if (is_file($cookiejar)) {
+        unlink($cookiejar);
     }
 
     flock($lockhandle, LOCK_UN);
@@ -398,7 +490,7 @@ if ($pdfcache) {
         mod_videoplayer_send_file($cachefile, $filename, $contenttype, $cachekey, filemtime($cachefile) ?: time(), 'WARMED');
     }
 
-    $cachestatus = 'MISS';
+    $cachestatus = 'WARM_FAILED';
 }
 
 $requestheaders = [
