@@ -54,6 +54,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Book viewer now hides the loading overlay as soon as the first visible page is rendered instead of waiting for the full desktop spread.
 - Local Moodle PDFs are streamed directly from Moodle File API storage when possible, avoiding a full temporary copy before delivery.
 - Google Drive PDFs are now downloaded once into Moodle local cache before serving PDF.js byte-range requests.
+- Google Drive PDF cache warming now handles Drive confirmation pages before falling back to proxy mode.
 
 ### Security
 
