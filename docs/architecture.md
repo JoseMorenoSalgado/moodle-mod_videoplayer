@@ -15,7 +15,9 @@ protected.php
 ↓
 Moodle access checks
 ↓
-Secure proxy or Moodle File API delivery
+protected_stream service
+↓
+Secure proxy, Moodle File API delivery or warmed PDF cache
 ↓
 Local viewer
 ↓
@@ -67,7 +69,27 @@ Authenticated resource endpoint. It validates:
 - `context_module`.
 - `mod/videoplayer:view` capability.
 
-For local PDFs, it uses Moodle File API delivery. For supported Google Drive resources, it streams through a protected proxy.
+After access validation, it delegates byte-range delivery, proxy fallback and PDF cache operations to `classes/local/protected_stream.php`.
+
+### `classes/local/protected_stream.php`
+
+Shared service for protected delivery. It owns:
+
+- local Moodle PDF streaming from private file storage.
+- safe byte-range support for cached/local files.
+- protected proxy fallback for supported Drive resources.
+- Google Drive PDF cache warming.
+- Google Drive confirmation-token retry for cache warming.
+- cache diagnostics through `X-Drive-Resource-Cache`.
+- scheduled cleanup of stale cache, temporary and cookie files.
+
+This service is reused by:
+
+```text
+protected.php
+classes/task/precache_pdf.php
+classes/task/cleanup_pdf_cache.php
+```
 
 ### `view.php`
 
@@ -79,11 +101,37 @@ Main activity page. It:
 - loads the correct AMD viewer.
 - sends initial progress, page and gamification state to the template.
 
+## Protected PDF cache flow
+
+```text
+Google Drive PDF URL
+↓
+protected.php validates Moodle access
+↓
+protected_stream checks local cache
+↓
+HIT: serve PDF from local cache with Range support
+↓
+MISS: warm cache once, validate PDF header, then serve as WARMED
+↓
+WARM_FAILED: fall back to protected upstream proxy
+```
+
+Cache files are stored under Moodle local cache, not under the web root:
+
+```text
+$CFG->localcachedir/mod_videoplayer/pdf/
+```
+
 ## Viewers
 
 ### Standard PDF viewer
 
 `amd/src/pdfviewer.js` renders protected PDFs with local PDF.js.
+
+### Protected book viewer
+
+`amd/src/bookviewer.js` renders the default protected PDF book viewer with local PDF.js. Desktop uses a two-page spread with softened center fold and subtle page curvature. Mobile uses a one-page layout.
 
 ### Ebook viewer
 
