@@ -25,6 +25,7 @@
 @media (min-width: 768px) {
     .mod-videoplayer-book-pages {
         gap: clamp(.08rem, .28vw, .24rem);
+        perspective: 1800px;
     }
 
     .mod-videoplayer-book-pages::before {
@@ -62,7 +63,14 @@
         opacity: .58;
     }
 
+    .mod-videoplayer-book-page-left,
+    .mod-videoplayer-book-page-right {
+        transform-style: preserve-3d;
+        transition: transform .22s ease, box-shadow .22s ease, filter .22s ease;
+    }
+
     .mod-videoplayer-book-page-left {
+        transform: perspective(1800px) rotateY(1.15deg) translateZ(.01px);
         box-shadow:
             0 16px 38px rgba(15, 23, 42, .105),
             inset -2rem 0 2.6rem rgba(15, 23, 42, .052),
@@ -71,6 +79,7 @@
     }
 
     .mod-videoplayer-book-page-right {
+        transform: perspective(1800px) rotateY(-1.15deg) translateZ(.01px);
         box-shadow:
             0 16px 38px rgba(15, 23, 42, .105),
             inset 2rem 0 2.6rem rgba(15, 23, 42, .052),
@@ -110,6 +119,21 @@
                 transparent 100%);
         box-shadow: none;
         opacity: .55;
+    }
+
+    .mod-videoplayer-book-page-left canvas,
+    .mod-videoplayer-book-page-right canvas {
+        filter: drop-shadow(0 0 0 rgba(15, 23, 42, 0));
+    }
+
+    .mod-videoplayer-book-page-left canvas {
+        transform: translateX(.08rem) scaleX(.997);
+        transform-origin: right center;
+    }
+
+    .mod-videoplayer-book-page-right canvas {
+        transform: translateX(-.08rem) scaleX(.997);
+        transform-origin: left center;
     }
 }
 
