@@ -10,13 +10,13 @@ The internal Moodle component remains `mod_videoplayer` for compatibility with e
 - Publish local protected PDFs stored in Moodle private file storage.
 - Support for videos, PDFs, images, documents, spreadsheets and presentations.
 - Automatic resource type detection for supported Google Drive URLs.
-- Protected `protected.php` delivery endpoint.
+- Protected `protected.php` delivery endpoint backed by a reusable protected stream service.
 - Local PDF.js viewer without CDN.
-- Protected ebook mode with optional local StPageFlip.
+- Protected ebook/book mode with desktop two-page spread and mobile one-page reading.
+- Google Drive PDF cache warming under Moodle local cache.
 - HTML5 video playback with local Plyr assets.
 - Plugin-owned fullscreen viewer for mobile and desktop.
 - Reading progress by page, percentage and active time.
-- Resume reading from the last saved page.
 - Optional watermark deterrent.
 - Optional personal gamification milestones and points.
 - Moodle Completion API integration.
@@ -71,7 +71,7 @@ PageFlip is optional. If it is missing, ebook mode falls back to the protected P
    Site administration > Plugins > Activity modules > Drive Resource
    ```
 
-5. Configure the default tracking and protected mode settings.
+5. Configure the default tracking, protected mode and PDF cache settings.
 
 ## Usage: local protected PDF
 
@@ -117,10 +117,29 @@ require_login()
 context_module
 mod/videoplayer:view
 protected.php
-Moodle File API or secure proxy streaming
+protected_stream service
+Moodle File API, warmed PDF cache or secure proxy streaming
 ```
 
 Browser controls such as disabling right click, hiding download buttons and showing watermarks are deterrents, not DRM.
+
+## Protected PDF cache diagnostics
+
+Protected Google Drive PDFs can be cached under Moodle local cache after Moodle access validation. The response header shows the delivery path:
+
+```text
+X-Drive-Resource-Cache: LOCAL
+X-Drive-Resource-Cache: HIT
+X-Drive-Resource-Cache: WARMED
+X-Drive-Resource-Cache: WARM_FAILED
+X-Drive-Resource-Cache: BYPASS
+```
+
+Cache files are stored outside the web root under:
+
+```text
+$CFG->localcachedir/mod_videoplayer/pdf/
+```
 
 ## Progress tracking
 
@@ -181,7 +200,7 @@ Additional technical documentation is available in the `docs/` directory:
 
 Current development branch:
 
-- Release: `1.1.0-beta`
+- Release: `1.1.15-beta`
 - Component: `mod_videoplayer`
 - Product name: Drive Resource
 - Supported Moodle versions: 4.x and 5.x target
