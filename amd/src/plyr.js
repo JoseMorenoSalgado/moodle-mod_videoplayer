@@ -1,3 +1,16 @@
+// This file is part of Moodle - http://moodle.org/
+
+/**
+ * Local Plyr integration for Drive Resource protected video playback.
+ *
+ * The third-party Plyr browser build is loaded only from the plugin local
+ * thirdpartylibs directory. No CDN or external player URL is used.
+ *
+ * @module     mod_videoplayer/plyr
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 define(['core/notification'], function(Notification) {
     var PLYR_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/plyr/plyr.min.js';
     var plyrPromise = null;
@@ -129,10 +142,7 @@ define(['core/notification'], function(Notification) {
                 });
                 markOrientation(node);
             });
-        }).catch(function(error) {
-            if (window.console) {
-                window.console.warn(error.message || error);
-            }
+        }).catch(function() {
             Notification.addNotification({
                 message: M.util.get_string('plyrmissing', 'mod_videoplayer'),
                 type: 'warning'
