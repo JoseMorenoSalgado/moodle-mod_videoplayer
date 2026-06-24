@@ -50,6 +50,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Book viewer pages now receive left/right page classes and turn-direction classes for realistic desktop transitions.
 - Book viewer controls now place page status at the top center, fullscreen at the top right and previous/next controls at the viewer sides.
 - Desktop book spine visuals now use a softer premium gradient to avoid dark hard lines between pages.
+- Desktop book pages now use a subtle static curvature effect with perspective, light page bending and inner paper shading.
 - Mobile book navigation now overlays previous/next controls inside the PDF area instead of placing them below the document.
 - Protected book PDFs now start from page 1 on every page load instead of resuming the last viewed page.
 - Book viewer now hides the loading overlay as soon as the first visible page is rendered instead of waiting for the full desktop spread.
