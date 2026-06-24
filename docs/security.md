@@ -9,6 +9,7 @@ The following protections are enforced server-side:
 - `require_login()` is required before content delivery.
 - The activity uses `context_module` for permission checks.
 - Users must have `mod/videoplayer:view`.
+- The default `mod/videoplayer:view` archetypes exclude `guest` to avoid accidental guest access to protected resources.
 - Local PDFs are stored in Moodle private file storage, not in a public web directory.
 - Local PDFs are served through `protected.php` after access checks.
 - Google Drive direct URLs and file IDs should not be rendered in learner-facing templates.
