@@ -4,7 +4,7 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
-## v1.1.14-beta - 2026-06-24
+## v1.1.15-beta - 2026-06-24
 
 ### Added
 
@@ -34,10 +34,14 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Dedicated book control placement stylesheet for coherent navigation and fullscreen UI.
 - Protected stream cache diagnostic header `X-Drive-Resource-Cache`.
 - Deterministic server-side cache warming for protected Google Drive PDFs.
+- Internal `mod_videoplayer\local\protected_stream` service for protected byte-range delivery, PDF cache warming and cache cleanup.
 
 ### Changed
 
-- Release metadata bumped to `1.1.14-beta` with Moodle version `2026062410`.
+- Release metadata bumped to `1.1.15-beta` with Moodle version `2026062411`.
+- `protected.php` is now a thin authorised endpoint and delegates streaming, proxying and cache operations to the protected stream service.
+- Google Drive PDF cache warming is reused by both the protected endpoint and the ad-hoc precache task, reducing duplicated cURL/cache code.
+- Scheduled PDF cache cleanup now delegates to the shared protected stream service.
 - `save_progress.php` now delegates business logic to internal services.
 - PDF rendering context now supports both standard and ebook modes.
 - Activity form now supports Google Drive and local protected PDF sources.
