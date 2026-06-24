@@ -6,6 +6,7 @@
 - PHP 8.2 or newer recommended.
 - Local third-party libraries installed under `thirdpartylibs/`.
 - Moodle cron configured.
+- Writable Moodle local cache directory.
 
 ## Installation
 
@@ -77,6 +78,25 @@ If PageFlip is missing, ebook mode falls back to the protected PDF.js canvas vie
 4. Select or auto-detect the resource type.
 5. Save and display.
 
+## Protected PDF cache
+
+Google Drive PDFs can be warmed into Moodle local cache after Moodle access validation. This improves repeated PDF loads while preserving access control.
+
+Cache location:
+
+```text
+$CFG->localcachedir/mod_videoplayer/pdf/
+```
+
+The web server user must be able to write to Moodle local cache. Cached files remain outside the web root and are only served through `protected.php` after `require_login()`, module context and capability checks.
+
+Use browser developer tools to confirm cache behavior:
+
+```text
+X-Drive-Resource-Cache: WARMED
+X-Drive-Resource-Cache: HIT
+```
+
 ## Upgrade notes
 
 The upgrade step `2026062100` adds:
@@ -87,6 +107,8 @@ The upgrade step `2026062100` adds:
 - reading state fields in `videoplayer_views`.
 - `videoplayer_rewards` table.
 
+Release `1.1.15-beta` refactors protected delivery into `classes/local/protected_stream.php` and bumps Moodle plugin version to `2026062411`.
+
 Always test upgrade on a staging Moodle before deploying to production.
 
 ## Post-installation checklist
@@ -95,10 +117,13 @@ Always test upgrade on a staging Moodle before deploying to production.
 - Confirm `thirdpartylibs.xml` is valid.
 - Confirm PDF.js files are present.
 - Confirm PageFlip files are present if ebook mode is required.
+- Confirm `$CFG->localcachedir` is writable.
 - Create a local PDF activity.
+- Create a Google Drive PDF activity.
 - Open as student.
 - Navigate pages.
 - Confirm progress is saved.
+- Confirm `X-Drive-Resource-Cache` shows `WARMED` then `HIT` for Drive PDFs.
 - Confirm completion is marked after the configured percentage.
 - Test backup and restore.
 - Test privacy export/delete.
