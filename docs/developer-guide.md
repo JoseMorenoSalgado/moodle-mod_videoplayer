@@ -46,16 +46,51 @@ thirdpartylibs/                  Local third-party libraries
 
 ## Service layer
 
-Business logic should not be embedded directly in external API classes.
+Business logic should not be embedded directly in external API classes or public endpoints.
 
 Use:
 
 ```text
 classes/local/progress/progress_service.php
 classes/local/gamification/reward_service.php
+classes/local/protected_stream.php
 ```
 
 The external API should validate parameters, context, login and capability, then delegate to services.
+
+`protected.php` must remain a thin authorised endpoint. It should only resolve the Moodle course module, validate `require_login()` and `mod/videoplayer:view`, determine the source/type, then delegate streaming and cache work to `protected_stream`.
+
+## Protected stream service
+
+`classes/local/protected_stream.php` owns all protected resource delivery primitives:
+
+- local Moodle PDF byte-range streaming.
+- safe `Content-Type`, `Content-Length`, `Content-Range`, `Accept-Ranges` and cache headers.
+- `X-Drive-Resource-Cache` diagnostics.
+- Google Drive PDF cache key generation.
+- cache freshness checks.
+- Google Drive PDF cache warming with confirmation-token fallback.
+- upstream proxy fallback.
+- scheduled cache cleanup.
+
+Do not duplicate cURL or cache warming logic in tasks or public endpoint scripts. Reuse this service from:
+
+```text
+protected.php
+classes/task/precache_pdf.php
+classes/task/cleanup_pdf_cache.php
+```
+
+Expected cache states:
+
+```text
+LOCAL         Moodle File API PDF served from moodledata/filedir.
+HIT           Existing fresh server-side PDF cache served.
+WARMED        PDF was downloaded to cache and served from cache.
+WARM_FAILED   Cache warm failed; endpoint fell back to upstream proxy.
+BYPASS        Cache not applicable or disabled.
+RANGE_INVALID Invalid client byte range.
+```
 
 ## Progress save flow
 
@@ -118,6 +153,7 @@ Presentation CSS is split by responsibility:
 ```text
 styles.css                         Base plugin styles loaded by Moodle.
 styles_bookviewer.css              Protected book viewer layout and fullscreen navigation.
+styles_book_controls.css           Book controls, soft spine and desktop curvature refinements.
 styles_pdf_overlay.css             PDF.js overlay and canvas behavior.
 styles_pdf_mobile.css              Mobile PDF-specific viewport rules.
 styles_visual_refinements.css      Product-level visual polish for Drive Resource.
@@ -212,3 +248,4 @@ Before release:
 - JavaScript console clean.
 - mobile PDF viewer tested on iOS Safari, Android Chrome and Moodle app WebView.
 - desktop book viewer tested with portrait PDFs and landscape PDFs.
+- `protected.php` kept free of duplicated low-level streaming/cache logic.
