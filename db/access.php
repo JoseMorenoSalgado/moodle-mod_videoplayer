@@ -15,11 +15,11 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Capability definitions for the Video Player module.
+ * Capability definitions for the Drive Resource activity module.
  *
  * @package    mod_videoplayer
  * @category   access
- * @copyright  2025 Jose Erasmo Moreno Salgado
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
 
-    // Capability to add a new videoplayer instance to a course.
+    // Capability to add a new Drive Resource instance to a course.
     'mod/videoplayer:addinstance' => [
         'riskbitmask' => RISK_SPAM | RISK_XSS,
         'captype' => 'write',
@@ -39,12 +39,11 @@ $capabilities = [
         'clonepermissionsfrom' => 'moodle/course:manageactivities',
     ],
 
-    // Capability to view videoplayer content.
+    // Capability to view Drive Resource content after normal Moodle enrolment/access checks.
     'mod/videoplayer:view' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
         'archetypes' => [
-            'guest' => CAP_ALLOW,
             'student' => CAP_ALLOW,
             'teacher' => CAP_ALLOW,
             'editingteacher' => CAP_ALLOW,
@@ -52,7 +51,7 @@ $capabilities = [
         ],
     ],
 
-    // Capability to edit videoplayer settings or content.
+    // Capability to edit Drive Resource settings or content.
     'mod/videoplayer:edit' => [
         'riskbitmask' => RISK_XSS,
         'captype' => 'write',
@@ -74,7 +73,7 @@ $capabilities = [
         ],
     ],
 
-    // Capability to view reports related to videoplayer.
+    // Capability to view reports related to Drive Resource.
     'mod/videoplayer:viewreport' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_MODULE,
@@ -84,7 +83,7 @@ $capabilities = [
         ],
     ],
 
-    // Capability to edit reports (e.g., user progress).
+    // Capability to edit reports and user progress.
     'mod/videoplayer:editreport' => [
         'captype' => 'write',
         'contextlevel' => CONTEXT_MODULE,
