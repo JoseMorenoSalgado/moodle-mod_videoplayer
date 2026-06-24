@@ -16,6 +16,103 @@
         #ffffff;
 }
 
+/*
+ * Premium soft spine overlay.
+ *
+ * This stylesheet is loaded after the base book viewer styles, so these rules
+ * intentionally refine the desktop center fold without changing the renderer.
+ */
+@media (min-width: 768px) {
+    .mod-videoplayer-book-pages {
+        gap: clamp(.08rem, .28vw, .24rem);
+    }
+
+    .mod-videoplayer-book-pages::before {
+        z-index: 7;
+        width: clamp(1.7rem, 3vw, 2.8rem);
+        border-radius: 999px;
+        background:
+            linear-gradient(90deg,
+                rgba(15, 23, 42, 0) 0%,
+                rgba(15, 23, 42, .025) 18%,
+                rgba(255, 255, 255, .32) 35%,
+                rgba(15, 23, 42, .075) 50%,
+                rgba(255, 255, 255, .32) 65%,
+                rgba(15, 23, 42, .025) 82%,
+                rgba(15, 23, 42, 0) 100%);
+        filter: blur(5px);
+        mix-blend-mode: multiply;
+        opacity: .72;
+    }
+
+    .mod-videoplayer-book-pages::after {
+        z-index: 8;
+        width: clamp(.08rem, .18vw, .16rem);
+        border-radius: 999px;
+        background:
+            linear-gradient(180deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, .26) 16%,
+                rgba(255, 255, 255, .46) 50%,
+                rgba(255, 255, 255, .26) 84%,
+                rgba(255, 255, 255, 0) 100%);
+        box-shadow:
+            -.75rem 0 1.6rem rgba(15, 23, 42, .045),
+            .75rem 0 1.6rem rgba(15, 23, 42, .045);
+        opacity: .58;
+    }
+
+    .mod-videoplayer-book-page-left {
+        box-shadow:
+            0 16px 38px rgba(15, 23, 42, .105),
+            inset -2rem 0 2.6rem rgba(15, 23, 42, .052),
+            inset -.42rem 0 .9rem rgba(15, 23, 42, .105),
+            inset .28rem 0 .75rem rgba(255, 255, 255, .58);
+    }
+
+    .mod-videoplayer-book-page-right {
+        box-shadow:
+            0 16px 38px rgba(15, 23, 42, .105),
+            inset 2rem 0 2.6rem rgba(15, 23, 42, .052),
+            inset .42rem 0 .9rem rgba(15, 23, 42, .105),
+            inset -.28rem 0 .75rem rgba(255, 255, 255, .58);
+    }
+
+    .mod-videoplayer-book-page-left::before {
+        width: clamp(1.45rem, 2.6vw, 2.45rem);
+        background:
+            linear-gradient(90deg,
+                transparent 0%,
+                rgba(15, 23, 42, .025) 42%,
+                rgba(15, 23, 42, .07) 78%,
+                rgba(15, 23, 42, .12) 100%);
+    }
+
+    .mod-videoplayer-book-page-right::before {
+        width: clamp(1.45rem, 2.6vw, 2.45rem);
+        background:
+            linear-gradient(90deg,
+                rgba(15, 23, 42, .12) 0%,
+                rgba(15, 23, 42, .07) 22%,
+                rgba(15, 23, 42, .025) 58%,
+                transparent 100%);
+    }
+
+    .mod-videoplayer-book-page-left::after,
+    .mod-videoplayer-book-page-right::after {
+        width: .08rem;
+        background:
+            linear-gradient(180deg,
+                transparent 0%,
+                rgba(15, 23, 42, .10) 20%,
+                rgba(15, 23, 42, .16) 50%,
+                rgba(15, 23, 42, .10) 80%,
+                transparent 100%);
+        box-shadow: none;
+        opacity: .55;
+    }
+}
+
 .mod-videoplayer-book-nav {
     z-index: 14;
     opacity: .96;
