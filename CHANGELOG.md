@@ -4,7 +4,7 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
-## v1.1.0-beta - 2026-06-22
+## v1.1.14-beta - 2026-06-24
 
 ### Added
 
@@ -37,6 +37,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 
 ### Changed
 
+- Release metadata bumped to `1.1.14-beta` with Moodle version `2026062410`.
 - `save_progress.php` now delegates business logic to internal services.
 - PDF rendering context now supports both standard and ebook modes.
 - Activity form now supports Google Drive and local protected PDF sources.
