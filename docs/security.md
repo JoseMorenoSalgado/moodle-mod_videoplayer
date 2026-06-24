@@ -40,6 +40,21 @@ Google Drive resources should be proxied where supported. The plugin must avoid 
 
 Some Google-controlled embedded viewer elements cannot be removed because of browser cross-origin isolation. The long-term commercial target is to avoid Google Drive viewer UI completely by using Moodle-owned viewers and secure proxy delivery.
 
+## Protected stream service
+
+`protected.php` is intentionally kept as a thin authorised endpoint. Low-level delivery is delegated to `classes/local/protected_stream.php` so the same security behavior is reused by local files, cached PDFs, proxy fallback and cache tasks.
+
+The protected stream service is responsible for:
+
+- safe byte-range delivery from local files.
+- private browser cache headers with `no-transform`.
+- cache diagnostic header sanitisation.
+- Google Drive PDF cache warming with PDF header validation.
+- fallback to upstream proxy when warming fails.
+- cleanup of stale temporary and cookie files.
+
+Cached Google Drive PDFs are stored under `$CFG->localcachedir/mod_videoplayer/pdf/`. They are not public files; every request still passes through Moodle login, module context and capability validation before bytes are sent.
+
 ## Headers and streaming
 
 `protected.php` should keep memory usage low and preserve streaming behavior. The target requirements are:
@@ -51,7 +66,7 @@ Some Google-controlled embedded viewer elements cannot be removed because of bro
 - correct `Content-Length`.
 - no full-file buffering for large files.
 
-Local Moodle stored files should use Moodle's file serving APIs. External resources should stream through cURL or equivalent chunked delivery.
+Local Moodle stored files should use Moodle private file storage and byte-range delivery through the protected stream service. External resources should stream through cURL or equivalent chunked delivery.
 
 ## Privacy
 
@@ -75,6 +90,7 @@ Before release:
 - test teacher access.
 - verify direct `protected.php?id=<cmid>` access requires login.
 - verify local PDF is not accessible from web root.
+- verify cached Google Drive PDFs are not accessible directly from the web.
 - verify no Drive URLs are rendered in HTML templates for protected local mode.
 - verify backup/restore does not leak files across courses.
 - verify privacy export/delete removes reward and progress records.
