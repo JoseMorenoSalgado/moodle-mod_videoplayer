@@ -1,4 +1,19 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Drive Resource';
@@ -95,11 +110,17 @@ $string['setting_pdfcachettl'] = 'Duración de caché PDF';
 $string['setting_pdfcachettl_desc'] = 'Duración en segundos para los PDFs cacheados.';
 $string['task_cleanup_pdf_cache'] = 'Limpiar caché PDF de Drive Resource';
 $string['mod_videoplayer:addinstance'] = 'Agregar un nuevo Drive Resource';
+$string['mod_videoplayer:addinstance_help'] = 'Permite agregar una nueva actividad Drive Resource al curso.';
 $string['mod_videoplayer:view'] = 'Ver Drive Resource';
+$string['mod_videoplayer:view_help'] = 'Permite a usuarios autenticados y matriculados ver el contenido protegido de Drive Resource.';
 $string['mod_videoplayer:edit'] = 'Editar Drive Resource';
+$string['mod_videoplayer:edit_help'] = 'Permite editar la configuración de Drive Resource.';
 $string['mod_videoplayer:manage'] = 'Gestionar Drive Resource';
+$string['mod_videoplayer:manage_help'] = 'Permite gestionar la configuración de Drive Resource.';
 $string['mod_videoplayer:viewreport'] = 'Ver reportes de Drive Resource';
+$string['mod_videoplayer:viewreport_help'] = 'Permite ver reportes relacionados con Drive Resource.';
 $string['mod_videoplayer:editreport'] = 'Editar reportes de Drive Resource';
+$string['mod_videoplayer:editreport_help'] = 'Permite editar reportes y progreso de usuarios en Drive Resource.';
 $string['privacy:metadata:videoplayer_views'] = 'Almacena datos de progreso y finalización.';
 $string['privacy:metadata:videoplayer_views:videoplayerid'] = 'ID de la instancia.';
 $string['privacy:metadata:videoplayer_views:userid'] = 'ID del usuario.';

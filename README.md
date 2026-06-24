@@ -121,6 +121,8 @@ protected_stream service
 Moodle File API, warmed PDF cache or secure proxy streaming
 ```
 
+The default `mod/videoplayer:view` archetypes exclude `guest`. Site administrators may still override capabilities intentionally, but protected resources should be assigned only to authenticated/enrolled roles.
+
 Browser controls such as disabling right click, hiding download buttons and showing watermarks are deterrents, not DRM.
 
 ## Protected PDF cache diagnostics
@@ -200,7 +202,7 @@ Additional technical documentation is available in the `docs/` directory:
 
 Current development branch:
 
-- Release: `1.1.15-beta`
+- Release: `1.1.16-beta`
 - Component: `mod_videoplayer`
 - Product name: Drive Resource
 - Supported Moodle versions: 4.x and 5.x target

@@ -4,7 +4,7 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
-## v1.1.15-beta - 2026-06-24
+## v1.1.16-beta - 2026-06-24
 
 ### Added
 
@@ -38,7 +38,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 
 ### Changed
 
-- Release metadata bumped to `1.1.15-beta` with Moodle version `2026062411`.
+- Release metadata bumped to `1.1.16-beta` with Moodle version `2026062412`.
 - `protected.php` is now a thin authorised endpoint and delegates streaming, proxying and cache operations to the protected stream service.
 - Google Drive PDF cache warming is reused by both the protected endpoint and the ad-hoc precache task, reducing duplicated cURL/cache code.
 - Scheduled PDF cache cleanup now delegates to the shared protected stream service.
@@ -64,6 +64,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 
 ### Security
 
+- Removed the default `guest` archetype from `mod/videoplayer:view` so protected resources require normal authenticated/enrolled access unless an administrator explicitly overrides permissions.
 - Local PDFs are stored outside the web root in Moodle private file storage.
 - Local PDF access requires Moodle login, module context and `mod/videoplayer:view` capability.
 - Direct local PDF URLs are not exposed to learners.
