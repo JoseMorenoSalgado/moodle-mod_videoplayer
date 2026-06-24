@@ -1,42 +1,36 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+
 namespace mod_videoplayer\task;
 
+defined('MOODLE_INTERNAL') || die();
+
+use mod_videoplayer\local\protected_stream;
+
+/**
+ * Scheduled task that removes expired protected PDF cache files.
+ *
+ * @package    mod_videoplayer
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class cleanup_pdf_cache extends \core\task\scheduled_task {
+
+    /**
+     * Return the task name.
+     *
+     * @return string
+     */
     public function get_name(): string {
         return get_string('task_cleanup_pdf_cache', 'mod_videoplayer');
     }
 
+    /**
+     * Execute the cache cleanup task.
+     *
+     * @return void
+     */
     public function execute(): void {
-        global $CFG;
-
-        $cachedir = $CFG->localcachedir . '/mod_videoplayer/pdf';
-        if (!is_dir($cachedir)) {
-            return;
-        }
-
-        $ttl = (int)get_config('mod_videoplayer', 'pdfcachettl');
-        if ($ttl <= 0) {
-            $ttl = 86400;
-        }
-
-        $now = time();
-        $files = glob($cachedir . '/*');
-        if (!$files) {
-            return;
-        }
-
-        foreach ($files as $file) {
-            if (!is_file($file)) {
-                continue;
-            }
-
-            $basename = basename($file);
-            $isexpiredpdf = preg_match('/\.pdf$/', $basename) && filemtime($file) + $ttl < $now;
-            $isstaletmp = strpos($basename, '.tmp.') !== false && filemtime($file) + 3600 < $now;
-
-            if ($isexpiredpdf || $isstaletmp) {
-                @unlink($file);
-            }
-        }
+        protected_stream::cleanup_pdf_cache();
     }
 }
