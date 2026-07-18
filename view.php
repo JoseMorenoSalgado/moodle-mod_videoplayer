@@ -1,4 +1,6 @@
 <?php
+// This file is part of Moodle - http://moodle.org/
+
 require(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
 
@@ -35,7 +37,6 @@ $completion->set_module_viewed($cm);
 
 $source = $videoplayer->source ?? 'googledrive';
 $type = 'pdf';
-$previewurl = null;
 $protectedurl = new moodle_url('/mod/videoplayer/protected.php', [
     'id' => $cm->id,
     'v' => $videoplayer->timemodified ?? time(),
@@ -69,8 +70,11 @@ if ($source === 'localpdf') {
     $type = empty($videoplayer->type) || $videoplayer->type === 'auto'
         ? drive::detect_type($videoplayer->videourl)
         : clean_param($videoplayer->type, PARAM_ALPHANUMEXT);
-    $previewurl = drive::preview_url($fileid);
 }
+
+$ispdfcompatible = drive::is_pdf_type($type);
+$isvideo = $type === 'video';
+$isimage = $type === 'image';
 
 $typestringkey = 'type' . $type;
 $typestring = get_string_manager()->string_exists($typestringkey, 'mod_videoplayer')
@@ -85,12 +89,17 @@ if (!isguestuser()) {
     ]);
 }
 
-$initialprogress = $progressrecord ? (float) $progressrecord->progress : 0;
-$completed = $progressrecord ? (bool) $progressrecord->completed : false;
-$requiredseconds = max(60, ((int) ($videoplayer->completionpercentage ?? 80)) * 6);
-$displaymode = 'book';
+$initialprogress = $progressrecord ? (float)$progressrecord->progress : 0;
+$completed = $progressrecord ? (bool)$progressrecord->completed : false;
+$requiredseconds = max(60, ((int)($videoplayer->completionpercentage ?? 80)) * 6);
+$displaymode = clean_param($videoplayer->displaymode ?? 'standard', PARAM_ALPHANUMEXT);
+if (!in_array($displaymode, ['standard', 'ebook'], true)) {
+    $displaymode = 'standard';
+}
 
-if (!isguestuser()) {
+// PDF-compatible resources save page-level progress from the PDF viewer itself.
+// Other resources use the generic active-presence tracker.
+if (!isguestuser() && !$ispdfcompatible) {
     $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
         'cmid' => $cm->id,
         'requiredSeconds' => $requiredseconds,
@@ -100,25 +109,36 @@ if (!isguestuser()) {
     ]]);
 }
 
-if ($type === 'pdf') {
-    $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
-    $PAGE->requires->css('/mod/videoplayer/styles_book_controls.css');
-    $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
-} else if ($type === 'video') {
+if ($ispdfcompatible) {
+    if ($displaymode === 'ebook') {
+        $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
+        $PAGE->requires->css('/mod/videoplayer/styles_book_controls.css');
+        $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
+    } else {
+        $PAGE->requires->css('/mod/videoplayer/styles_pdf_overlay.css');
+        $PAGE->requires->css('/mod/videoplayer/styles_pdf_mobile.css');
+        $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
+        $PAGE->requires->js_call_amd('mod_videoplayer/pdfmobile', 'init');
+    }
+} else if ($isvideo) {
     $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
     $PAGE->requires->js_call_amd('mod_videoplayer/plyr', 'init');
 }
 
 $playerstyle = '';
 if (get_config('mod_videoplayer', 'playercolormode') === 'custom') {
-    $playercolor = trim((string) get_config('mod_videoplayer', 'playercolor'));
+    $playercolor = trim((string)get_config('mod_videoplayer', 'playercolor'));
     if (preg_match('/^#[0-9a-fA-F]{6}$/', $playercolor)) {
         $playerstyle = '--mod-videoplayer-player-color: ' . $playercolor . ';';
     }
 }
 
-$initialpage = 1;
-$totalpages = ($source === 'localpdf') ? 0 : ($progressrecord && !empty($progressrecord->totalpages) ? (int)$progressrecord->totalpages : 0);
+$initialpage = $progressrecord && !empty($progressrecord->lastpage)
+    ? max(1, (int)$progressrecord->lastpage)
+    : 1;
+$totalpages = $progressrecord && !empty($progressrecord->totalpages)
+    ? max(0, (int)$progressrecord->totalpages)
+    : 0;
 $points = $progressrecord && !empty($progressrecord->points) ? (int)$progressrecord->points : 0;
 $completionpercent = $progressrecord ? (float)$progressrecord->completionpercentage : 0;
 $watermark = fullname($USER) . ' · ' . userdate(time(), get_string('strftimedatetimeshort', 'langconfig'));
@@ -128,19 +148,19 @@ $templatecontext = [
     'source' => $source,
     'cmid' => $cm->id,
     'resourcetype' => get_string('resourcetype', 'mod_videoplayer') . ': ' . $typestring,
-    'iframeurl' => $previewurl ? $previewurl->out(false) : '',
     'pdfurl' => $protectedurl->out(false),
     'videourl' => $protectedurl->out(false),
+    'imageurl' => $protectedurl->out(false),
     'title' => format_string($videoplayer->name),
     'playerstyle' => $playerstyle,
     'displaymode' => $displaymode,
-    'ebookmode' => true,
+    'ebookmode' => $displaymode === 'ebook',
     'disabledownload' => !empty($videoplayer->disabledownload),
     'disablecontextmenu' => !empty($videoplayer->disablecontextmenu),
     'enablewatermark' => !empty($videoplayer->enablewatermark),
     'enablegamification' => !empty($videoplayer->enablegamification),
     'pointsperpage' => (int)($videoplayer->pointsperpage ?? 1),
-    'initialpage' => 1,
+    'initialpage' => $initialpage,
     'totalpages' => $totalpages,
     'points' => $points,
     'completionpercent' => round($completionpercent, 2),
@@ -157,12 +177,15 @@ if (!empty($videoplayer->intro)) {
     );
 }
 
-if ($type === 'pdf') {
-    echo $OUTPUT->render_from_template('mod_videoplayer/book', $templatecontext);
-} else if ($type === 'video') {
+if ($ispdfcompatible) {
+    $template = $displaymode === 'ebook' ? 'mod_videoplayer/book' : 'mod_videoplayer/pdfjs';
+    echo $OUTPUT->render_from_template($template, $templatecontext);
+} else if ($isvideo) {
     echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
+} else if ($isimage) {
+    echo $OUTPUT->render_from_template('mod_videoplayer/image', $templatecontext);
 } else {
-    echo $OUTPUT->render_from_template('mod_videoplayer/resource', $templatecontext);
+    echo html_writer::div(get_string('unsupportedprotectedresource', 'mod_videoplayer'), 'alert alert-warning');
 }
 
 echo $OUTPUT->footer();
