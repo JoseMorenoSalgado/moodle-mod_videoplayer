@@ -17,6 +17,11 @@ class progress_service {
     /**
      * Save progress and return the persisted state.
      *
+     * Completion percentage is monotonic, but lastpage represents the actual
+     * most recently reported page so reading can resume where the learner left
+     * off. The service does not infer completion from lastpage/totalpages alone;
+     * viewers must report a meaningful percentage based on observed progress.
+     *
      * @param \cm_info|object $cm
      * @param object $course
      * @param object $videoplayer
@@ -25,7 +30,14 @@ class progress_service {
      * @param array $input
      * @return array
      */
-    public function save_progress(object $cm, object $course, object $videoplayer, \context_module $context, int $userid, array $input): array {
+    public function save_progress(
+        object $cm,
+        object $course,
+        object $videoplayer,
+        \context_module $context,
+        int $userid,
+        array $input
+    ): array {
         global $DB;
 
         $completionpercentage = max(0, min(100, (float)($input['completionpercentage'] ?? 0)));
@@ -34,10 +46,6 @@ class progress_service {
         $timespent = max(0, (int)($input['timespent'] ?? 0));
         $progress = max(0, (float)($input['progress'] ?? 0));
         $completed = !empty($input['completed']);
-
-        if ($totalpages > 0 && $lastpage > 0) {
-            $completionpercentage = max($completionpercentage, min(100, ($lastpage / $totalpages) * 100));
-        }
 
         $required = isset($videoplayer->completionpercentage) ? (int)$videoplayer->completionpercentage : 80;
         if ($completionpercentage >= $required) {
@@ -56,7 +64,9 @@ class progress_service {
             $record->progress = max((float)$record->progress, $progress);
             $record->completionpercentage = max((float)$record->completionpercentage, $completionpercentage);
             $record->completed = $record->completed || $completed ? 1 : 0;
-            $record->lastpage = max((int)($record->lastpage ?? 0), $lastpage);
+            if ($lastpage > 0) {
+                $record->lastpage = $lastpage;
+            }
             $record->totalpages = max((int)($record->totalpages ?? 0), $totalpages);
             $record->timespent = max((int)($record->timespent ?? 0), $timespent);
             $record->timemodified = $now;
