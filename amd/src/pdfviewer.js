@@ -3,8 +3,8 @@
 /**
  * Protected PDF.js viewer for Drive Resource.
  *
- * Renders only the visible page, supports bounded high-DPI output, page search,
- * responsive zoom/fullscreen behavior and cumulative progress persistence.
+ * Renders only the visible page, supports bounded high-DPI output, local text
+ * search, responsive zoom/fullscreen and exact page-progress persistence.
  *
  * @module     mod_videoplayer/pdfviewer
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
@@ -20,6 +20,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     const ZOOM_STEP = 0.15;
     const MOBILE_BREAKPOINT = 768;
     const TEXT_CACHE_LIMIT = 30;
+    const MAX_VISITED_PAGES = 20000;
     let pdfjsPromise = null;
 
     const loadPdfJs = function() {
@@ -54,10 +55,32 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
     const normalizeSearchText = function(value) {
         const text = String(value || '').toLowerCase();
-        if (typeof text.normalize === 'function') {
-            return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return typeof text.normalize === 'function'
+            ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            : text;
+    };
+
+    const parseVisitedPages = function(value) {
+        let parsed;
+        try {
+            parsed = JSON.parse(value || '[]');
+        } catch (error) {
+            parsed = [];
         }
-        return text;
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        const unique = new Set();
+        parsed.slice(0, MAX_VISITED_PAGES).forEach(function(page) {
+            const num = parseInt(page, 10);
+            if (num > 0) {
+                unique.add(num);
+            }
+        });
+        return Array.from(unique).sort(function(a, b) {
+            return a - b;
+        });
     };
 
     const showError = function(root, error) {
@@ -97,6 +120,8 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const pdfUrl = root.getAttribute('data-pdf-url');
         const cmid = parseInt(root.getAttribute('data-cmid'), 10) || 0;
         const canvas = root.querySelector('.mod-videoplayer-pdfjs-canvas');
+        const wrap = root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap');
+        const loading = root.querySelector('[data-region="pdfjs-loading"]');
         const previous = root.querySelector('[data-action="previous-page"]');
         const next = root.querySelector('[data-action="next-page"]');
         const fullscreen = root.querySelector('[data-action="fullscreen"]');
@@ -106,8 +131,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const currentPageNode = root.querySelector('[data-region="current-page"]');
         const totalPagesNode = root.querySelector('[data-region="total-pages"]');
         const zoomLevelNode = root.querySelector('[data-region="zoom-level"]');
-        const loading = root.querySelector('[data-region="pdfjs-loading"]');
-        const wrap = root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap');
         const searchForm = root.querySelector('[data-region="pdf-search-form"]');
         const searchInput = root.querySelector('[data-region="pdf-search-input"]');
         const searchButton = root.querySelector('[data-action="search-pdf"]');
@@ -115,7 +138,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const container = root.closest('.mod-videoplayer-container') || document;
         const progressNode = container.querySelector('[data-region="pdfjs-progress"]');
 
-        if (!pdfUrl || !canvas) {
+        if (!pdfUrl || !canvas || !wrap) {
             showError(root);
             return;
         }
@@ -124,15 +147,17 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         root.classList.toggle('is-mobile-viewer', isMobileViewport());
 
         const context = canvas.getContext('2d', {alpha: false});
+        const visitedPages = new Set(parseVisitedPages(root.getAttribute('data-visited-pages')));
+        const pageTextCache = new Map();
         let pdfDocument = null;
         let pageNumber = Math.max(1, parseInt(root.getAttribute('data-initial-page'), 10) || 1);
         let rendering = false;
         let pendingPage = null;
+        let renderVersion = 0;
         let firstRender = true;
         let lastSave = 0;
         let activeSeconds = Math.max(0, parseFloat(root.getAttribute('data-initial-progress')) || 0);
         let timeSpent = Math.max(0, parseInt(root.getAttribute('data-initial-time-spent'), 10) || 0);
-        let initialCompletion = clamp(parseFloat(root.getAttribute('data-initial-completion')) || 0, 0, 100);
         let completed = root.getAttribute('data-initial-completed') === '1';
         let lastTick = Date.now();
         let zoomFactor = 1;
@@ -143,8 +168,8 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         let lastSearchQuery = '';
         let lastSearchPage = 0;
         let searchBusy = false;
-        const visitedPages = new Set();
-        const pageTextCache = new Map();
+        let saveInFlight = null;
+        let saveQueued = false;
 
         const isFullscreen = function() {
             return document.fullscreenElement === root || root.classList.contains('is-fallback-fullscreen');
@@ -152,18 +177,29 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
         const completionPercent = function() {
             if (!pdfDocument || !pdfDocument.numPages) {
-                return initialCompletion;
+                return 0;
             }
-            const observed = (visitedPages.size / pdfDocument.numPages) * 100;
-            return Math.min(100, Math.max(initialCompletion, Math.round(observed * 100) / 100));
+            return Math.min(100, Math.round((visitedPages.size / pdfDocument.numPages) * 10000) / 100);
+        };
+
+        const serializeVisitedPages = function() {
+            return JSON.stringify(Array.from(visitedPages).sort(function(a, b) {
+                return a - b;
+            }).slice(0, MAX_VISITED_PAGES));
+        };
+
+        const absorbServerPages = function(value) {
+            parseVisitedPages(value).forEach(function(page) {
+                if (!pdfDocument || page <= pdfDocument.numPages) {
+                    visitedPages.add(page);
+                }
+            });
         };
 
         const updateZoomStatus = function(baseScale, appliedScale) {
-            if (!zoomLevelNode || !baseScale) {
-                return;
+            if (zoomLevelNode && baseScale) {
+                zoomLevelNode.textContent = Math.round((appliedScale / baseScale) * 100) + '%';
             }
-            const relativeZoom = Math.round((appliedScale / baseScale) * 100);
-            zoomLevelNode.textContent = relativeZoom + '%';
         };
 
         const updateButtons = function() {
@@ -193,6 +229,14 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
         };
 
+        const accrueActiveTime = function() {
+            const now = Date.now();
+            const delta = Math.max(0, Math.round((now - lastTick) / 1000));
+            activeSeconds += delta;
+            timeSpent += delta;
+            lastTick = now;
+        };
+
         const saveProgress = function(force) {
             if (!cmid || !pdfDocument) {
                 return Promise.resolve();
@@ -202,61 +246,70 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (!force && now - lastSave < SAVE_INTERVAL) {
                 return Promise.resolve();
             }
-
-            const delta = Math.max(0, Math.round((now - lastTick) / 1000));
-            activeSeconds += delta;
-            timeSpent += delta;
-            lastTick = now;
+            accrueActiveTime();
             lastSave = now;
 
-            const percent = completionPercent();
-            completed = completed || percent >= 100;
+            if (saveInFlight) {
+                saveQueued = saveQueued || force;
+                return saveInFlight;
+            }
 
-            return Ajax.call([{
+            const percent = completionPercent();
+            const request = {
                 methodname: 'mod_videoplayer_save_progress',
                 args: {
                     cmid: cmid,
                     progress: activeSeconds,
-                    completed: completed,
+                    completed: completed || percent >= 100,
                     completionpercentage: percent,
                     lastpage: pageNumber,
                     totalpages: pdfDocument.numPages,
+                    visitedpages: serializeVisitedPages(),
+                    lastsecond: 0,
+                    totalseconds: 0,
+                    watchedranges: '',
                     timespent: timeSpent
                 }
-            }])[0].then(function(response) {
+            };
+
+            saveInFlight = Ajax.call([request])[0].then(function(response) {
                 if (response) {
                     completed = Boolean(response.completed);
-                    initialCompletion = Math.max(initialCompletion, parseFloat(response.completionpercentage) || 0);
                     activeSeconds = Math.max(activeSeconds, parseFloat(response.progress) || 0);
                     timeSpent = Math.max(timeSpent, parseInt(response.timespent, 10) || 0);
+                    absorbServerPages(response.visitedpages || '');
                     if (progressNode) {
                         progressNode.textContent = response.completionpercentage + '%';
                     }
                 }
                 return response;
-            }).catch(Notification.exception);
+            }).catch(Notification.exception).finally(function() {
+                saveInFlight = null;
+                if (saveQueued) {
+                    saveQueued = false;
+                    window.setTimeout(function() {
+                        saveProgress(true);
+                    }, 0);
+                }
+            });
+
+            return saveInFlight;
         };
 
         const prefetch = function(num) {
-            if (!pdfDocument || num < 1 || num > pdfDocument.numPages) {
-                return;
+            if (pdfDocument && num >= 1 && num <= pdfDocument.numPages) {
+                pdfDocument.getPage(num).catch(function() {
+                    // Neighbor prefetch is best effort.
+                });
             }
-            pdfDocument.getPage(num).catch(function() {
-                // Neighbor prefetch is best effort.
-            });
         };
 
         const restoreScrollPosition = function(oldWidth, oldHeight, oldScrollLeft, oldScrollTop) {
-            if (!wrap) {
-                return;
-            }
-
             if (firstRender || autoFit) {
                 wrap.scrollLeft = 0;
                 wrap.scrollTop = 0;
                 return;
             }
-
             const widthRatio = oldWidth > 0 ? wrap.scrollWidth / oldWidth : 1;
             const heightRatio = oldHeight > 0 ? wrap.scrollHeight / oldHeight : 1;
             wrap.scrollLeft = oldScrollLeft * widthRatio;
@@ -264,11 +317,15 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         };
 
         const renderPage = function(num) {
-            const oldScrollWidth = wrap ? wrap.scrollWidth : 0;
-            const oldScrollHeight = wrap ? wrap.scrollHeight : 0;
-            const oldScrollLeft = wrap ? wrap.scrollLeft : 0;
-            const oldScrollTop = wrap ? wrap.scrollTop : 0;
+            if (!pdfDocument) {
+                return;
+            }
 
+            const currentVersion = ++renderVersion;
+            const oldScrollWidth = wrap.scrollWidth;
+            const oldScrollHeight = wrap.scrollHeight;
+            const oldScrollLeft = wrap.scrollLeft;
+            const oldScrollTop = wrap.scrollTop;
             rendering = true;
             canvas.classList.add('is-rendering');
             if (firstRender) {
@@ -276,10 +333,14 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
 
             pdfDocument.getPage(num).then(function(page) {
+                if (currentVersion !== renderVersion) {
+                    return null;
+                }
+
                 const horizontalPadding = isMobileViewport() ? 10 : 24;
                 const verticalPadding = isMobileViewport() ? 10 : 24;
-                const availableWidth = wrap ? Math.max(wrap.clientWidth - horizontalPadding, 280) : 900;
-                const availableHeight = wrap ? Math.max(wrap.clientHeight - verticalPadding, 320) : 900;
+                const availableWidth = Math.max(wrap.clientWidth - horizontalPadding, 280);
+                const availableHeight = Math.max(wrap.clientHeight - verticalPadding, 320);
                 const base = page.getViewport({scale: 1});
                 const fitWidth = availableWidth / base.width;
                 const fitHeight = availableHeight / base.height;
@@ -303,7 +364,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     viewport: viewport,
                     transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
                 }).promise;
-            }).then(function() {
+            }).then(function(result) {
+                if (result === null || currentVersion !== renderVersion) {
+                    return;
+                }
                 rendering = false;
                 visitedPages.add(num);
                 restoreScrollPosition(oldScrollWidth, oldScrollHeight, oldScrollLeft, oldScrollTop);
@@ -316,11 +380,15 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 saveProgress(false);
 
                 if (pendingPage !== null) {
-                    const nextPage = pendingPage;
+                    const queued = pendingPage;
                     pendingPage = null;
-                    renderPage(nextPage);
+                    pageNumber = queued;
+                    renderPage(queued);
                 }
             }).catch(function(error) {
+                if (currentVersion !== renderVersion) {
+                    return;
+                }
                 rendering = false;
                 canvas.classList.remove('is-rendering');
                 Notification.exception(error);
@@ -329,29 +397,28 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         };
 
         const queue = function(num) {
-            if (rendering) {
-                pendingPage = num;
-            } else {
-                renderPage(num);
-            }
-        };
-
-        const go = function(num, resetZoom) {
             if (!pdfDocument) {
                 return;
             }
-            pageNumber = Math.max(1, Math.min(pdfDocument.numPages, num));
+            const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
+            pageNumber = safe;
+            if (rendering) {
+                pendingPage = safe;
+                renderVersion++;
+                rendering = false;
+            }
+            renderPage(safe);
+        };
+
+        const go = function(num, resetZoom) {
             if (resetZoom) {
                 autoFit = true;
                 zoomFactor = 1;
             }
-            queue(pageNumber);
+            queue(num);
         };
 
         const zoomTo = function(value) {
-            if (!pdfDocument) {
-                return;
-            }
             zoomFactor = clamp(value, MIN_ZOOM, MAX_ZOOM);
             autoFit = zoomFactor === 1;
             queue(pageNumber);
@@ -401,13 +468,9 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (index >= order.length) {
                 return Promise.resolve(0);
             }
-
             const num = order[index];
             return getPageText(num).then(function(text) {
-                if (text.indexOf(query) !== -1) {
-                    return num;
-                }
-                return findInPages(order, index + 1, query);
+                return text.indexOf(query) !== -1 ? num : findInPages(order, index + 1, query);
             });
         };
 
@@ -416,8 +479,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 return;
             }
 
-            const rawQuery = searchInput.value.trim();
-            const query = normalizeSearchText(rawQuery);
+            const query = normalizeSearchText(searchInput.value.trim());
             if (!query) {
                 if (searchStatus) {
                     searchStatus.textContent = '';
@@ -491,41 +553,40 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 searchDocument();
             });
         }
-        if (wrap) {
-            wrap.addEventListener('touchstart', function(event) {
-                if (!event.touches || event.touches.length !== 1) {
-                    return;
-                }
-                touchMoved = false;
-                touchStartX = event.touches[0].clientX;
-                touchStartY = event.touches[0].clientY;
-            }, {passive: true});
 
-            wrap.addEventListener('touchmove', function(event) {
-                if (!event.touches || event.touches.length !== 1) {
-                    return;
-                }
-                const dx = event.touches[0].clientX - touchStartX;
-                const dy = event.touches[0].clientY - touchStartY;
-                touchMoved = Math.abs(dx) > 18 || Math.abs(dy) > 18;
-            }, {passive: true});
+        wrap.addEventListener('touchstart', function(event) {
+            if (!event.touches || event.touches.length !== 1) {
+                return;
+            }
+            touchMoved = false;
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+        }, {passive: true});
 
-            wrap.addEventListener('touchend', function(event) {
-                if (!touchMoved || !pdfDocument) {
-                    return;
-                }
-                const changed = event.changedTouches && event.changedTouches[0];
-                if (!changed) {
-                    return;
-                }
-                const dx = changed.clientX - touchStartX;
-                const dy = changed.clientY - touchStartY;
-                if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.35) {
-                    return;
-                }
+        wrap.addEventListener('touchmove', function(event) {
+            if (!event.touches || event.touches.length !== 1) {
+                return;
+            }
+            const dx = event.touches[0].clientX - touchStartX;
+            const dy = event.touches[0].clientY - touchStartY;
+            touchMoved = Math.abs(dx) > 18 || Math.abs(dy) > 18;
+        }, {passive: true});
+
+        wrap.addEventListener('touchend', function(event) {
+            if (!touchMoved || !pdfDocument) {
+                return;
+            }
+            const changed = event.changedTouches && event.changedTouches[0];
+            if (!changed) {
+                return;
+            }
+            const dx = changed.clientX - touchStartX;
+            const dy = changed.clientY - touchStartY;
+            if (Math.abs(dx) >= 70 && Math.abs(dx) >= Math.abs(dy) * 1.35) {
                 go(pageNumber + (dx < 0 ? 1 : -1), true);
-            }, {passive: true});
-        }
+            }
+        }, {passive: true});
+
         if (fullscreen) {
             fullscreen.addEventListener('click', function() {
                 if (document.fullscreenElement) {
@@ -580,7 +641,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }, 180);
         });
 
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('pagehide', function() {
             saveProgress(true);
         });
         document.addEventListener('visibilitychange', function() {
@@ -605,6 +666,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             disableStream: false
         }).promise.then(function(pdf) {
             pdfDocument = pdf;
+            Array.from(visitedPages).forEach(function(page) {
+                if (page > pdfDocument.numPages) {
+                    visitedPages.delete(page);
+                }
+            });
             pageNumber = Math.max(1, Math.min(pageNumber, pdfDocument.numPages));
             updateButtons();
             renderPage(pageNumber);
