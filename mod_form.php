@@ -64,9 +64,16 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         $mform->setDefault('type', 'auto');
         $mform->disabledIf('type', 'source', 'eq', 'localpdf');
 
-        $mform->addElement('hidden', 'displaymode', 'standard');
-        $mform->setType('displaymode', PARAM_ALPHANUMEXT);
+        $displaymodes = [
+            'standard' => get_string('displaymodestandard', 'mod_videoplayer'),
+            'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
+        ];
+        $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
         $mform->setDefault('displaymode', 'standard');
+        $mform->addHelpButton('displaymode', 'displaymode', 'mod_videoplayer');
+        $mform->hideIf('displaymode', 'type', 'eq', 'video');
+        $mform->hideIf('displaymode', 'type', 'eq', 'image');
+        $mform->hideIf('displaymode', 'type', 'eq', 'file');
 
         $mform->addElement('advcheckbox', 'disabledownload', get_string('disabledownload', 'mod_videoplayer'));
         $mform->setDefault('disabledownload', 1);
@@ -107,7 +114,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             );
             $defaultvalues['localpdffile'] = $draftitemid;
         }
-        $defaultvalues['displaymode'] = 'standard';
     }
 
     /**
