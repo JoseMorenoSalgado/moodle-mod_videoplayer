@@ -1,39 +1,39 @@
 # Drive Resource for Moodle
 
-**Drive Resource** is a Moodle activity module for publishing protected learning resources from Google Drive and Moodle local private storage.
+**Drive Resource** is a Moodle activity module for publishing protected learning resources from Google Drive and Moodle private storage.
 
-The internal Moodle component remains `mod_videoplayer` for compatibility with existing installations, but the user-facing product name is **Drive Resource**.
+The internal Moodle component remains `mod_videoplayer` for compatibility with existing installations. The user-facing commercial product name is **Drive Resource**.
 
 ## Features
 
-- Publish Google Drive resources inside Moodle courses.
-- Publish local protected PDFs stored in Moodle private file storage.
-- Support for videos, PDFs, images, documents, spreadsheets and presentations.
-- Automatic resource type detection for supported Google Drive URLs.
-- Protected `protected.php` delivery endpoint backed by a reusable protected stream service.
-- Local PDF.js viewer without CDN.
-- Protected ebook/book mode with desktop two-page spread and mobile one-page reading.
-- Google Drive PDF cache warming under Moodle local cache.
-- HTML5 video playback with local Plyr assets.
-- Plugin-owned fullscreen viewer for mobile and desktop.
-- Reading progress by page, percentage and active time.
-- Optional watermark deterrent.
-- Optional personal gamification milestones and points.
-- Moodle Completion API integration.
+- Google Drive resources delivered through Moodle-owned protected endpoints.
+- Videos, PDFs, images, documents, spreadsheets and presentations.
+- Local protected PDFs stored through Moodle File API.
+- Local PDF.js rendering with no CDN dependency.
+- HTML5 video playback progressively enhanced with local Plyr assets.
+- iPhone/iPad-oriented video streaming with proper byte-range semantics.
+- `Range`, `If-Range`, `HEAD`, `206 Partial Content` and `416` handling for protected upstream delivery.
+- Fast-first-byte Google Drive PDF loading.
+- Asynchronous, deduplicated PDF cache warming through Moodle ad-hoc tasks.
+- Protected PDF cache outside the web root.
+- Responsive protected book viewer.
+- Fullscreen, page navigation and mobile swipe behavior.
+- Reading/progress tracking and Moodle Completion API integration.
 - Moodle Events API integration.
-- Backup and Restore support, including local PDF files.
-- Privacy API support for progress and rewards.
-- Teacher progress report per activity.
-- Admin settings for tracking, protected mode and default completion behavior.
+- Optional watermark and gamification features.
+- Backup & Restore support.
+- Privacy API support.
+- Teacher progress reporting.
 
 ## Requirements
 
-- Moodle 4.x or Moodle 5.x.
-- PHP 8.2 or newer recommended.
-- HTTPS-enabled Moodle site.
-- Local PDF.js files installed under `thirdpartylibs/pdfjs/`.
-- Local Plyr files installed under `thirdpartylibs/plyr/` when enhanced video playback is required.
-- Local PageFlip files installed under `thirdpartylibs/pageflip/` when ebook flipbook mode is required.
+- Moodle 4.x or Moodle 5.x target environment.
+- PHP 8.2+ recommended.
+- PHP cURL extension.
+- HTTPS for production use.
+- Moodle cron configured and running.
+- Writable `$CFG->localcachedir`.
+- Required third-party libraries bundled locally.
 
 ## Required local libraries
 
@@ -43,153 +43,169 @@ Drive Resource must not use CDN assets in production.
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
 thirdpartylibs/plyr/plyr.css
-thirdpartylibs/pageflip/page-flip.browser.js
-thirdpartylibs/pageflip/page-flip.css
+thirdpartylibs/plyr/plyr.min.js
+thirdpartylibs/pageflip/page-flip.browser.js   # optional
+thirdpartylibs/pageflip/page-flip.css         # optional
 ```
 
-PageFlip is optional. If it is missing, ebook mode falls back to the protected PDF.js viewer.
+PageFlip is optional. Protected PDF.js rendering remains available without it.
 
 ## Installation
 
-1. Copy the plugin folder to:
+Copy the plugin to:
 
-   ```bash
-   mod/videoplayer
-   ```
+```text
+mod/videoplayer
+```
 
-2. Run Moodle upgrade:
+Run Moodle upgrade:
 
-   ```bash
-   php admin/cli/upgrade.php
-   ```
+```bash
+php admin/cli/upgrade.php
+```
 
-3. Purge Moodle caches.
+Then purge Moodle caches and verify cron/ad-hoc task execution.
 
-4. Go to:
+See `docs/installation.md` for production validation.
 
-   ```text
-   Site administration > Plugins > Activity modules > Drive Resource
-   ```
+## Protected delivery architecture
 
-5. Configure the default tracking, protected mode and PDF cache settings.
+```text
+Google Drive link / Moodle private PDF
+↓
+Drive Resource activity
+↓
+protected.php
+↓
+require_login + course module + context_module + capability
+↓
+protected_stream OR http_range_proxy
+↓
+Moodle-owned viewer
+↓
+learner
+```
 
-## Usage: local protected PDF
+### Local and cached files
 
-1. Enter a Moodle course.
-2. Turn editing on.
-3. Add a new **Drive Resource** activity.
-4. Select **Local protected PDF**.
-5. Upload one PDF file.
-6. Choose **Standard PDF viewer** or **Protected ebook viewer**.
-7. Optionally enable watermark and gamification.
-8. Configure the required completion percentage.
-9. Save and display.
+`classes/local/protected_stream.php` handles trusted local/cache file delivery and byte ranges.
 
-## Usage: Google Drive resource
+### Upstream resources
 
-1. Enter a Moodle course.
-2. Turn editing on.
-3. Add a new **Drive Resource** activity.
-4. Select **Google Drive**.
-5. Paste a supported Google Drive or Google Docs URL.
-6. Select the resource type or leave it as **Automatic**.
-7. Configure completion if needed.
-8. Save and display.
+`classes/local/http_range_proxy.php` handles protected upstream HTTP streaming. It forwards a single validated byte range and safely preserves the metadata needed by Safari/iOS media playback and PDF.js range loading.
 
-## Supported resources
+The plugin-owned protected video/PDF UI does not expose raw Google Drive file IDs, download URLs or preview URLs.
 
-Drive Resource supports common Google Drive and Google Docs URLs, including:
+## Fast-first-byte PDF loading
 
-- videos from Google Drive.
-- PDF files.
-- images.
-- Google Docs documents.
-- Google Sheets spreadsheets.
-- Google Slides presentations.
-- generic Drive files supported by the configured delivery flow.
+When a Google Drive PDF is already cached:
+
+```text
+protected.php → local cache → Range response → PDF.js
+```
+
+When the PDF cache is cold:
+
+```text
+PDF.js range request
+↓
+protected.php validates Moodle access
+↓
+queue deduplicated precache_pdf task
+↓
+proxy requested bytes immediately
+↓
+Moodle cron warms complete PDF cache
+↓
+later requests use local cache
+```
+
+This avoids making the first page wait for a complete PDF download. The PDF is not recompressed, rasterized or transcoded, so document quality is preserved.
+
+Cache files are stored under:
+
+```text
+$CFG->localcachedir/mod_videoplayer/pdf/
+```
+
+Possible diagnostic headers include:
+
+```text
+X-Drive-Resource-Cache: LOCAL
+X-Drive-Resource-Cache: HIT
+X-Drive-Resource-Cache: MISS_QUEUED
+X-Drive-Resource-Cache: MISS
+X-Drive-Resource-Cache: BYPASS
+```
+
+## iPhone/iPad video playback
+
+Protected video playback uses an HTML5 `<video>` element and local Plyr enhancement.
+
+The current implementation:
+
+- keeps `playsinline` and `webkit-playsinline`;
+- uses `preload="metadata"` to reduce initial transfer pressure;
+- does not force every source to `video/mp4`;
+- preserves native HTML5 controls as a fallback;
+- uses the protected range proxy for seeking;
+- avoids duplicate upstream `Range` headers;
+- safely relays valid partial-content metadata.
+
+Production QA should include Safari on physical iPhone/iPad devices because simulator behavior does not cover every media-stack edge case.
 
 ## Security model
 
-The enforceable protection is server-side Moodle access control:
+The enforceable controls are server-side:
 
 ```text
 require_login()
 context_module
 mod/videoplayer:view
 protected.php
-protected_stream service
-Moodle File API, warmed PDF cache or secure proxy streaming
+protected_stream / http_range_proxy
 ```
 
-The default `mod/videoplayer:view` archetypes exclude `guest`. Site administrators may still override capabilities intentionally, but protected resources should be assigned only to authenticated/enrolled roles.
+Browser controls such as hiding download buttons, disabling right click and showing watermarks are deterrents, not DRM.
 
-Browser controls such as disabling right click, hiding download buttons and showing watermarks are deterrents, not DRM.
-
-## Protected PDF cache diagnostics
-
-Protected Google Drive PDFs can be cached under Moodle local cache after Moodle access validation. The response header shows the delivery path:
-
-```text
-X-Drive-Resource-Cache: LOCAL
-X-Drive-Resource-Cache: HIT
-X-Drive-Resource-Cache: WARMED
-X-Drive-Resource-Cache: WARM_FAILED
-X-Drive-Resource-Cache: BYPASS
-```
-
-Cache files are stored outside the web root under:
-
-```text
-$CFG->localcachedir/mod_videoplayer/pdf/
-```
+See `docs/security.md` for the complete threat model and release checklist.
 
 ## Progress tracking
 
-Drive Resource tracks:
+Drive Resource tracks supported reading/viewing state including:
 
-- active time.
-- completion percentage.
-- last page.
-- total pages.
-- completion state.
-- points and rewards when gamification is enabled.
+- active time;
+- completion percentage;
+- last page;
+- total pages;
+- completion state;
+- points/rewards when enabled.
 
-For Google Drive iframes that do not expose playback APIs, presence-based tracking is used.
-
-## Teacher reports
-
-Teachers with the `mod/videoplayer:viewreport` capability can access the progress report for each activity.
+Moodle completion and events are updated through the plugin service layer.
 
 ## JavaScript AMD build
 
-Development files live in:
+Development sources:
 
 ```text
 amd/src/
 ```
 
-Compiled production files live in:
+Production bundles:
 
 ```text
 amd/build/
 ```
 
-To compile AMD files using Moodle tooling:
+Build with Moodle tooling:
 
 ```bash
-npm install
 npx grunt amd
 ```
 
-or, inside a Moodle development environment:
-
-```bash
-grunt amd
-```
+or the equivalent `grunt amd` command in a configured Moodle development environment.
 
 ## Documentation
-
-Additional technical documentation is available in the `docs/` directory:
 
 - `docs/architecture.md`
 - `docs/database.md`
@@ -200,12 +216,13 @@ Additional technical documentation is available in the `docs/` directory:
 
 ## Compatibility
 
-Current development branch:
+Current development release:
 
-- Release: `1.1.16-beta`
-- Component: `mod_videoplayer`
+- Release: `1.1.17-beta`
+- Moodle component: `mod_videoplayer`
 - Product name: Drive Resource
-- Supported Moodle versions: 4.x and 5.x target
+- Target Moodle versions: 4.x and 5.x
+- Recommended PHP: 8.2+
 
 ## License
 
