@@ -133,6 +133,18 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             $errors['videourl'] = get_string('invaliddriveurl', 'mod_videoplayer');
         }
 
+        if (
+            $source === 'googledrive'
+            && empty($errors['videourl'])
+            && ($data['type'] ?? drive::TYPE_AUTO) === drive::TYPE_AUTO
+            && drive::detect_type($data['videourl']) === 'file'
+        ) {
+            // Generic /file/d/... URLs contain no MIME metadata. Do not guess a
+            // viewer type because serving active/incorrect content through a
+            // same-origin protected endpoint is unsafe and unreliable.
+            $errors['type'] = get_string('unsupportedprotectedresource', 'mod_videoplayer');
+        }
+
         if ($source === 'localpdf') {
             $draftitemid = (int)($data['localpdffile'] ?? 0);
             $fs = get_file_storage();
