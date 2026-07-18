@@ -90,6 +90,7 @@ if (!isguestuser()) {
 }
 
 $initialprogress = $progressrecord ? (float)$progressrecord->progress : 0;
+$initialtimespent = $progressrecord ? (int)($progressrecord->timespent ?? 0) : 0;
 $completed = $progressrecord ? (bool)$progressrecord->completed : false;
 $requiredseconds = max(60, ((int)($videoplayer->completionpercentage ?? 80)) * 6);
 $displaymode = clean_param($videoplayer->displaymode ?? 'standard', PARAM_ALPHANUMEXT);
@@ -161,9 +162,12 @@ $templatecontext = [
     'enablegamification' => !empty($videoplayer->enablegamification),
     'pointsperpage' => (int)($videoplayer->pointsperpage ?? 1),
     'initialpage' => $initialpage,
+    'initialprogress' => $initialprogress,
+    'initialtimespent' => $initialtimespent,
     'totalpages' => $totalpages,
     'points' => $points,
     'completionpercent' => round($completionpercent, 2),
+    'completed' => $completed,
     'watermark' => $watermark,
 ];
 
