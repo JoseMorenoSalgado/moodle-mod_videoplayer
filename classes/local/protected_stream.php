@@ -4,17 +4,16 @@
 namespace mod_videoplayer\local;
 
 /**
- * Protected streaming and PDF cache service for Drive Resource.
+ * Local protected streaming and PDF cache service for Drive Resource.
  *
- * This service centralises byte-range streaming, Google Drive PDF cache warming,
- * cache cleanup and safe response headers. Keeping this logic out of
- * protected.php makes the public endpoint smaller and easier to review.
+ * This service owns trusted local/cache file delivery and PDF cache lifecycle.
+ * Upstream HTTP delivery belongs exclusively to http_range_proxy.
  *
  * @package    mod_videoplayer
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class protected_stream {
+final class protected_stream {
 
     /** @var int Private browser cache lifetime for authorised protected streams. */
     private const PRIVATE_CACHE_SECONDS = 300;
@@ -57,9 +56,6 @@ class protected_stream {
     /**
      * Build the stable cache key for a protected Drive PDF.
      *
-     * Keep this compatible with previous cache keys so existing warmed files
-     * remain reusable after the refactor.
-     *
      * @param string $fileid Google Drive file id.
      * @param string $type Resource type.
      * @return string Cache key.
@@ -80,7 +76,7 @@ class protected_stream {
     }
 
     /**
-     * Check if a cache file is fresh and valid.
+     * Check whether a cache file is fresh and contains a PDF signature.
      *
      * @param string $path Absolute cache path.
      * @param int|null $ttl Optional TTL override.
@@ -88,8 +84,11 @@ class protected_stream {
      */
     public static function is_fresh_pdf_cache(string $path, ?int $ttl = null): bool {
         $ttl = $ttl ?? self::pdf_cache_ttl();
+        $modified = is_file($path) ? filemtime($path) : false;
+
         return is_readable($path)
-            && filemtime($path) + $ttl > time()
+            && $modified !== false
+            && $modified + $ttl > time()
             && self::is_pdf_file($path);
     }
 
@@ -112,34 +111,40 @@ class protected_stream {
     }
 
     /**
-     * Check whether a local file starts like a PDF.
+     * Check whether a local file contains a PDF signature near the beginning.
      *
      * @param string $path Absolute path.
      * @return bool
      */
     public static function is_pdf_file(string $path): bool {
-        if (!is_readable($path) || filesize($path) <= 0) {
+        if (!is_readable($path)) {
             return false;
         }
 
-        $fh = fopen($path, 'rb');
-        if ($fh === false) {
+        $size = filesize($path);
+        if ($size === false || $size <= 0) {
             return false;
         }
-        $header = fread($fh, 1024);
-        fclose($fh);
+
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            return false;
+        }
+
+        $header = fread($handle, 1024);
+        fclose($handle);
 
         return is_string($header) && strpos($header, '%PDF-') !== false;
     }
 
     /**
-     * Send a stored Moodle PDF through the protected streamer.
+     * Send a stored Moodle PDF through the protected local streamer.
      *
      * @param \stored_file $file Stored Moodle file.
      * @param string $filename Safe filename.
-     * @return void
+     * @return never
      */
-    public static function send_stored_pdf(\stored_file $file, string $filename): void {
+    public static function send_stored_pdf(\stored_file $file, string $filename): never {
         $path = self::stored_file_path($file);
         if ($path === null) {
             $tmpdir = make_request_directory();
@@ -148,15 +153,25 @@ class protected_stream {
         }
 
         if (!self::is_pdf_file($path)) {
-            debugging('Drive Resource local PDF did not contain a PDF header in the first 1024 bytes.', DEBUG_DEVELOPER);
+            debugging('Drive Resource local PDF did not contain a PDF signature near the beginning.', DEBUG_DEVELOPER);
             throw new \moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
         }
 
-        self::send_file($path, $filename, 'application/pdf', $file->get_contenthash(), (int)$file->get_timemodified(), 'LOCAL');
+        self::send_file(
+            $path,
+            $filename,
+            'application/pdf',
+            $file->get_contenthash(),
+            (int)$file->get_timemodified(),
+            'LOCAL'
+        );
     }
 
     /**
-     * Send a local file with byte-range support.
+     * Send a local file with single-byte-range support.
+     *
+     * Supports closed, open-ended and suffix byte ranges without loading the
+     * complete file into PHP memory.
      *
      * @param string $path Absolute local path.
      * @param string $filename Safe filename.
@@ -164,7 +179,7 @@ class protected_stream {
      * @param string $etag Optional stable entity tag.
      * @param int $lastmodified Optional unix timestamp.
      * @param string $cachestatus Cache diagnostic status.
-     * @return void
+     * @return never
      */
     public static function send_file(
         string $path,
@@ -173,7 +188,7 @@ class protected_stream {
         string $etag = '',
         int $lastmodified = 0,
         string $cachestatus = 'LOCAL'
-    ): void {
+    ): never {
         if (!is_readable($path)) {
             throw new \moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
         }
@@ -185,21 +200,27 @@ class protected_stream {
 
         $lastmodified = $lastmodified > 0 ? $lastmodified : (filemtime($path) ?: time());
         $etag = $etag !== '' ? $etag : sha1($size . ':' . $lastmodified);
-        [$start, $end, $code] = self::resolve_range($size);
+        [$start, $end, $status] = self::resolve_range($size);
         $length = $end - $start + 1;
+        $safefilename = str_replace(["\r", "\n", '"'], '', $filename);
 
-        http_response_code($code);
+        http_response_code($status);
         header('Content-Type: ' . $contenttype);
-        header('Content-Disposition: inline; filename="' . $filename . '"');
+        header('Content-Disposition: inline; filename="' . $safefilename . '"; filename*=UTF-8\'\'' . rawurlencode($safefilename));
         header('X-Content-Type-Options: nosniff');
         header('X-Robots-Tag: noindex, nofollow, noarchive');
         header('Accept-Ranges: bytes');
-        self::send_private_cache_headers($etag, $lastmodified);
-        self::send_cache_status($cachestatus);
         header('Content-Length: ' . $length);
         header('Vary: Range');
-        if ($code === 206) {
+        self::send_private_cache_headers($etag, $lastmodified);
+        self::send_cache_status($cachestatus);
+
+        if ($status === 206) {
             header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+        }
+
+        if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
+            die;
         }
 
         self::stream_file_segment($path, $start, $length);
@@ -208,6 +229,9 @@ class protected_stream {
 
     /**
      * Warm a Google Drive PDF into local cache.
+     *
+     * The full PDF is downloaded to a unique temporary file and atomically
+     * renamed only after PDF signature validation succeeds.
      *
      * @param string $url Resolved upstream download URL.
      * @param string $cachefile Final cache file path.
@@ -236,136 +260,54 @@ class protected_stream {
             return false;
         }
 
-        clearstatcache(true, $cachefile);
-        if (self::is_fresh_pdf_cache($cachefile)) {
+        try {
+            clearstatcache(true, $cachefile);
+            if (self::is_fresh_pdf_cache($cachefile)) {
+                return true;
+            }
+
+            $tmpfile = $cachefile . '.tmp.' . getmypid();
+            $cookiejar = $cachefile . '.cookies.' . getmypid();
+            self::delete_if_file($tmpfile);
+            self::delete_if_file($cookiejar);
+
+            $download = self::download_to_file($url, $tmpfile, $cookiejar);
+            $valid = $download['ok'] && self::is_pdf_file($tmpfile);
+
+            if (!$valid && is_file($tmpfile)) {
+                $confirmtoken = self::extract_drive_confirm_token($tmpfile);
+                if ($confirmtoken !== null) {
+                    self::delete_if_file($tmpfile);
+                    $confirmedurl = self::add_drive_confirm_token($url, $confirmtoken);
+                    $download = self::download_to_file($confirmedurl, $tmpfile, $cookiejar);
+                    $valid = $download['ok'] && self::is_pdf_file($tmpfile);
+                }
+            }
+
+            if (!$valid) {
+                self::delete_if_file($tmpfile);
+                debugging(
+                    'Drive Resource PDF cache warm failed: HTTP ' . ($download['httpcode'] ?? 0) . ' ' .
+                    ($download['error'] ?? '') . ' content-type=' . ($download['contenttype'] ?? ''),
+                    DEBUG_DEVELOPER
+                );
+                return false;
+            }
+
+            if (!@rename($tmpfile, $cachefile)) {
+                self::delete_if_file($tmpfile);
+                debugging('Drive Resource PDF cache warm failed: atomic cache rename failed.', DEBUG_DEVELOPER);
+                return false;
+            }
+
+            return true;
+        } finally {
+            if (isset($cookiejar)) {
+                self::delete_if_file($cookiejar);
+            }
             flock($lockhandle, LOCK_UN);
             fclose($lockhandle);
-            return true;
         }
-
-        $tmpfile = $cachefile . '.tmp.' . getmypid();
-        $cookiejar = $cachefile . '.cookies.' . getmypid();
-        foreach ([$tmpfile, $cookiejar] as $path) {
-            if (is_file($path)) {
-                unlink($path);
-            }
-        }
-
-        $download = self::download_to_file($url, $tmpfile, $cookiejar);
-        $valid = $download['ok'] && self::is_pdf_file($tmpfile);
-
-        if (!$valid && is_file($tmpfile)) {
-            $confirmtoken = self::extract_drive_confirm_token($tmpfile);
-            if ($confirmtoken !== null) {
-                unlink($tmpfile);
-                $download = self::download_to_file(self::add_drive_confirm_token($url, $confirmtoken), $tmpfile, $cookiejar);
-                $valid = $download['ok'] && self::is_pdf_file($tmpfile);
-            }
-        }
-
-        if ($valid) {
-            rename($tmpfile, $cachefile);
-        } else {
-            if (is_file($tmpfile)) {
-                unlink($tmpfile);
-            }
-            debugging(
-                'Drive Resource PDF cache warm failed: HTTP ' . ($download['httpcode'] ?? 0) . ' ' .
-                ($download['error'] ?? '') . ' content-type=' . ($download['contenttype'] ?? ''),
-                DEBUG_DEVELOPER
-            );
-        }
-
-        if (is_file($cookiejar)) {
-            unlink($cookiejar);
-        }
-
-        flock($lockhandle, LOCK_UN);
-        fclose($lockhandle);
-
-        return $valid;
-    }
-
-    /**
-     * Proxy an upstream protected resource with safe headers.
-     *
-     * @param string $url Upstream URL.
-     * @param string $filename Safe filename.
-     * @param string $contenttype Fallback MIME type.
-     * @param string $cachestatus Cache diagnostic status.
-     * @return void
-     */
-    public static function proxy_upstream(string $url, string $filename, string $contenttype, string $cachestatus = 'BYPASS'): void {
-        $range = self::request_range_header();
-        $requestheaders = ['Accept-Encoding: identity'];
-        if ($range !== '') {
-            $requestheaders[] = 'Range: ' . $range;
-        }
-
-        $responseheaders = [];
-        $headerssent = false;
-        $headercallback = static function($curl, string $header) use (&$responseheaders): int {
-            $length = strlen($header);
-            $trimmed = trim($header);
-            if ($trimmed === '') {
-                return $length;
-            }
-            if (preg_match('/^HTTP\/\S+\s+(\d+)/i', $trimmed, $matches)) {
-                $responseheaders = ['status' => (int)$matches[1]];
-                return $length;
-            }
-            if (preg_match('/^Content-Length:\s*(\d+)/i', $trimmed, $matches)) {
-                $responseheaders['content-length'] = (int)$matches[1];
-            } else if (preg_match('/^Content-Type:\s*(.+)$/i', $trimmed, $matches)) {
-                $responseheaders['content-type'] = trim($matches[1]);
-            } else if (preg_match('/^Content-Range:\s*(.+)$/i', $trimmed, $matches)) {
-                $responseheaders['content-range'] = trim($matches[1]);
-            }
-            return $length;
-        };
-
-        $ch = curl_init($url);
-        $options = [
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 5,
-            CURLOPT_CONNECTTIMEOUT => 15,
-            CURLOPT_TIMEOUT => 0,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_BUFFERSIZE => self::STREAM_CHUNK_SIZE,
-            CURLOPT_HTTPHEADER => $requestheaders,
-            CURLOPT_HEADERFUNCTION => $headercallback,
-            CURLOPT_WRITEFUNCTION => static function($curl, string $data) use (&$headerssent, &$responseheaders, $contenttype, $filename, $cachestatus): int {
-                if (!$headerssent) {
-                    self::send_proxy_headers($responseheaders, $contenttype, $filename, $cachestatus);
-                    $headerssent = true;
-                }
-                echo $data;
-                flush();
-                return strlen($data);
-            },
-        ];
-        if ($range !== '') {
-            $options[CURLOPT_RANGE] = substr($range, 6);
-        }
-        curl_setopt_array($ch, $options);
-        $result = curl_exec($ch);
-        $curlerror = curl_error($ch);
-        $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if (!$headerssent && $curlcode < 400) {
-            self::send_proxy_headers($responseheaders, $contenttype, $filename, $cachestatus);
-        }
-
-        if ($result === false || $curlcode >= 400) {
-            if (!$headerssent) {
-                http_response_code(502);
-            }
-            debugging('Drive Resource proxy failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
-        }
-
-        die;
     }
 
     /**
@@ -391,13 +333,18 @@ class protected_stream {
                 continue;
             }
 
+            $modified = filemtime($file);
+            if ($modified === false) {
+                continue;
+            }
+
             $basename = basename($file);
-            $isexpiredpdf = preg_match('/\.pdf$/', $basename) && filemtime($file) + $ttl < $now;
-            $isstaletmp = strpos($basename, '.tmp.') !== false && filemtime($file) + self::STALE_TMP_TTL < $now;
-            $isstalecookie = strpos($basename, '.cookies.') !== false && filemtime($file) + self::STALE_TMP_TTL < $now;
+            $isexpiredpdf = preg_match('/\.pdf$/', $basename) && $modified + $ttl < $now;
+            $isstaletmp = strpos($basename, '.tmp.') !== false && $modified + self::STALE_TMP_TTL < $now;
+            $isstalecookie = strpos($basename, '.cookies.') !== false && $modified + self::STALE_TMP_TTL < $now;
 
             if ($isexpiredpdf || $isstaletmp || $isstalecookie) {
-                @unlink($file);
+                self::delete_if_file($file);
             }
         }
     }
@@ -405,49 +352,64 @@ class protected_stream {
     /**
      * Resolve the current request Range header.
      *
-     * @return string Safe Range header or empty string.
+     * @return string Safe single Range header or empty string.
      */
     private static function request_range_header(): string {
         if (empty($_SERVER['HTTP_RANGE'])) {
             return '';
         }
 
-        $candidate = clean_param($_SERVER['HTTP_RANGE'], PARAM_RAW);
+        $candidate = trim((string)$_SERVER['HTTP_RANGE']);
         return preg_match('/^bytes=\d*-\d*$/', $candidate) ? $candidate : '';
     }
 
     /**
-     * Resolve byte-range start, end and HTTP code.
+     * Resolve byte-range start, end and HTTP status.
      *
      * @param int $size File size.
      * @return array{0:int,1:int,2:int}
      */
     private static function resolve_range(int $size): array {
         $range = self::request_range_header();
-        $start = 0;
-        $end = $size - 1;
-        $code = 200;
-
         if ($range === '') {
-            return [$start, $end, $code];
+            return [0, $size - 1, 200];
         }
 
-        $parts = explode('-', substr($range, 6), 2);
-        if ($parts[0] !== '') {
-            $start = max(0, (int)$parts[0]);
+        [$startpart, $endpart] = explode('-', substr($range, 6), 2);
+
+        if ($startpart === '') {
+            $suffixlength = (int)$endpart;
+            if ($suffixlength <= 0) {
+                self::send_range_not_satisfiable($size);
+            }
+
+            $suffixlength = min($suffixlength, $size);
+            return [$size - $suffixlength, $size - 1, 206];
         }
-        if ($parts[1] !== '') {
-            $end = min($end, (int)$parts[1]);
-        }
-        if ($start > $end || $start >= $size) {
-            http_response_code(416);
-            header('Content-Range: bytes */' . $size);
-            header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
-            self::send_cache_status('RANGE_INVALID');
-            die;
+
+        $start = (int)$startpart;
+        $end = $endpart === '' ? $size - 1 : min((int)$endpart, $size - 1);
+
+        if ($start < 0 || $start >= $size || $start > $end) {
+            self::send_range_not_satisfiable($size);
         }
 
         return [$start, $end, 206];
+    }
+
+    /**
+     * Send an RFC-compatible unsatisfied local range response.
+     *
+     * @param int $size File size.
+     * @return never
+     */
+    private static function send_range_not_satisfiable(int $size): never {
+        http_response_code(416);
+        header('Content-Range: bytes */' . $size);
+        header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
+        header('X-Content-Type-Options: nosniff');
+        self::send_cache_status('RANGE_INVALID');
+        die;
     }
 
     /**
@@ -459,23 +421,30 @@ class protected_stream {
      * @return void
      */
     private static function stream_file_segment(string $path, int $start, int $length): void {
-        $fp = fopen($path, 'rb');
-        if ($fp === false) {
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
             throw new \moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
         }
 
-        fseek($fp, $start);
-        $left = $length;
-        while ($left > 0 && !feof($fp)) {
-            $chunk = fread($fp, min(self::STREAM_CHUNK_SIZE, $left));
-            if ($chunk === false || $chunk === '') {
-                break;
+        try {
+            if (fseek($handle, $start) !== 0) {
+                throw new \moodle_exception('protectedresourceunavailable', 'mod_videoplayer');
             }
-            echo $chunk;
-            $left -= strlen($chunk);
-            flush();
+
+            $remaining = $length;
+            while ($remaining > 0 && !feof($handle)) {
+                $chunk = fread($handle, min(self::STREAM_CHUNK_SIZE, $remaining));
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+
+                echo $chunk;
+                $remaining -= strlen($chunk);
+                flush();
+            }
+        } finally {
+            fclose($handle);
         }
-        fclose($fp);
     }
 
     /**
@@ -507,41 +476,12 @@ class protected_stream {
     }
 
     /**
-     * Send safe upstream proxy headers.
-     *
-     * @param array $headers Captured upstream headers.
-     * @param string $fallbacktype Fallback MIME type.
-     * @param string $filename Safe filename.
-     * @param string $cachestatus Cache diagnostic status.
-     * @return void
-     */
-    private static function send_proxy_headers(array $headers, string $fallbacktype, string $filename, string $cachestatus): void {
-        $ispartial = !empty($headers['content-range']) || ((int)($headers['status'] ?? 0) === 206);
-        http_response_code($ispartial ? 206 : 200);
-        header('Content-Type: ' . ($headers['content-type'] ?? $fallbacktype));
-        header('Content-Disposition: inline; filename="' . $filename . '"');
-        header('X-Content-Type-Options: nosniff');
-        header('X-Robots-Tag: noindex, nofollow, noarchive');
-        header('Accept-Ranges: bytes');
-        self::send_private_cache_headers();
-        self::send_cache_status($cachestatus);
-        header('Vary: Range');
-
-        if (!empty($headers['content-length'])) {
-            header('Content-Length: ' . $headers['content-length']);
-        }
-        if (!empty($headers['content-range'])) {
-            header('Content-Range: ' . $headers['content-range']);
-        }
-    }
-
-    /**
      * Download an upstream URL to a file using a cookie jar.
      *
      * @param string $url Download URL.
      * @param string $targetpath Target file path.
      * @param string $cookiejar Cookie jar path.
-     * @return array Download result.
+     * @return array{ok:bool,httpcode:int,error:string,contenttype:string}
      */
     private static function download_to_file(string $url, string $targetpath, string $cookiejar): array {
         $handle = fopen($targetpath, 'wb');
@@ -550,6 +490,11 @@ class protected_stream {
         }
 
         $ch = curl_init($url);
+        if ($ch === false) {
+            fclose($handle);
+            return ['ok' => false, 'httpcode' => 0, 'error' => 'curl_init_failed', 'contenttype' => ''];
+        }
+
         curl_setopt_array($ch, [
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 5,
@@ -559,7 +504,7 @@ class protected_stream {
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_BUFFERSIZE => self::STREAM_CHUNK_SIZE,
             CURLOPT_HTTPHEADER => ['Accept-Encoding: identity'],
-            CURLOPT_USERAGENT => 'Mozilla/5.0 DriveResourceMoodleProxy/1.0',
+            CURLOPT_USERAGENT => 'DriveResourceMoodleProxy/1.1',
             CURLOPT_COOKIEJAR => $cookiejar,
             CURLOPT_COOKIEFILE => $cookiejar,
             CURLOPT_FILE => $handle,
@@ -622,5 +567,17 @@ class protected_stream {
     private static function add_drive_confirm_token(string $url, string $token): string {
         $separator = strpos($url, '?') === false ? '?' : '&';
         return $url . $separator . 'confirm=' . rawurlencode($token);
+    }
+
+    /**
+     * Delete a path when it is an existing file.
+     *
+     * @param string $path File path.
+     * @return void
+     */
+    private static function delete_if_file(string $path): void {
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 }
