@@ -1,0 +1,97 @@
+name: Apply production remediation
+
+on:
+  push:
+    branches:
+      - production/hardening-1.1.18
+    paths:
+      - '.ci/production-remediation.py'
+      - '.github/workflows/apply-production-remediation.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-production-remediation
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply and commit formal CI remediation
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: production/hardening-1.1.18
+          fetch-depth: 0
+
+      - name: Apply remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile .ci/production-remediation.py
+          python3 .ci/production-remediation.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          definitions = {
+              'templates/video.mustache': (
+                  'mod-videoplayer-container mod-videoplayer-native',
+                  'class="mod-videoplayer-native-video js-drive-resource-video"',
+              ),
+              'templates/pdfjs.mustache': (
+                  'mod-videoplayer-container mod-videoplayer-pdfjs',
+                  'class="mod-videoplayer-pdfjs-viewer"',
+              ),
+              'templates/book.mustache': (
+                  'mod-videoplayer-container mod-videoplayer-book',
+                  'class="mod-videoplayer-book-reader"',
+              ),
+          }
+
+          for relative, (container_class, tracker_marker) in definitions.items():
+              path = root / relative
+              text = path.read_text(encoding='utf-8')
+              text = re.sub(
+                  rf'(<div class="{re.escape(container_class)}"[^>]*data-cmid=")[^"]+("[^>]*>)',
+                  r'\1{{cmid}}\2',
+                  text,
+                  count=1,
+              )
+              marker = text.find(tracker_marker)
+              if marker != -1:
+                  cmid = text.find('data-cmid="', marker)
+                  if cmid != -1:
+                      start = cmid + len('data-cmid="')
+                      end = text.find('"', start)
+                      text = text[:start] + '{{trackingcmid}}' + text[end:]
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify generated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -type f -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+          find amd/src amd/build -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          cmp amd/src/pdfviewer.js amd/build/pdfviewer.min.js
+          cmp amd/src/bookviewer.js amd/build/bookviewer.min.js
+          cmp amd/src/plyr.js amd/build/plyr.min.js
+          test ! -f templates/pdf.mustache
+          test ! -f amd/src/ebookviewer.js
+          test ! -f amd/build/ebookviewer.min.js
+
+      - name: Commit remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .ci/production-remediation.py .github/workflows/apply-production-remediation.yml
+          git config user.name 'Drive Resource CI'
+          git config user.email '94720805+JoseMorenoSalgado@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix Moodle formal prechecks and remove legacy viewers'
+          git push origin HEAD:production/hardening-1.1.18
