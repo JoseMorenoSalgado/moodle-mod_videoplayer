@@ -1,216 +1,175 @@
 # Drive Resource Architecture
 
-Drive Resource is a Moodle activity module for publishing protected Google Drive and Moodle-local resources inside courses.
-
-The internal component name remains `mod_videoplayer` for compatibility. The product identity shown to users is **Drive Resource**.
+Drive Resource is a Moodle activity module for publishing protected Google Drive and Moodle-local resources inside courses. The internal component remains `mod_videoplayer`; the commercial product name is **Drive Resource**.
 
 ## Target flow
 
 ```text
-Resource source
+Google Drive link or Moodle private file
 ↓
-Drive Resource activity instance
+Drive Resource activity
 ↓
 protected.php
 ↓
-Moodle access checks
+require_login + course module + context_module + capability
 ↓
-protected_stream service
+Local protected file OR protected cache OR http_range_proxy
 ↓
-Secure proxy, Moodle File API delivery or warmed PDF cache
+Local PDF.js / HTML5 video / supported resource viewer
 ↓
-Local viewer
-↓
-Progress, completion and gamification
+Progress + completion + events
 ```
+
+The learner-facing browser never receives a raw Google Drive source URL from the plugin-owned video or PDF viewers.
 
 ## Resource sources
 
-Drive Resource currently supports two source families:
+1. **Google Drive** resources are resolved server-side and delivered through `protected.php` where protected delivery is supported.
+2. **Local protected PDFs** are stored in Moodle private File API storage under the `mod_videoplayer/localpdf` file area.
 
-1. **Google Drive URLs** parsed server-side and streamed through `protected.php` where supported.
-2. **Local protected PDFs** stored in Moodle private file storage under the `mod_videoplayer/localpdf` file area.
+Local PDFs are never placed in the web root.
 
-Local PDFs are never placed in the web root. They are served only after Moodle validates course, module, context and capability access.
+## Public protected endpoint
 
-## Main components
+`protected.php` is intentionally small. It must always validate:
 
-### `mod_form.php`
+- course module;
+- course;
+- activity instance;
+- `require_login()`;
+- `context_module`;
+- `mod/videoplayer:view`.
 
-Defines the teacher-facing activity form. It supports:
+After authorization it delegates delivery to internal services.
 
-- Google Drive source.
-- Local protected PDF source.
-- resource type selection.
-- PDF display mode: standard or ebook.
-- download discouragement settings.
-- right-click/copy discouragement.
-- dynamic watermark.
-- gamification settings.
-- completion percentage.
-
-### `lib.php`
-
-Handles Moodle module lifecycle operations:
-
-- supported features.
-- add/update/delete instance.
-- File API persistence for local PDFs.
-- cleanup of local files, progress and rewards.
-
-### `protected.php`
-
-Authenticated resource endpoint. It validates:
-
-- course module.
-- course.
-- activity instance.
-- `require_login()`.
-- `context_module`.
-- `mod/videoplayer:view` capability.
-
-After access validation, it delegates byte-range delivery, proxy fallback and PDF cache operations to `classes/local/protected_stream.php`.
+## Protected delivery services
 
 ### `classes/local/protected_stream.php`
 
-Shared service for protected delivery. It owns:
+Owns local and cached-file delivery primitives:
 
-- local Moodle PDF streaming from private file storage.
-- safe byte-range support for cached/local files.
-- protected proxy fallback for supported Drive resources.
-- Google Drive PDF cache warming.
-- Google Drive confirmation-token retry for cache warming.
-- cache diagnostics through `X-Drive-Resource-Cache`.
-- scheduled cleanup of stale cache, temporary and cookie files.
+- Moodle File API PDF streaming;
+- local byte-range support;
+- PDF cache key generation;
+- PDF cache freshness checks;
+- full Google Drive PDF cache warming;
+- Google Drive confirmation-token retry used by cache warming;
+- stale cache cleanup;
+- `X-Drive-Resource-Cache` diagnostics.
 
-This service is reused by:
+### `classes/local/http_range_proxy.php`
 
-```text
-protected.php
-classes/task/precache_pdf.php
-classes/task/cleanup_pdf_cache.php
-```
+Owns upstream browser-facing streaming:
 
-### `view.php`
+- forwards one validated byte range through cURL;
+- uses `CURLOPT_RANGE` as the single outgoing Range source;
+- supports `HEAD`, `Range` and `If-Range` semantics;
+- streams chunks without buffering complete media in PHP memory;
+- safely relays `206`, `Content-Range`, `Content-Length`, `Accept-Ranges`, `ETag` and `Last-Modified` where applicable;
+- prevents upstream error bodies from being returned as successful protected media;
+- sanitizes relayed response header values.
 
-Main activity page. It:
+Separating local-file streaming from upstream HTTP range proxying keeps each service focused and avoids mixing browser protocol behavior with Moodle File API storage behavior.
 
-- validates access.
-- triggers `course_module_viewed`.
-- marks the module as viewed for completion.
-- loads the correct AMD viewer.
-- sends initial progress, page and gamification state to the template.
-
-## Protected PDF cache flow
+## Google Drive PDF fast-first-byte cache flow
 
 ```text
-Google Drive PDF URL
+PDF.js requests protected.php
 ↓
-protected.php validates Moodle access
+Moodle authorization
 ↓
-protected_stream checks local cache
-↓
-HIT: serve PDF from local cache with Range support
-↓
-MISS: warm cache once, validate PDF header, then serve as WARMED
-↓
-WARM_FAILED: fall back to protected upstream proxy
+Fresh local cache exists?
+├─ yes → protected_stream::send_file() with Range support (HIT)
+└─ no  → queue deduplicated precache_pdf ad-hoc task (MISS_QUEUED)
+          ↓
+          proxy requested range immediately through http_range_proxy
+          ↓
+          Moodle cron warms complete PDF cache in background
+          ↓
+          later requests use local cached PDF
 ```
 
-Cache files are stored under Moodle local cache, not under the web root:
+This design avoids blocking the first PDF open on a complete Google Drive download. The original PDF bytes are preserved; no image recompression or PDF transcoding is performed.
+
+Cache files remain outside the web root under:
 
 ```text
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
 
+## Video delivery flow
+
+```text
+HTML5 <video> / Plyr
+↓
+protected.php?id=<cmid>
+↓
+http_range_proxy
+↓
+Google Drive download endpoint
+```
+
+The proxy preserves valid partial-content metadata required for seeking and mobile media playback. The HTML5 source does not force a `video/mp4` type, allowing the browser to negotiate the MIME type returned by the protected endpoint.
+
+On Apple mobile devices the player keeps inline playback attributes and allows the native media layer to handle iOS-specific presentation behavior while Plyr provides the enhanced UI when available.
+
 ## Viewers
+
+### Protected PDF book viewer
+
+`amd/src/bookviewer.js` uses locally bundled PDF.js. Desktop renders a two-page spread; mobile renders one page at a time.
 
 ### Standard PDF viewer
 
-`amd/src/pdfviewer.js` renders protected PDFs with local PDF.js.
-
-### Protected book viewer
-
-`amd/src/bookviewer.js` renders the default protected PDF book viewer with local PDF.js. Desktop uses a two-page spread with softened center fold and subtle page curvature. Mobile uses a one-page layout.
+`amd/src/pdfviewer.js` provides one-page PDF.js rendering when required.
 
 ### Ebook viewer
 
-`amd/src/ebookviewer.js` renders protected PDFs with local PDF.js and optional local StPageFlip.
-
-The ebook viewer is progressive:
-
-```text
-PDF.js local
-↓
-Render PDF pages as canvas
-↓
-If PageFlip is available, use flipbook
-↓
-If PageFlip is missing, fallback to protected PDF.js flow
-```
-
-Required optional PageFlip files:
-
-```text
-thirdpartylibs/pageflip/page-flip.browser.js
-thirdpartylibs/pageflip/page-flip.css
-```
-
-StPageFlip is documented upstream as MIT licensed and supports mobile devices, no dependencies, HTML pages and script-tag usage through `St.PageFlip`.
+`amd/src/ebookviewer.js` uses local PDF.js with optional local StPageFlip assets. No CDN is permitted.
 
 ### Video viewer
 
-HTML5 video playback uses local Plyr assets where available.
+`templates/video.mustache` renders the protected HTML5 media element and `amd/src/plyr.js` progressively enhances it with locally bundled Plyr. Native HTML5 controls remain the fallback.
 
-## Progress and gamification
+## Progress and completion
 
-Progress is saved through the AJAX function `mod_videoplayer_save_progress` and delegated to services:
+Progress is saved through `mod_videoplayer_save_progress` and delegated to internal services:
 
 ```text
+viewer AMD module
+↓
+core/ajax
+↓
+classes/external/save_progress.php
+↓
 classes/local/progress/progress_service.php
+↓
 classes/local/gamification/reward_service.php
+↓
+videoplayer_views / videoplayer_rewards
+↓
+Moodle Events API + Completion API
 ```
 
-Progress data is stored in `videoplayer_views`:
-
-- last page.
-- total pages.
-- active time.
-- completion percentage.
-- completion state.
-- points.
-
-Rewards are stored in `videoplayer_rewards` and awarded without duplicates.
+Tracked PDF state includes active time, last page, total pages, completion percentage, completion state and optional points/rewards.
 
 ## Events
 
 The module emits:
 
-- `course_module_viewed`
-- `progress_updated`
-- `resource_completed`
-- `reward_awarded`
-
-These support Moodle logs, reporting, completion workflows and future analytics.
+- `course_module_viewed`;
+- `progress_updated`;
+- `resource_completed`;
+- `reward_awarded`.
 
 ## Backup and restore
 
-Backup and restore include:
-
-- activity configuration.
-- local PDF files.
-- progress records when user data is included.
-- gamification rewards when user data is included.
+Backup and restore include activity configuration, local PDF files, and user progress/rewards when user data is included.
 
 ## Privacy API
 
-Privacy API exports and deletes:
-
-- progress records.
-- reading state.
-- completion data.
-- reward data.
+Privacy API export/delete covers progress, reading state, completion data and reward data.
 
 ## Security boundary
 
-Drive Resource prevents direct public file URLs for local PDFs and hides source URLs from the learner-facing UI. Browser-level restrictions such as disabling right click are only deterrents. The enforceable protection is server-side access control through Moodle and `protected.php`.
+Browser restrictions such as hiding download controls or blocking right click are deterrents only. The enforceable boundary is Moodle server-side authorization in `protected.php`. Raw `fileId`, direct Google Drive download URLs and preview URLs must not be exposed by plugin-owned protected viewers.

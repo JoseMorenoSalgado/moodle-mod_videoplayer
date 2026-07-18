@@ -2,100 +2,237 @@
 
 ## Component identity
 
-The Moodle component is:
+The Moodle component remains:
 
 ```text
 mod_videoplayer
 ```
 
-The commercial product name is:
+The commercial product name is **Drive Resource**. Do not rename the Moodle component because existing installations depend on it for upgrades, capabilities, database tables and backup/restore mappings.
 
-```text
-Drive Resource
-```
+## Engineering standards
 
-Keep the component name stable for Moodle upgrade compatibility. Use Drive Resource in language strings, UI and documentation.
+Production changes must follow:
 
-## Coding standards
-
-Follow:
-
-- Moodle Coding Style.
-- PHP 8.2 compatible syntax.
-- small classes and methods.
-- Moodle File API.
-- Moodle External API.
-- Moodle Privacy API.
-- Moodle Backup & Restore API.
-- Moodle Events API.
+- Moodle Coding Style and Moodle APIs.
+- PHP 8.2+ compatible code.
+- PSR-12 principles where they do not conflict with Moodle Coding Style.
+- small, cohesive classes and methods.
+- SOLID boundaries between HTTP delivery, storage, viewers and progress logic.
+- local third-party assets only; no CDN runtime dependencies.
+- Moodle File API, Privacy API, Backup & Restore API, Events API and Completion API requirements.
 
 ## Main folders
 
 ```text
 amd/src/                         AMD JavaScript source files
-backup/moodle2/                  Backup and restore logic
+amd/build/                       production AMD bundles
+backup/moodle2/                  backup and restore logic
 classes/event/                   Moodle event classes
 classes/external/                AJAX/external API endpoints
-classes/local/                   Internal services
+classes/local/                   internal application/domain services
 classes/privacy/                 Privacy API provider
-db/                              install.xml, upgrade.php and services.php
-lang/en/                         Language strings
+classes/task/                    scheduled and ad-hoc tasks
+db/                              schema, upgrade, services and tasks
+docs/                            product and engineering documentation
+lang/                            language packs
 templates/                       Mustache templates
-thirdpartylibs/                  Local third-party libraries
+thirdpartylibs/                  locally bundled third-party libraries
 ```
 
-## Service layer
+## Service boundaries
 
-Business logic should not be embedded directly in external API classes or public endpoints.
+Business logic must not be embedded in public scripts or external API classes.
 
-Use:
+### Progress and gamification
 
 ```text
 classes/local/progress/progress_service.php
 classes/local/gamification/reward_service.php
+```
+
+External APIs validate parameters, login, context and capability, then delegate to these services.
+
+### Local and cached file delivery
+
+```text
 classes/local/protected_stream.php
 ```
 
-The external API should validate parameters, context, login and capability, then delegate to services.
+This service owns:
 
-`protected.php` must remain a thin authorised endpoint. It should only resolve the Moodle course module, validate `require_login()` and `mod/videoplayer:view`, determine the source/type, then delegate streaming and cache work to `protected_stream`.
+- Moodle private File API PDF streaming.
+- byte-range responses for readable local/cache files.
+- PDF cache paths and cache keys.
+- PDF cache freshness checks.
+- complete Google Drive PDF cache warming.
+- Google Drive confirmation-token handling used during cache warming.
+- cache cleanup.
 
-## Protected stream service
+Do not add new upstream browser proxy behavior to this class.
 
-`classes/local/protected_stream.php` owns all protected resource delivery primitives:
-
-- local Moodle PDF byte-range streaming.
-- safe `Content-Type`, `Content-Length`, `Content-Range`, `Accept-Ranges` and cache headers.
-- `X-Drive-Resource-Cache` diagnostics.
-- Google Drive PDF cache key generation.
-- cache freshness checks.
-- Google Drive PDF cache warming with confirmation-token fallback.
-- upstream proxy fallback.
-- scheduled cache cleanup.
-
-Do not duplicate cURL or cache warming logic in tasks or public endpoint scripts. Reuse this service from:
+### Upstream HTTP range delivery
 
 ```text
+classes/local/http_range_proxy.php
+```
+
+This service owns protected HTTP proxy behavior for resources that remain upstream:
+
+- one validated `Range` request.
+- `If-Range` forwarding.
+- `HEAD` support.
+- `200`, `206` and `416` semantics.
+- safe relay of `Content-Length`, `Content-Range`, `Accept-Ranges`, `ETag` and `Last-Modified`.
+- streamed cURL output without loading the complete resource into PHP memory.
+- generic upstream failures that do not expose Google response bodies or source URLs.
+
+**Never send a manual `Range` header and `CURLOPT_RANGE` for the same request.** `CURLOPT_RANGE` is the canonical outgoing range mechanism.
+
+## `protected.php` rules
+
+`protected.php` must remain a thin authorization and orchestration endpoint.
+
+Required sequence:
+
+```text
+required_param(id)
+↓
+get course module
+↓
+get course
+↓
+get activity instance
+↓
+require_login(course, true, cm)
+↓
+context_module::instance(cmid)
+↓
+require_capability(mod/videoplayer:view)
+↓
+close Moodle session write lock
+↓
+dispatch to protected_stream or http_range_proxy
+```
+
+Never render or return:
+
+- Google Drive `fileId`.
+- direct Google download URL.
+- Google preview URL.
+- open-in-Drive URL.
+
+## Fast-first-byte PDF algorithm
+
+Cold Google Drive PDFs must not block the first viewer request while the complete document is downloaded into cache.
+
+```text
+PDF.js requests protected.php
+↓
+Fresh local cache?
+├─ yes → protected_stream::send_file() → HIT
+└─ no  → queue precache_pdf with duplicate suppression
+          ↓
+          immediately proxy requested range → MISS_QUEUED
+          ↓
+          Moodle cron warms full PDF cache
+          ↓
+          later requests → HIT
+```
+
+The algorithm does not recompress or transcode PDF content, so document quality remains unchanged.
+
+Expected cache diagnostics:
+
+```text
+LOCAL         Moodle private PDF served directly.
+HIT           Fresh server-side PDF cache served.
+MISS_QUEUED   Cold PDF proxied immediately and cache warm task queued.
+MISS          Cold PDF proxied; cache task could not be queued.
+BYPASS        Cache is disabled or not applicable.
+RANGE_INVALID Invalid range for a local/cached file.
+```
+
+`WARMED` and `WARM_FAILED` may still appear from legacy/internal cache-warming flows and should not be used as the primary first-request path.
+
+## Video development
+
+The protected video path is:
+
+```text
+templates/video.mustache
+↓
+HTML5 <video>
+↓
+amd/src/plyr.js progressive enhancement
+↓
 protected.php
-classes/task/precache_pdf.php
-classes/task/cleanup_pdf_cache.php
+↓
+http_range_proxy
 ```
 
-Expected cache states:
+Rules:
+
+- keep `playsinline` and `webkit-playsinline` for iOS.
+- use `preload="metadata"` unless a measured requirement justifies otherwise.
+- do not hardcode `type="video/mp4"` when the protected endpoint can return different MIME types.
+- keep native HTML5 controls as the failure fallback.
+- do not disable playback-rate support while exposing a speed selector.
+- treat browser UI restrictions as deterrents, not as the security boundary.
+- preserve valid `206 Partial Content` behavior for seeking and Safari/iOS playback.
+
+When changing `amd/src/plyr.js`, rebuild and commit the corresponding production file under `amd/build/`.
+
+## PDF viewer development
+
+### Protected book viewer
+
+Use:
 
 ```text
-LOCAL         Moodle File API PDF served from moodledata/filedir.
-HIT           Existing fresh server-side PDF cache served.
-WARMED        PDF was downloaded to cache and served from cache.
-WARM_FAILED   Cache warm failed; endpoint fell back to upstream proxy.
-BYPASS        Cache not applicable or disabled.
-RANGE_INVALID Invalid client byte range.
+amd/src/bookviewer.js
+templates/book.mustache
 ```
+
+Desktop displays a two-page spread. Mobile displays one page at a time. PDF data is always loaded through `protected.php`.
+
+Performance rules:
+
+- render only visible pages at high quality.
+- prefetch only a small neighboring working set.
+- cap canvas cache size.
+- avoid rendering the complete PDF eagerly.
+- preserve device-pixel-ratio quality within a bounded output scale.
+- cancel or ignore stale renders after resize/orientation changes.
+
+### Standard PDF viewer
+
+Use `amd/src/pdfviewer.js` for one-page rendering with zoom and fit controls.
+
+### Mobile PDF stabilizer
+
+Use `amd/src/pdfmobile.js` only for viewport/layout corrections. Authorization, file access and PDF loading do not belong in this module.
+
+### Ebook viewer
+
+`amd/src/ebookviewer.js` may use locally bundled StPageFlip. It must keep a PDF.js fallback and must never load PageFlip or PDF.js from a CDN.
+
+## Database changes
+
+For schema changes:
+
+1. update `db/install.xml` for new installs;
+2. add an upgrade step in `db/upgrade.php` for existing installs;
+3. update backup and restore when activity/user fields change;
+4. update Privacy API when personal data changes;
+5. bump `version.php`.
+
+A code-only release may bump `version.php` without a database upgrade step.
 
 ## Progress save flow
 
 ```text
-bookviewer.js / ebookviewer.js / pdfviewer.js
+viewer AMD module
 ↓
 core/ajax
 ↓
@@ -109,143 +246,50 @@ reward_service
 ↓
 videoplayer_views / videoplayer_rewards
 ↓
-Moodle events + Completion API
+Moodle Events API + Completion API
 ```
 
-## Viewer development
+## Backup, restore and privacy
 
-### Protected book viewer
+New activity configuration fields must be reviewed in both backup and restore code.
 
-Use `amd/src/bookviewer.js` with `templates/book.mustache` for the default protected PDF book experience.
-
-Expected behavior:
-
-- Desktop renders a two-page spread to behave like a real book.
-- Mobile renders one page at a time, similar to FlipHTML5-style reading.
-- Fullscreen keeps previous/next buttons inside the PDF stage.
-- Navigation works through buttons and mobile swipe gestures.
-- Progress is saved by last visible page.
-- PDF content is still delivered only through `protected.php`.
-
-Do not expose raw Google Drive URLs, file IDs, preview URLs or direct download URLs in this viewer.
-
-### Standard PDF viewer
-
-Use `amd/src/pdfviewer.js` for one-page protected PDF rendering when a non-book fallback is required.
-
-### Mobile PDF stabilizer
-
-Use `amd/src/pdfmobile.js` for mobile viewport corrections that should remain independent from the PDF.js rendering pipeline.
-
-This module is intentionally small and should only handle mobile layout stabilization, including:
-
-- iOS/Safari canvas overflow correction.
-- initial horizontal scroll correction.
-- viewport re-stabilization after orientation changes.
-- late PDF.js canvas rendering edge cases.
-
-Do not move authorization, file access, progress calculation or PDF.js document loading into this module.
-
-### Visual stylesheets
-
-Presentation CSS is split by responsibility:
-
-```text
-styles.css                         Base plugin styles loaded by Moodle.
-styles_bookviewer.css              Protected book viewer layout and fullscreen navigation.
-styles_book_controls.css           Book controls, soft spine and desktop curvature refinements.
-styles_pdf_overlay.css             PDF.js overlay and canvas behavior.
-styles_pdf_mobile.css              Mobile PDF-specific viewport rules.
-styles_visual_refinements.css      Product-level visual polish for Drive Resource.
-```
-
-Keep mobile fixes isolated from the generic styles whenever possible. This reduces regression risk for desktop Moodle themes.
-
-### Ebook viewer
-
-Use `amd/src/ebookviewer.js` for optional legacy ebook rendering.
-
-Rules:
-
-- Load PDF.js locally.
-- Load PageFlip locally from `thirdpartylibs/pageflip` when using PageFlip-specific behavior.
-- Keep fallback to `pdfviewer.js` if PageFlip is missing.
-- Do not use CDN.
-- Do not expose raw source URLs.
-
-## Database changes
-
-For new installs, update:
-
-```text
-db/install.xml
-```
-
-For existing installs, always add an upgrade step in:
-
-```text
-db/upgrade.php
-```
-
-Then bump:
-
-```text
-version.php
-```
-
-## Backup and restore
-
-When adding new activity fields, update both:
-
-```text
-backup/moodle2/backup_videoplayer_stepslib.php
-backup/moodle2/restore_videoplayer_stepslib.php
-```
-
-When adding user data, check whether it should be backed up only when `userinfo` is enabled.
-
-## Privacy API
-
-When adding personal data, update:
+New personal data must be reviewed in:
 
 ```text
 classes/privacy/provider.php
-lang/en/videoplayer.php
 ```
 
-Personal data currently includes:
+Current personal data includes reading/progress state, completion percentage, last page, total pages, active time, points and rewards.
 
-- reading progress.
-- completion percentage.
-- last page.
-- total pages.
-- active time.
-- points.
-- rewards.
+## Events
 
-## Event rules
+Meaningful state transitions use Moodle events:
 
-Use Moodle events for meaningful user actions:
+- `course_module_viewed`.
+- `progress_updated`.
+- `resource_completed`.
+- `reward_awarded`.
 
-- `progress_updated`
-- `resource_completed`
-- `reward_awarded`
+Avoid emitting high-frequency events on every media `timeupdate` event.
 
-Events must include restore mappings for object IDs and `other` data where needed.
-
-## Commercial release requirements
+## Commercial release checklist
 
 Before release:
 
-- no CDN references.
-- third-party libraries registered in `thirdpartylibs.xml`.
-- license notices documented.
-- upgrade path tested.
-- backup/restore tested.
-- privacy export/delete tested.
-- Moodle debug developer mode clean.
-- PHP warnings clean.
-- JavaScript console clean.
-- mobile PDF viewer tested on iOS Safari, Android Chrome and Moodle app WebView.
-- desktop book viewer tested with portrait PDFs and landscape PDFs.
-- `protected.php` kept free of duplicated low-level streaming/cache logic.
+- run Moodle PHP code checks and PHP syntax validation.
+- rebuild AMD production bundles.
+- run JavaScript lint/build checks.
+- verify no CDN references.
+- verify third-party libraries in `thirdpartylibs.xml`.
+- test fresh install and upgrade.
+- test backup/restore.
+- test Privacy API export/delete.
+- test guest and unenrolled access denial.
+- test Google Drive video start, pause, seek and resume on iPhone Safari.
+- test Android Chrome and Moodle app WebView.
+- test video `Range: bytes=0-1`, mid-file ranges and invalid ranges.
+- test PDF cold-cache first open and later `HIT` behavior.
+- test large PDFs on low-memory mobile devices.
+- test PDF zoom/fullscreen/orientation changes.
+- test Moodle debug developer mode with no new warnings.
+- inspect browser console and network panel for failed ranges or leaked Drive URLs.

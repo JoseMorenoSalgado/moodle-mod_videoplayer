@@ -6,7 +6,9 @@ require_once($CFG->libdir . '/filelib.php');
 require_once(__DIR__ . '/lib.php');
 
 use mod_videoplayer\local\drive;
+use mod_videoplayer\local\http_range_proxy;
 use mod_videoplayer\local\protected_stream;
+use mod_videoplayer\task\precache_pdf;
 
 $id = required_param('id', PARAM_INT);
 $cm = get_coursemodule_from_id('videoplayer', $id, 0, false, MUST_EXIST);
@@ -81,18 +83,20 @@ if ($pdfcache) {
         );
     }
 
-    if (protected_stream::warm_drive_pdf_cache($url, $cachefile)) {
-        protected_stream::send_file(
-            $cachefile,
-            $filename,
-            $contenttype,
-            $cachekey,
-            filemtime($cachefile) ?: time(),
-            'WARMED'
-        );
+    // First-byte latency is more important than synchronously filling the
+    // complete PDF cache. Stream the requested range immediately and warm the
+    // full cache in Moodle cron. Duplicate task suppression avoids queue churn
+    // when PDF.js opens several ranges in parallel.
+    try {
+        $task = new precache_pdf();
+        $task->set_component('mod_videoplayer');
+        $task->set_custom_data(['instanceid' => (int)$videoplayer->id]);
+        \core\task\manager::queue_adhoc_task($task, true);
+        $cachestatus = 'MISS_QUEUED';
+    } catch (Throwable $exception) {
+        debugging('Drive Resource PDF cache task queue failed: ' . $exception->getMessage(), DEBUG_DEVELOPER);
+        $cachestatus = 'MISS';
     }
-
-    $cachestatus = 'WARM_FAILED';
 }
 
-protected_stream::proxy_upstream($url, $filename, $contenttype, $cachestatus);
+http_range_proxy::proxy($url, $filename, $contenttype, $cachestatus);

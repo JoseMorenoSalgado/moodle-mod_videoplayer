@@ -14,9 +14,10 @@
             oncontextmenu="return false;"
             playsinline
             webkit-playsinline
-            preload="auto"
+            x-webkit-airplay="allow"
+            preload="metadata"
             title="{{title}}">
-            <source src="{{videourl}}" type="video/mp4">
+            <source src="{{videourl}}">
             {{#str}} videonotsupported, mod_videoplayer {{/str}}
         </video>
     </div>
