@@ -58,6 +58,13 @@ define(['core/notification'], function(Notification) {
         return plyrPromise;
     };
 
+    var isAppleMobile = function() {
+        var platform = navigator.platform || '';
+        var userAgent = navigator.userAgent || '';
+        var touchMac = platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+        return /iPad|iPhone|iPod/.test(userAgent) || touchMac;
+    };
+
     var markOrientation = function(node) {
         var wrapper = node.closest('.mod-videoplayer-native-frame');
         if (!wrapper || !node.videoWidth || !node.videoHeight) {
@@ -74,10 +81,29 @@ define(['core/notification'], function(Notification) {
         }
     };
 
-    var hardenVideo = function(node) {
-        node.setAttribute('controlsList', 'nodownload noplaybackrate');
+    var prepareVideo = function(node) {
+        // Keep native seek/playback-rate capabilities available. The server-side
+        // protected endpoint is the security boundary; controlsList is only UX.
+        node.setAttribute('controlsList', 'nodownload');
         node.setAttribute('draggable', 'false');
-        node.disablePictureInPicture = true;
+        node.setAttribute('playsinline', '');
+        node.setAttribute('webkit-playsinline', '');
+        node.setAttribute('x-webkit-airplay', 'allow');
+        node.preload = 'metadata';
+
+        // iOS/Safari is most reliable when its native media layer can negotiate
+        // presentation features itself. Plyr still supplies the surrounding UI.
+        if (isAppleMobile()) {
+            node.removeAttribute('disablepictureinpicture');
+            try {
+                node.disablePictureInPicture = false;
+            } catch (error) {
+                // Older Safari versions expose a read-only implementation.
+            }
+        } else {
+            node.disablePictureInPicture = true;
+        }
+
         node.addEventListener('contextmenu', blockBrowserMediaActions, true);
         node.addEventListener('dragstart', blockBrowserMediaActions, true);
         node.addEventListener('selectstart', blockBrowserMediaActions, true);
@@ -92,7 +118,7 @@ define(['core/notification'], function(Notification) {
             return;
         }
 
-        nodes.forEach(hardenVideo);
+        nodes.forEach(prepareVideo);
 
         loadPlyr().then(function(Plyr) {
             nodes.forEach(function(node) {
@@ -130,6 +156,10 @@ define(['core/notification'], function(Notification) {
                 markOrientation(node);
             });
         }).catch(function(error) {
+            // Native HTML5 controls remain usable when Plyr cannot initialize.
+            nodes.forEach(function(node) {
+                node.controls = true;
+            });
             if (window.console) {
                 window.console.warn(error.message || error);
             }
