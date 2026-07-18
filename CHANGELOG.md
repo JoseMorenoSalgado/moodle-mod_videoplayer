@@ -4,6 +4,37 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.17-beta - 2026-07-17
+
+### Added
+
+- Dedicated `http_range_proxy` service for browser-facing protected upstream streaming.
+- Explicit support for `HEAD`, `Range` and `If-Range` forwarding semantics required by modern media clients.
+- Deduplicated ad-hoc PDF cache warming after an uncached first request.
+
+### Changed
+
+- Google Drive PDF cache misses now use a fast-first-byte strategy: the requested PDF range is proxied immediately while the complete cache is warmed asynchronously by Moodle cron.
+- Protected upstream streaming no longer emits duplicate `Range` headers.
+- Upstream `206 Partial Content`, `Content-Range`, `Content-Length`, `ETag`, `Last-Modified` and `Accept-Ranges` metadata are relayed safely where applicable.
+- Upstream error bodies are no longer exposed as successful protected media responses.
+- HTML5 video markup no longer hardcodes `video/mp4`, allowing Safari/iOS to negotiate the actual protected response MIME type.
+- Video preload changed from `auto` to `metadata` to reduce initial bandwidth and improve mobile startup.
+- Plyr initialization now preserves native seek and playback-rate capabilities and applies iOS-compatible inline playback attributes.
+- Release metadata bumped to `1.1.17-beta` with Moodle version `2026071700`.
+
+### Security
+
+- Protected source URLs remain server-side only; the browser continues to receive only `protected.php` URLs.
+- Relayed upstream header values are sanitized before being sent to the client.
+- Protected proxy failures return a generic gateway response instead of leaking upstream response bodies or URLs.
+
+### Performance
+
+- PDF first-open latency no longer waits for a complete Google Drive PDF download when cache is cold.
+- Duplicate cache-warming tasks are suppressed by Moodle's ad-hoc task queue.
+- Video and PDF range requests stream without loading the complete resource into PHP memory.
+
 ## v1.1.16-beta - 2026-06-24
 
 ### Added
