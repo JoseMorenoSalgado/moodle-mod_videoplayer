@@ -98,9 +98,9 @@ if (!in_array($displaymode, ['standard', 'ebook'], true)) {
     $displaymode = 'standard';
 }
 
-// PDF-compatible resources save page-level progress from the PDF viewer itself.
-// Other resources use the generic active-presence tracker.
-if (!isguestuser() && !$ispdfcompatible) {
+// PDF and video resources have dedicated, content-aware progress trackers.
+// Other resources use generic active-presence tracking.
+if (!isguestuser() && !$ispdfcompatible && !$isvideo) {
     $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
         'cmid' => $cm->id,
         'requiredSeconds' => $requiredseconds,
@@ -140,6 +140,14 @@ $initialpage = $progressrecord && !empty($progressrecord->lastpage)
 $totalpages = $progressrecord && !empty($progressrecord->totalpages)
     ? max(0, (int)$progressrecord->totalpages)
     : 0;
+$visitedpages = $progressrecord && !empty($progressrecord->visitedpages)
+    ? (string)$progressrecord->visitedpages
+    : '[]';
+$lastsecond = $progressrecord ? max(0, (float)($progressrecord->lastsecond ?? 0)) : 0;
+$totalseconds = $progressrecord ? max(0, (float)($progressrecord->totalseconds ?? 0)) : 0;
+$watchedranges = $progressrecord && !empty($progressrecord->watchedranges)
+    ? (string)$progressrecord->watchedranges
+    : '[]';
 $points = $progressrecord && !empty($progressrecord->points) ? (int)$progressrecord->points : 0;
 $completionpercent = $progressrecord ? (float)$progressrecord->completionpercentage : 0;
 $watermark = fullname($USER) . ' · ' . userdate(time(), get_string('strftimedatetimeshort', 'langconfig'));
@@ -165,6 +173,10 @@ $templatecontext = [
     'initialprogress' => $initialprogress,
     'initialtimespent' => $initialtimespent,
     'totalpages' => $totalpages,
+    'visitedpages' => $visitedpages,
+    'lastsecond' => $lastsecond,
+    'totalseconds' => $totalseconds,
+    'watchedranges' => $watchedranges,
     'points' => $points,
     'completionpercent' => round($completionpercent, 2),
     'completed' => $completed,
