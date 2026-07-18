@@ -44,7 +44,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
     protected function process_videoplayer($data) {
         global $DB;
 
-        $data = (object) $data;
+        $data = (object)$data;
         $oldid = $data->id;
         unset($data->id);
 
@@ -94,7 +94,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
     protected function process_videoplayer_view($data) {
         global $DB;
 
-        $data = (object) $data;
+        $data = (object)$data;
         unset($data->id);
         $data->videoplayerid = $this->get_new_parentid('videoplayer');
         $data->userid = $this->get_mappingid('user', $data->userid);
@@ -105,6 +105,10 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
 
         $data->lastpage = $data->lastpage ?? 0;
         $data->totalpages = $data->totalpages ?? 0;
+        $data->visitedpages = $data->visitedpages ?? null;
+        $data->lastsecond = $data->lastsecond ?? 0;
+        $data->totalseconds = $data->totalseconds ?? 0;
+        $data->watchedranges = $data->watchedranges ?? null;
         $data->timespent = $data->timespent ?? 0;
         $data->points = $data->points ?? 0;
 
@@ -119,7 +123,7 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
     protected function process_videoplayer_reward($data) {
         global $DB;
 
-        $data = (object) $data;
+        $data = (object)$data;
         unset($data->id);
         $data->videoplayerid = $this->get_new_parentid('videoplayer');
         $data->userid = $this->get_mappingid('user', $data->userid);
