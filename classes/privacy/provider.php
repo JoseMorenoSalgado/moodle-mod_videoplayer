@@ -1,5 +1,5 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/.
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@ namespace mod_videoplayer\privacy;
 
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
+use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\contextlist;
 use core_privacy\local\request\helper;
-use core_privacy\local\request\userlist;
-use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\transform;
+use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 
 /**
@@ -34,9 +34,8 @@ use core_privacy\local\request\writer;
  */
 class provider implements
     \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider,
-    \core_privacy\local\request\core_userlist_provider {
-
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Describe the personal data stored by this plugin.
      *
@@ -52,6 +51,10 @@ class provider implements
             'completionpercentage' => 'privacy:metadata:videoplayer_views:completionpercentage',
             'lastpage' => 'privacy:metadata:videoplayer_views:lastpage',
             'totalpages' => 'privacy:metadata:videoplayer_views:totalpages',
+            'visitedpages' => 'privacy:metadata:videoplayer_views:visitedpages',
+            'lastsecond' => 'privacy:metadata:videoplayer_views:lastsecond',
+            'totalseconds' => 'privacy:metadata:videoplayer_views:totalseconds',
+            'watchedranges' => 'privacy:metadata:videoplayer_views:watchedranges',
             'timespent' => 'privacy:metadata:videoplayer_views:timespent',
             'points' => 'privacy:metadata:videoplayer_views:points',
             'timecreated' => 'privacy:metadata:videoplayer_views:timecreated',
@@ -125,12 +128,16 @@ class provider implements
 
             $views = [];
             foreach ($records as $record) {
-                $views[] = (object) [
+                $views[] = (object)[
                     'progress' => $record->progress,
-                    'completed' => (bool) $record->completed,
+                    'completed' => (bool)$record->completed,
                     'completionpercentage' => $record->completionpercentage,
                     'lastpage' => $record->lastpage ?? 0,
                     'totalpages' => $record->totalpages ?? 0,
+                    'visitedpages' => $record->visitedpages ?? '',
+                    'lastsecond' => $record->lastsecond ?? 0,
+                    'totalseconds' => $record->totalseconds ?? 0,
+                    'watchedranges' => $record->watchedranges ?? '',
                     'timespent' => $record->timespent ?? 0,
                     'points' => $record->points ?? 0,
                     'timecreated' => transform::datetime($record->timecreated),
@@ -145,7 +152,7 @@ class provider implements
 
             $rewards = [];
             foreach ($rewardrecords as $reward) {
-                $rewards[] = (object) [
+                $rewards[] = (object)[
                     'rewardtype' => $reward->rewardtype,
                     'rewardkey' => $reward->rewardkey,
                     'points' => $reward->points,

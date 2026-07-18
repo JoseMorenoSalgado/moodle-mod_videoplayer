@@ -1,5 +1,5 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/.
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -10,6 +10,9 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Backup structure for mod_videoplayer.
@@ -20,13 +23,11 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Defines the complete backup structure for the videoplayer activity.
  */
 class backup_videoplayer_activity_structure_step extends backup_activity_structure_step {
-
     /**
      * Define the backup structure.
      *
@@ -73,6 +74,10 @@ class backup_videoplayer_activity_structure_step extends backup_activity_structu
             'completionpercentage',
             'lastpage',
             'totalpages',
+            'visitedpages',
+            'lastsecond',
+            'totalseconds',
+            'watchedranges',
             'timespent',
             'points',
         ]);
@@ -92,6 +97,7 @@ class backup_videoplayer_activity_structure_step extends backup_activity_structu
         $rewards->add_child($reward);
 
         $videoplayer->set_source_table('videoplayer', ['id' => backup::VAR_ACTIVITYID]);
+        $videoplayer->annotate_files('mod_videoplayer', 'intro', null);
         $videoplayer->annotate_files('mod_videoplayer', 'localpdf', null);
 
         if ($userinfo) {

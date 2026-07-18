@@ -28,7 +28,8 @@
 
 .mod-videoplayer-pdfjs-viewer,
 .mod-videoplayer-frame-wrapper,
-.mod-videoplayer-native-frame {
+.mod-videoplayer-native-frame,
+.mod-videoplayer-image-frame {
     border-color: var(--drive-resource-border);
 }
 
@@ -81,6 +82,30 @@
         linear-gradient(135deg, #0f172a, #111827);
 }
 
+.mod-videoplayer-image-frame {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-height: 12rem;
+    padding: 1rem;
+    border: 1px solid rgba(15, 23, 42, .12);
+    border-radius: var(--mod-videoplayer-radius, 1rem);
+    background: #f8fafc;
+}
+
+.mod-videoplayer-protected-image {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: min(78vh, 64rem);
+    object-fit: contain;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
 @media (max-width: 767.98px) {
     .mod-videoplayer-container {
         --mod-videoplayer-radius: .9rem;
@@ -105,5 +130,9 @@
 
     .mod-videoplayer-pdfjs-control {
         border: 1px solid rgba(148, 163, 184, .22) !important;
+    }
+
+    .mod-videoplayer-image-frame {
+        padding: .5rem;
     }
 }

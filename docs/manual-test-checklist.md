@@ -1,189 +1,310 @@
-# Drive Resource manual test checklist
+# Drive Resource manual production test checklist
 
-Run these tests on a staging Moodle site with developer debugging enabled before merging to `main`.
+Run this checklist on a staging Moodle site with developer debugging enabled before merging/deploying a production release.
 
-## Environment
+## 1. Environment
 
-- Moodle target staging version installed.
-- PHP 8.2+.
+- Moodle version is 5.0 or newer for the current declared plugin requirement.
+- PHP version is supported by that Moodle branch.
 - PHP cURL enabled.
-- Moodle cron and ad-hoc tasks running.
-- PDF.js files installed locally.
-- Plyr `plyr.min.js` and `plyr.css` installed locally.
-- PageFlip files installed locally when testing optional ebook behavior.
-- Browser cache and Moodle caches purged before cold-cache tests.
+- HTTPS enabled.
+- Moodle cron running.
+- Ad-hoc tasks processed.
+- `$CFG->localcachedir` writable.
+- PDF.js local files present.
+- Plyr local files present.
+- PageFlip local files present only if optional book mode is tested.
+- Moodle caches purged after upgrade.
 
-## Fresh install
+## 2. CI gate
 
-- Install the plugin from a clean database state.
+The release commit/PR must have green checks for:
+
+- PHP 8.2 syntax.
+- PHP 8.3 syntax.
+- JavaScript syntax.
+- XML well-formedness.
+- protected architecture guardrails.
+- required local assets.
+- no runtime CDN dependency.
+- critical PDF AMD source/build consistency.
+
+Do not deploy a commit with missing/failed CI checks.
+
+## 3. Fresh install and upgrade
+
+### Fresh install
+
+- Install on a clean staging database.
 - Confirm no XMLDB errors.
-- Confirm `thirdpartylibs.xml` is accepted.
-- Confirm capabilities are available in role definitions.
-- Confirm the activity appears as Drive Resource.
+- Confirm activity appears as **Drive Resource**.
+- Confirm capabilities are created.
 
-## Upgrade from previous version
+### Upgrade
 
-- Install current `main` version first.
-- Create existing Google Drive PDF and video activities.
-- Upgrade to the feature branch.
+- Start from the previous production release.
+- Keep existing Google Drive video/PDF activities.
+- Upgrade to `1.1.18-beta`.
 - Confirm Moodle upgrade completes.
-- Confirm existing activities still open.
-- Confirm no database migration is unexpectedly required for `1.1.17-beta`.
+- Confirm existing activities open.
+- Confirm no unexpected DB migration error.
 
-## Authentication and authorization
+## 4. Authorization
 
-- Access `protected.php?id=<cmid>` while logged out: access must be denied.
-- Access as guest: denied by default.
-- Access as unenrolled user without capability: denied.
-- Access as enrolled learner: allowed according to role.
-- Access as teacher: allowed according to role.
-- Confirm protected viewer HTML contains no raw Google Drive file ID, download URL or preview URL.
+For `protected.php?id=<cmid>`:
 
-## Local protected PDF
+- logged out: denied/login required;
+- guest: denied by default;
+- unenrolled user without capability: denied;
+- enrolled learner: allowed;
+- teacher with capability: allowed.
 
-- Create a Drive Resource activity using Local protected PDF.
-- Confirm the PDF is stored outside the web root.
-- Open as a learner.
-- Confirm the PDF renders through `protected.php`.
-- Confirm progress is saved.
+Inspect learner HTML:
 
-### Local byte-range protocol
+- no raw Drive file ID;
+- no direct Google download URL;
+- no Google preview URL;
+- no open-in-Drive link;
+- no OAuth token.
 
-Test authenticated requests for:
+## 5. Generic file safety
+
+Use a generic `drive.google.com/file/d/...` URL with resource type **Automatic**.
+
+- Saving must require an explicit supported type when MIME cannot be inferred.
+- Select Video/PDF/Image explicitly and save successfully.
+- Unknown generic `file` type must not render as active same-origin iframe content.
+
+## 6. No Google preview viewer
+
+Test:
+
+- Google Docs;
+- Google Sheets;
+- Google Slides;
+- PDF;
+- image;
+- video.
+
+Verify no protected learner-facing route loads a Google preview iframe.
+
+Docs/Sheets/Slides must render through the local PDF.js path.
+
+## 7. Local protected PDF protocol
+
+Create a local protected PDF and test authenticated requests:
 
 ```text
-bytes=0-0
-bytes=0-1023
-bytes=1024-
-bytes=-500
+Range: bytes=0-0
+Range: bytes=0-1023
+Range: bytes=1024-
+Range: bytes=-500
 ```
 
 Verify:
 
-- valid ranges return HTTP `206`;
-- `Content-Range` start/end values are correct;
-- `Content-Length` equals the returned segment length;
-- `bytes=-500` returns the final 500 bytes, not the first 500 bytes;
-- an unsatisfiable range returns HTTP `416` and `Content-Range: bytes */<size>`;
-- `HEAD` returns headers without a response body.
+- valid ranges return `206`;
+- `Content-Range` values are correct;
+- `Content-Length` equals returned segment size;
+- suffix range returns the final bytes;
+- unsatisfiable range returns `416` and `Content-Range: bytes */<size>`;
+- `HEAD` returns headers with no body.
 
-## Google Drive PDF cold-cache performance
+## 8. Google Drive PDF cold-cache performance
 
-- Clear the plugin PDF cache for the test resource.
-- Open the PDF as a learner.
-- Confirm the first protected response reports `MISS_QUEUED` or `MISS`.
-- Confirm the first visible page begins loading without waiting for the complete PDF cache download.
+- Clear the test resource cache.
+- Open PDF as learner.
+- Confirm first response reports `MISS_QUEUED` or `MISS`.
+- Confirm PDF.js begins loading without waiting for complete cache warming.
 - Confirm a `precache_pdf` ad-hoc task is queued when cron is available.
-- Run cron/ad-hoc tasks.
-- Reopen the PDF.
-- Confirm the protected response reports `HIT`.
-- Confirm the PDF content and visual quality are identical before and after cache warming.
-- Confirm no PDF rasterization or recompression artifacts are introduced.
+- Run cron.
+- Reopen PDF.
+- Confirm response reports `HIT`.
+- Compare document quality before/after cache warming.
+- Confirm no rasterization/recompression artifacts.
 
-## PDF viewer behavior
+## 9. Standard PDF viewer
 
-- Test a small PDF under 10 pages.
-- Test a medium PDF around 50 pages.
-- Test a large PDF over 100 pages.
-- Navigate forward and backward.
-- Test fullscreen.
-- Test portrait and landscape PDFs.
-- Rotate a mobile device while a page is open.
-- Confirm no JavaScript console errors.
-- Confirm memory remains stable during repeated navigation.
+Test small (<10 pages), medium (~50 pages) and large (100+ pages) PDFs.
 
-## Protected video desktop
+Verify:
 
-- Create a Google Drive video activity.
-- Confirm the browser source points only to `protected.php`.
-- Play and pause.
-- Seek forward and backward several times.
-- Change playback speed.
-- Enter and exit fullscreen.
-- Confirm no upstream Google Drive UI appears.
-- Confirm no raw Drive URL is rendered in page HTML.
+- first page renders;
+- previous/next works;
+- zoom in/out works;
+- fit-to-screen works;
+- fullscreen works;
+- mobile swipe works;
+- text search finds a known phrase and navigates to the matching page;
+- repeated search moves to another matching page/wraps;
+- no JavaScript console errors;
+- no full-document eager canvas rendering;
+- memory remains stable during repeated navigation.
 
-### Video range protocol
+## 10. PDF progress correctness
 
-Test authenticated protected endpoint requests for:
+Session 1:
+
+- open page 1;
+- view several pages;
+- navigate backward to an earlier page;
+- leave the activity.
+
+Session 2:
+
+- reopen activity;
+- confirm resume starts from the actual page where session 1 ended, not the highest page ever reached;
+- confirm active time continues from previous stored time;
+- confirm completion percentage does not jump to 100% merely by navigating directly near the end;
+- confirm Moodle completion occurs only after configured percentage is reached.
+
+## 11. PDF mobile/iOS
+
+On physical iPhone/iPad Safari:
+
+- open large PDF;
+- rotate portrait/landscape;
+- zoom in/out;
+- pan a zoomed page;
+- confirm mobile stabilizer does not reset zoom;
+- use search;
+- enter/exit fullscreen where supported;
+- navigate at least 20 pages;
+- confirm no horizontal initial offset when a page fits;
+- confirm no canvas overflow regression.
+
+Repeat core PDF flow on Android Chrome.
+
+## 12. Protected video range protocol
+
+Use a range-capable Drive video.
+
+Test authenticated protected endpoint:
 
 ```text
 Range: bytes=0-1
 Range: bytes=<middle>-<middle+1023>
 ```
 
-Verify, when the upstream supports ranges:
+Verify when upstream supports ranges:
 
-- HTTP `206` is preserved;
-- `Content-Range` is present and correct;
-- `Content-Length` matches the requested range;
-- `Accept-Ranges: bytes` is present when supported;
-- only one outgoing range is sent by the proxy path;
-- upstream 4xx/5xx response bodies are not exposed as successful HTTP 200 media.
+- HTTP `206` preserved;
+- valid `Content-Range`;
+- correct `Content-Length`;
+- `Accept-Ranges: bytes` when available;
+- no duplicate upstream range behavior;
+- upstream HTML/login/warning page is not returned as HTTP 200 video;
+- upstream 4xx/5xx body is not leaked as successful media.
 
-## iPhone/iPad Safari video
+## 13. iPhone/iPad Safari video
 
-Test on at least one physical iPhone when possible:
+Use a physical device.
 
-- initial play from a user tap;
+Test:
+
+- user-tap initial play;
 - inline playback;
-- pause and resume;
-- seek forward and backward;
-- repeated seeks after several minutes of playback;
+- pause/resume;
+- seek forward/backward;
+- repeated seek after several minutes;
 - playback speed where supported;
-- native/Plyr fullscreen behavior;
-- portrait-to-landscape rotation;
-- lock screen and unlock while paused/playing;
-- network transition between Wi-Fi and mobile data when practical;
-- reload and replay the same protected video;
-- confirm native controls remain usable if Plyr initialization is intentionally blocked.
+- fullscreen/native presentation;
+- portrait/landscape rotation;
+- lock/unlock;
+- reload and replay;
+- native HTML5 controls when Plyr is intentionally unavailable;
+- Wi-Fi/mobile-data transition when practical.
 
-Check Safari Web Inspector/network logs for failed range requests or unexpected HTML responses from the protected media endpoint.
+Inspect Safari Web Inspector network logs for failed ranges or unexpected HTML responses.
 
-## Android and Moodle app
+## 14. Android and Moodle app
 
-- Repeat play, pause, seek and fullscreen tests in Android Chrome.
-- Repeat core playback tests in Moodle app WebView when the plugin is intended for app use.
+- Android Chrome play/pause/seek/fullscreen.
+- Core video/PDF smoke test in Moodle app WebView if app usage is supported for the release.
 
-## Gamification
+## 15. Images
 
-- Enable gamification.
-- Reach first page, 25%, 50%, 75% and completion.
-- Confirm rewards are not duplicated after refresh.
-- Confirm total points update.
-- Confirm events are present in Moodle logs.
+- Create protected Drive image activity.
+- Confirm image loads through `protected.php`.
+- Confirm responsive scaling desktop/mobile.
+- Confirm raw Drive URL is absent from learner HTML.
+- Verify watermark when enabled.
+- Verify context-menu setting behavior.
 
-## Completion
+## 16. Google Workspace export
 
-- Configure completion percentage.
-- Read/view past the threshold.
-- Confirm Moodle completion is marked.
-- Confirm `resource_completed` fires only once per user completion transition.
+For Docs/Sheets/Slides:
 
-## Backup and restore
+- open as learner;
+- confirm local PDF.js viewer;
+- confirm no Google logo/preview controls;
+- confirm search works on exported text when PDF text extraction is available;
+- confirm cold/warm cache behavior.
 
-- Backup a course with a local PDF Drive Resource.
-- Include user data.
-- Restore into another course.
-- Confirm PDF file restores.
-- Confirm activity settings restore.
-- Confirm progress restores when user data is included.
-- Confirm rewards restore when user data is included.
+## 17. Completion/events
 
-## Privacy API
+- Configure completion threshold.
+- Reach threshold through legitimate viewing.
+- Confirm Moodle module completion.
+- Confirm `resource_completed` fires once on transition.
+- Confirm `progress_updated` events contain expected state.
+- Confirm `course_module_viewed` event.
 
-- Run privacy export for a user with progress and rewards.
-- Confirm progress fields are exported.
-- Confirm rewards are exported.
-- Delete user data for the activity context.
-- Confirm `videoplayer_views` and `videoplayer_rewards` records are removed.
+## 18. Gamification
 
-## Final performance and security checks
+When enabled:
 
-- Confirm no full-file PHP buffering for large protected resources.
-- Confirm cold PDF first-open latency is lower than the previous synchronous warm path.
-- Confirm repeated PDF requests use local cache after warming.
-- Confirm local/cache suffix ranges are correct.
-- Confirm no direct source URLs are leaked.
-- Confirm Moodle developer debug log has no new warnings/errors.
-- Confirm browser console is clean.
+- confirm rewards are not duplicated after refresh;
+- confirm points persist;
+- confirm reward event logging.
+
+## 19. Backup and restore
+
+- backup course with Drive Resource activities;
+- include user data;
+- restore to another course;
+- confirm local PDF restores;
+- confirm settings restore;
+- confirm progress/rewards restore according to Moodle backup behavior;
+- confirm no cross-course file leakage.
+
+## 20. Privacy API
+
+- export data for a learner with progress/rewards;
+- verify progress, last page, total pages, time, completion, points/rewards;
+- delete user data for activity context;
+- confirm records removed.
+
+## 21. Final security/performance review
+
+- Moodle developer debug log clean.
+- PHP warnings/notices clean.
+- browser console clean.
+- no direct source URL leakage.
+- no Google preview iframe route.
+- no runtime CDN requests.
+- no full-file PHP memory buffering for large streamed resources.
+- PDF cache cleanup task works.
+- cron does not accumulate duplicate `precache_pdf` tasks.
+
+## 22. Known commercial limitation acknowledgement
+
+Before release approval, document whether the deployment uses only shareable Drive resources.
+
+Private enterprise Google Drive access through site-owned OAuth/service-account Drive API integration is not part of `1.1.18-beta` and must not be advertised as available until implemented/tested.
+
+## Release decision
+
+Only mark the release **production approved** after:
+
+```text
+CI GREEN
++
+STAGING MOODLE GREEN
++
+PHYSICAL IPHONE VIDEO GREEN
++
+PDF COLD/WARM CACHE GREEN
++
+SECURITY ACCESS TESTS GREEN
+```

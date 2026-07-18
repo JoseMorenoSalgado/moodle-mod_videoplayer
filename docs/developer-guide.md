@@ -2,294 +2,295 @@
 
 ## Component identity
 
-The Moodle component remains:
+Moodle component:
 
 ```text
 mod_videoplayer
 ```
 
-The commercial product name is **Drive Resource**. Do not rename the Moodle component because existing installations depend on it for upgrades, capabilities, database tables and backup/restore mappings.
+Commercial product name: **Drive Resource**.
+
+Do not rename the Moodle component. Existing installations depend on it for database tables, capabilities, backup/restore mappings and upgrade continuity.
 
 ## Engineering standards
 
 Production changes must follow:
 
-- Moodle Coding Style and Moodle APIs.
-- PHP 8.2+ compatible code.
-- PSR-12 principles where they do not conflict with Moodle Coding Style.
-- small, cohesive classes and methods.
-- SOLID boundaries between HTTP delivery, storage, viewers and progress logic.
-- local third-party assets only; no CDN runtime dependencies.
-- Moodle File API, Privacy API, Backup & Restore API, Events API and Completion API requirements.
+- Moodle Coding Style.
+- PHP syntax compatible with the declared Moodle/PHP support matrix.
+- SOLID boundaries between authorization, storage, upstream HTTP, viewers and progress.
+- Moodle File API.
+- Moodle External API.
+- Moodle Privacy API.
+- Moodle Backup & Restore API.
+- Moodle Events API.
+- Moodle Completion API.
+- locally bundled runtime third-party assets only.
+
+## Current production compatibility declaration
+
+`version.php` currently declares:
+
+```text
+$plugin->requires = 2025041400;
+```
+
+That means the production baseline is Moodle 5.0+. Moodle 4.x support must not be claimed until a dedicated compatibility matrix is completed and the requirement is deliberately lowered.
 
 ## Main folders
 
 ```text
-amd/src/                         AMD JavaScript source files
+amd/src/                         AMD JavaScript sources
 amd/build/                       production AMD bundles
-backup/moodle2/                  backup and restore logic
-classes/event/                   Moodle event classes
-classes/external/                AJAX/external API endpoints
-classes/local/                   internal application/domain services
-classes/privacy/                 Privacy API provider
-classes/task/                    scheduled and ad-hoc tasks
-db/                              schema, upgrade, services and tasks
-docs/                            product and engineering documentation
+backup/moodle2/                  backup and restore
+classes/event/                   Moodle events
+classes/external/                AJAX/external functions
+classes/local/                   internal services
+classes/privacy/                 Privacy API
+classes/task/                    scheduled/ad-hoc tasks
+db/                              schema, services, access and tasks
+docs/                            engineering/product documentation
 lang/                            language packs
-templates/                       Mustache templates
+templates/                       Moodle-owned Mustache viewers
 thirdpartylibs/                  locally bundled third-party libraries
 ```
 
-## Service boundaries
+## Authorization boundary
 
-Business logic must not be embedded in public scripts or external API classes.
-
-### Progress and gamification
+`protected.php` must remain thin. Required order:
 
 ```text
-classes/local/progress/progress_service.php
-classes/local/gamification/reward_service.php
-```
-
-External APIs validate parameters, login, context and capability, then delegate to these services.
-
-### Local and cached file delivery
-
-```text
-classes/local/protected_stream.php
-```
-
-This service owns:
-
-- Moodle private File API PDF streaming.
-- byte-range responses for readable local/cache files.
-- PDF cache paths and cache keys.
-- PDF cache freshness checks.
-- complete Google Drive PDF cache warming.
-- Google Drive confirmation-token handling used during cache warming.
-- cache cleanup.
-
-Do not add new upstream browser proxy behavior to this class.
-
-### Upstream HTTP range delivery
-
-```text
-classes/local/http_range_proxy.php
-```
-
-This service owns protected HTTP proxy behavior for resources that remain upstream:
-
-- one validated `Range` request.
-- `If-Range` forwarding.
-- `HEAD` support.
-- `200`, `206` and `416` semantics.
-- safe relay of `Content-Length`, `Content-Range`, `Accept-Ranges`, `ETag` and `Last-Modified`.
-- streamed cURL output without loading the complete resource into PHP memory.
-- generic upstream failures that do not expose Google response bodies or source URLs.
-
-**Never send a manual `Range` header and `CURLOPT_RANGE` for the same request.** `CURLOPT_RANGE` is the canonical outgoing range mechanism.
-
-## `protected.php` rules
-
-`protected.php` must remain a thin authorization and orchestration endpoint.
-
-Required sequence:
-
-```text
-required_param(id)
+resolve cm/course/instance
 ↓
-get course module
+require_login()
 ↓
-get course
-↓
-get activity instance
-↓
-require_login(course, true, cm)
-↓
-context_module::instance(cmid)
+context_module
 ↓
 require_capability(mod/videoplayer:view)
 ↓
-close Moodle session write lock
+close session write lock
 ↓
-dispatch to protected_stream or http_range_proxy
+dispatch protected bytes
 ```
 
-Never render or return:
+Never expose:
 
-- Google Drive `fileId`.
-- direct Google download URL.
-- Google preview URL.
-- open-in-Drive URL.
+- Google Drive file IDs.
+- direct Google download URLs.
+- Google preview URLs.
+- OAuth access tokens.
+- open-in-Drive links.
 
-## Fast-first-byte PDF algorithm
+## Viewer routing
 
-Cold Google Drive PDFs must not block the first viewer request while the complete document is downloaded into cache.
+`view.php` owns viewer selection.
+
+Supported routes:
 
 ```text
-PDF.js requests protected.php
-↓
-Fresh local cache?
-├─ yes → protected_stream::send_file() → HIT
-└─ no  → queue precache_pdf with duplicate suppression
-          ↓
-          immediately proxy requested range → MISS_QUEUED
-          ↓
-          Moodle cron warms full PDF cache
-          ↓
-          later requests → HIT
+video        → video.mustache → Plyr/native HTML5
+pdf          → pdfjs.mustache or book.mustache
+document     → server PDF export → PDF viewer
+spreadsheet  → server PDF export → PDF viewer
+presentation → server PDF export → PDF viewer
+image        → image.mustache
+file         → no active inline viewer
 ```
 
-The algorithm does not recompress or transcode PDF content, so document quality remains unchanged.
+Do not reintroduce a generic Google preview iframe.
 
-Expected cache diagnostics:
+Generic `/file/d/...` URLs cannot be reliably auto-typed without metadata. When `drive::detect_type()` returns `file`, require an explicit supported type instead of guessing.
 
-```text
-LOCAL         Moodle private PDF served directly.
-HIT           Fresh server-side PDF cache served.
-MISS_QUEUED   Cold PDF proxied immediately and cache warm task queued.
-MISS          Cold PDF proxied; cache task could not be queued.
-BYPASS        Cache is disabled or not applicable.
-RANGE_INVALID Invalid range for a local/cached file.
-```
+## Local/cache delivery service
 
-`WARMED` and `WARM_FAILED` may still appear from legacy/internal cache-warming flows and should not be used as the primary first-request path.
+`classes/local/protected_stream.php` owns:
 
-## Video development
+- Moodle private PDF delivery.
+- local/cache byte ranges.
+- PDF cache paths/keys.
+- PDF cache validation.
+- complete PDF cache warming.
+- cache cleanup.
 
-The protected video path is:
+Do not add browser-facing upstream proxy logic to this class.
 
-```text
-templates/video.mustache
-↓
-HTML5 <video>
-↓
-amd/src/plyr.js progressive enhancement
-↓
-protected.php
-↓
-http_range_proxy
-```
+## Upstream range proxy
 
-Rules:
+`classes/local/http_range_proxy.php` owns:
 
-- keep `playsinline` and `webkit-playsinline` for iOS.
-- use `preload="metadata"` unless a measured requirement justifies otherwise.
-- do not hardcode `type="video/mp4"` when the protected endpoint can return different MIME types.
-- keep native HTML5 controls as the failure fallback.
-- do not disable playback-rate support while exposing a speed selector.
-- treat browser UI restrictions as deterrents, not as the security boundary.
-- preserve valid `206 Partial Content` behavior for seeking and Safari/iOS playback.
+- one canonical outgoing `Range` request.
+- `HEAD` and `If-Range` semantics.
+- streamed cURL output.
+- redirect-cookie continuity.
+- response MIME resolution.
+- safe `Content-Length`, `Content-Range`, `Accept-Ranges`, `ETag`, `Last-Modified` relay.
+- rejection of unexpected HTML/XHTML/JSON interstitials.
 
-When changing `amd/src/plyr.js`, rebuild and commit the corresponding production file under `amd/build/`.
+Do not forward arbitrary browser headers upstream.
+
+The proxy URL must always be generated internally from a validated activity record.
 
 ## PDF viewer development
 
+### Standard viewer
+
+Files:
+
+```text
+amd/src/pdfviewer.js
+amd/build/pdfviewer.min.js
+templates/pdfjs.mustache
+styles_pdf_overlay.css
+styles_pdf_mobile.css
+```
+
+Production requirements:
+
+- source and critical production bundle must remain synchronized;
+- render only the visible page;
+- bound output scale for high-DPI devices;
+- do not eagerly rasterize the entire document;
+- support previous/next page;
+- support zoom and fit-to-screen;
+- support fullscreen;
+- support mobile swipe;
+- support text search without a CDN;
+- save cumulative active time;
+- save actual last page;
+- calculate completion from observed pages rather than page number alone.
+
+The repository CI checks `amd/src/pdfviewer.js` against `amd/build/pdfviewer.min.js`.
+
+### Mobile stabilizer
+
+Files:
+
+```text
+amd/src/pdfmobile.js
+amd/build/pdfmobile.min.js
+```
+
+The mobile module may correct scrolling/viewport issues, but it must not resize the PDF canvas or override zoom controlled by `pdfviewer.js`.
+
 ### Protected book viewer
 
-Use:
+Files:
 
 ```text
 amd/src/bookviewer.js
+amd/build/bookviewer.min.js
 templates/book.mustache
 ```
 
-Desktop displays a two-page spread. Mobile displays one page at a time. PDF data is always loaded through `protected.php`.
+Keep it isolated from the standard searchable viewer. Any future progress-model changes must preserve actual resume state and must not infer completion merely from reaching the last page.
 
-Performance rules:
+## Fast-first-byte PDF cache
 
-- render only visible pages at high quality.
-- prefetch only a small neighboring working set.
-- cap canvas cache size.
-- avoid rendering the complete PDF eagerly.
-- preserve device-pixel-ratio quality within a bounded output scale.
-- cancel or ignore stale renders after resize/orientation changes.
+Cold-cache flow:
 
-### Standard PDF viewer
+```text
+PDF.js range request
+↓
+protected.php authorization
+↓
+queue precache_pdf with duplicate suppression
+↓
+proxy requested bytes immediately
+↓
+cron warms complete PDF
+↓
+subsequent requests use local cache
+```
 
-Use `amd/src/pdfviewer.js` for one-page rendering with zoom and fit controls.
+Do not recompress or rasterize PDFs in the cache pipeline.
 
-### Mobile PDF stabilizer
+## Progress service contract
 
-Use `amd/src/pdfmobile.js` only for viewport/layout corrections. Authorization, file access and PDF loading do not belong in this module.
+`classes/local/progress/progress_service.php` stores monotonic values for:
 
-### Ebook viewer
+- progress/active time.
+- completion percentage.
+- completion state.
+- total pages.
+- cumulative time spent.
 
-`amd/src/ebookviewer.js` may use locally bundled StPageFlip. It must keep a PDF.js fallback and must never load PageFlip or PDF.js from a CDN.
+`lastpage` is intentionally different: it represents the actual last reported page and may move backward.
+
+The service must not calculate completion automatically from `lastpage / totalpages`.
+
+## AMD rules
+
+Moodle production loads from `amd/build/`. A correct `amd/src/` file with a stale or missing build file is a production defect.
+
+When changing AMD:
+
+1. change `amd/src/`;
+2. rebuild with Moodle Grunt when available;
+3. commit the production bundle;
+4. run CI syntax checks;
+5. verify the browser network/console on staging.
+
+## Security rules for content types
+
+Only supported viewer types may be rendered inline.
+
+Do not embed unknown generic files in a same-origin iframe. An upstream HTML file served through Moodle's origin can become an active-content security risk.
+
+Unexpected HTML/JSON returned by an upstream download flow must be rejected before response headers/body are sent to the media/PDF client.
+
+## Google Drive enterprise roadmap
+
+The current release uses shareable Drive/Docs resources. Private enterprise integration requires a future site-owned OAuth/service-account Drive API layer.
+
+That integration should:
+
+- obtain metadata server-side;
+- resolve MIME type from Drive metadata;
+- access content/export through authenticated Google APIs;
+- keep credentials/tokens server-side;
+- preserve Moodle authorization before every browser-visible delivery.
 
 ## Database changes
 
 For schema changes:
 
-1. update `db/install.xml` for new installs;
-2. add an upgrade step in `db/upgrade.php` for existing installs;
-3. update backup and restore when activity/user fields change;
+1. update `db/install.xml`;
+2. add `db/upgrade.php` migration;
+3. update backup/restore;
 4. update Privacy API when personal data changes;
 5. bump `version.php`.
 
-A code-only release may bump `version.php` without a database upgrade step.
+A code-only release may bump `version.php` without a DB migration.
 
-## Progress save flow
+## CI
 
-```text
-viewer AMD module
-↓
-core/ajax
-↓
-mod_videoplayer_save_progress
-↓
-classes/external/save_progress.php
-↓
-progress_service
-↓
-reward_service
-↓
-videoplayer_views / videoplayer_rewards
-↓
-Moodle Events API + Completion API
-```
+`.github/workflows/quality.yml` checks:
 
-## Backup, restore and privacy
+- PHP syntax on PHP 8.2 and 8.3;
+- JavaScript syntax;
+- XML well-formedness;
+- critical AMD consistency;
+- presence of local PDF.js/Plyr assets;
+- no runtime CDN regression;
+- no Google preview/iframe path in protected learner-facing files.
 
-New activity configuration fields must be reviewed in both backup and restore code.
+CI does not replace Moodle integration tests or physical-device testing.
 
-New personal data must be reviewed in:
+## Commercial release gate
 
-```text
-classes/privacy/provider.php
-```
+Before production:
 
-Current personal data includes reading/progress state, completion percentage, last page, total pages, active time, points and rewards.
-
-## Events
-
-Meaningful state transitions use Moodle events:
-
-- `course_module_viewed`.
-- `progress_updated`.
-- `resource_completed`.
-- `reward_awarded`.
-
-Avoid emitting high-frequency events on every media `timeupdate` event.
-
-## Commercial release checklist
-
-Before release:
-
-- run Moodle PHP code checks and PHP syntax validation.
-- rebuild AMD production bundles.
-- run JavaScript lint/build checks.
-- verify no CDN references.
-- verify third-party libraries in `thirdpartylibs.xml`.
-- test fresh install and upgrade.
-- test backup/restore.
-- test Privacy API export/delete.
-- test guest and unenrolled access denial.
-- test Google Drive video start, pause, seek and resume on iPhone Safari.
-- test Android Chrome and Moodle app WebView.
-- test video `Range: bytes=0-1`, mid-file ranges and invalid ranges.
-- test PDF cold-cache first open and later `HIT` behavior.
-- test large PDFs on low-memory mobile devices.
-- test PDF zoom/fullscreen/orientation changes.
-- test Moodle debug developer mode with no new warnings.
-- inspect browser console and network panel for failed ranges or leaked Drive URLs.
+- CI green.
+- Moodle upgrade completes on staging.
+- Moodle developer debugging clean.
+- browser console clean.
+- cron/ad-hoc tasks healthy.
+- protected range protocol verified.
+- cold/warm PDF cache verified.
+- PDF search/zoom/fullscreen verified.
+- progress/resume verified across sessions.
+- physical iPhone Safari video seek/fullscreen/rotation verified.
+- Android Chrome verified.
+- no raw Drive URL/file ID in learner HTML.
+- backup/restore tested.
+- Privacy API export/delete tested.

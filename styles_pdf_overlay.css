@@ -7,6 +7,38 @@
     max-width: 100%;
 }
 
+.mod-videoplayer-pdfjs-searchbar {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    padding: .65rem;
+    border: 1px solid rgba(100, 116, 139, .20);
+    border-bottom: 0;
+    border-radius: .75rem .75rem 0 0;
+    background: rgba(255, 255, 255, .96);
+}
+
+.mod-videoplayer-pdfjs-search-input {
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+.mod-videoplayer-pdfjs-search-button {
+    flex: 0 0 auto;
+}
+
+.mod-videoplayer-pdfjs-search-status {
+    flex: 1 0 100%;
+    min-height: 1.25rem;
+    color: #475569;
+    font-size: .85rem;
+}
+
+.mod-videoplayer-pdfjs-viewer.is-searching .mod-videoplayer-pdfjs-search-status::after {
+    content: "…";
+}
+
 .mod-videoplayer-pdfjs-canvas-wrap {
     align-items: center !important;
     justify-content: center !important;
@@ -15,6 +47,11 @@
     padding: clamp(.5rem, 1.2vw, 1rem) !important;
     overflow: auto !important;
     box-sizing: border-box !important;
+}
+
+.mod-videoplayer-pdfjs-searchbar + .mod-videoplayer-pdfjs-canvas-wrap {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
 }
 
 .mod-videoplayer-pdfjs-canvas {
@@ -36,10 +73,15 @@
     opacity: .9;
 }
 
+.is-fallback-fullscreen .mod-videoplayer-pdfjs-searchbar,
+.mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-searchbar {
+    border-radius: 0;
+}
+
 .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
 .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
-    min-height: 100vh !important;
-    height: 100vh !important;
+    min-height: calc(100vh - 5rem) !important;
+    height: calc(100vh - 5rem) !important;
     padding: .75rem !important;
 }
 
@@ -57,11 +99,25 @@
 }
 
 @media (max-width: 575.98px) {
+    .mod-videoplayer-pdfjs-searchbar {
+        gap: .35rem;
+        padding: .45rem;
+    }
+
+    .mod-videoplayer-pdfjs-search-input {
+        flex-basis: calc(100% - 5rem);
+    }
+
+    .mod-videoplayer-pdfjs-search-button {
+        padding-left: .65rem;
+        padding-right: .65rem;
+    }
+
     .mod-videoplayer-pdfjs-canvas-wrap {
         align-items: center !important;
         min-height: min(72svh, 620px) !important;
         padding: .35rem !important;
-        border-radius: 12px !important;
+        border-radius: 0 0 12px 12px !important;
     }
 
     .mod-videoplayer-pdfjs-overlay {

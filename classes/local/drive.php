@@ -1,5 +1,18 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/.
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace mod_videoplayer\local;
 
@@ -11,7 +24,6 @@ namespace mod_videoplayer\local;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class drive {
-
     /** @var string Google Drive file source. */
     public const SOURCE_GOOGLEDRIVE = 'googledrive';
 
@@ -46,7 +58,11 @@ class drive {
     }
 
     /**
-     * Detect resource type from a Google Drive URL.
+     * Detect resource type from a Google Drive URL when the URL itself exposes
+     * enough information.
+     *
+     * Generic drive.google.com/file/d/... links do not contain MIME metadata and
+     * therefore resolve to "file" until a teacher selects an explicit type.
      *
      * @param string $url
      * @return string
@@ -74,17 +90,6 @@ class drive {
         }
 
         return 'file';
-    }
-
-    /**
-     * Build a Google Drive preview URL.
-     *
-     * @param string $fileid
-     * @return \moodle_url
-     */
-    public static function preview_url(string $fileid): \moodle_url {
-        $fileid = clean_param($fileid, PARAM_ALPHANUMEXT);
-        return new \moodle_url('https://drive.google.com/file/d/' . rawurlencode($fileid) . '/preview');
     }
 
     /**

@@ -1,5 +1,18 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/.
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
  * Form definition for mod_videoplayer.
@@ -19,7 +32,6 @@ use mod_videoplayer\local\drive;
  * Activity settings form.
  */
 class mod_videoplayer_mod_form extends moodleform_mod {
-
     /**
      * Define form fields.
      */
@@ -64,9 +76,16 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         $mform->setDefault('type', 'auto');
         $mform->disabledIf('type', 'source', 'eq', 'localpdf');
 
-        $mform->addElement('hidden', 'displaymode', 'standard');
-        $mform->setType('displaymode', PARAM_ALPHANUMEXT);
+        $displaymodes = [
+            'standard' => get_string('displaymodestandard', 'mod_videoplayer'),
+            'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
+        ];
+        $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
         $mform->setDefault('displaymode', 'standard');
+        $mform->addHelpButton('displaymode', 'displaymode', 'mod_videoplayer');
+        $mform->hideIf('displaymode', 'type', 'eq', 'video');
+        $mform->hideIf('displaymode', 'type', 'eq', 'image');
+        $mform->hideIf('displaymode', 'type', 'eq', 'file');
 
         $mform->addElement('advcheckbox', 'disabledownload', get_string('disabledownload', 'mod_videoplayer'));
         $mform->setDefault('disabledownload', 1);
@@ -107,7 +126,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             );
             $defaultvalues['localpdffile'] = $draftitemid;
         }
-        $defaultvalues['displaymode'] = 'standard';
     }
 
     /**
@@ -125,6 +143,18 @@ class mod_videoplayer_mod_form extends moodleform_mod {
 
         if ($source === 'googledrive' && (empty($data['videourl']) || !drive::is_supported_url($data['videourl']))) {
             $errors['videourl'] = get_string('invaliddriveurl', 'mod_videoplayer');
+        }
+
+        if (
+            $source === 'googledrive'
+            && empty($errors['videourl'])
+            && ($data['type'] ?? drive::TYPE_AUTO) === drive::TYPE_AUTO
+            && drive::detect_type($data['videourl']) === 'file'
+        ) {
+            // Generic /file/d/... URLs contain no MIME metadata. Do not guess a
+            // viewer type because serving active/incorrect content through a
+            // same-origin protected endpoint is unsafe and unreliable.
+            $errors['type'] = get_string('unsupportedprotectedresource', 'mod_videoplayer');
         }
 
         if ($source === 'localpdf') {

@@ -1,175 +1,216 @@
 # Drive Resource Architecture
 
-Drive Resource is a Moodle activity module for publishing protected Google Drive and Moodle-local resources inside courses. The internal component remains `mod_videoplayer`; the commercial product name is **Drive Resource**.
+Drive Resource is a Moodle activity module for publishing protected Google Drive and Moodle-local resources. The Moodle component remains `mod_videoplayer`; the commercial product name is **Drive Resource**.
 
-## Target flow
+## Production flow
 
 ```text
-Google Drive link or Moodle private file
+Google Drive share link or Moodle private PDF
 ↓
 Drive Resource activity
 ↓
+view.php selects a supported Moodle-owned viewer
+↓
 protected.php
 ↓
-require_login + course module + context_module + capability
+course module + course + activity instance
 ↓
-Local protected file OR protected cache OR http_range_proxy
+require_login()
 ↓
-Local PDF.js / HTML5 video / supported resource viewer
+context_module + mod/videoplayer:view
 ↓
-Progress + completion + events
+protected_stream OR http_range_proxy
+↓
+PDF.js / HTML5 video + Plyr / protected image
+↓
+learner
 ```
 
-The learner-facing browser never receives a raw Google Drive source URL from the plugin-owned video or PDF viewers.
+The protected learner-facing architecture does not use a Google Drive preview iframe.
 
-## Resource sources
+## Supported viewer routes
 
-1. **Google Drive** resources are resolved server-side and delivered through `protected.php` where protected delivery is supported.
-2. **Local protected PDFs** are stored in Moodle private File API storage under the `mod_videoplayer/localpdf` file area.
+### Video
 
-Local PDFs are never placed in the web root.
+```text
+video.mustache
+↓
+HTML5 <video>
+↓
+local Plyr progressive enhancement
+↓
+protected.php
+↓
+http_range_proxy
+↓
+Google Drive server-side content URL
+```
+
+The browser only receives the Moodle `protected.php` URL.
+
+### PDF and Google Workspace documents
+
+The following resource types use local PDF.js:
+
+- PDF.
+- Google Docs exported server-side to PDF.
+- Google Sheets exported server-side to PDF.
+- Google Slides exported server-side to PDF.
+- Moodle-local protected PDF.
+
+Standard mode provides page navigation, zoom, fit-to-screen, fullscreen, mobile swipe and text search.
+
+### Images
+
+Images use a protected `<img>` viewer whose `src` is the Moodle `protected.php` endpoint.
+
+### Unknown generic files
+
+Unknown generic file types are not embedded as active same-origin HTML. Generic `drive.google.com/file/d/...` URLs do not contain MIME metadata; when automatic detection cannot determine the type, the teacher must explicitly choose a supported viewer type.
 
 ## Public protected endpoint
 
-`protected.php` is intentionally small. It must always validate:
+`protected.php` is an authorization/orchestration endpoint. Required sequence:
 
-- course module;
-- course;
-- activity instance;
-- `require_login()`;
-- `context_module`;
-- `mod/videoplayer:view`.
+```text
+required_param(id)
+↓
+get course module
+↓
+get course
+↓
+get activity instance
+↓
+require_login(course, true, cm)
+↓
+context_module::instance(cmid)
+↓
+require_capability(mod/videoplayer:view)
+↓
+close Moodle session write lock
+↓
+dispatch protected delivery
+```
 
-After authorization it delegates delivery to internal services.
+It must never render raw Google Drive file IDs, preview URLs or direct upstream URLs.
 
-## Protected delivery services
+## Delivery services
 
 ### `classes/local/protected_stream.php`
 
-Owns local and cached-file delivery primitives:
+Owns trusted local/cache delivery:
 
-- Moodle File API PDF streaming;
-- local byte-range support;
-- PDF cache key generation;
-- PDF cache freshness checks;
-- full Google Drive PDF cache warming;
-- Google Drive confirmation-token retry used by cache warming;
-- stale cache cleanup;
-- `X-Drive-Resource-Cache` diagnostics.
+- Moodle private File API PDF access.
+- single-range local file delivery.
+- `200`, `206` and `416` behavior.
+- PDF cache paths and cache keys.
+- PDF signature validation.
+- cache warming and cleanup.
 
 ### `classes/local/http_range_proxy.php`
 
-Owns upstream browser-facing streaming:
+Owns upstream browser-facing delivery:
 
-- forwards one validated byte range through cURL;
-- uses `CURLOPT_RANGE` as the single outgoing Range source;
-- supports `HEAD`, `Range` and `If-Range` semantics;
-- streams chunks without buffering complete media in PHP memory;
-- safely relays `206`, `Content-Range`, `Content-Length`, `Accept-Ranges`, `ETag` and `Last-Modified` where applicable;
-- prevents upstream error bodies from being returned as successful protected media;
-- sanitizes relayed response header values.
+- one validated outgoing byte range.
+- `If-Range` only with a valid range request.
+- `HEAD` support.
+- streamed cURL output without full PHP buffering.
+- redirect cookie continuity.
+- bounded low-speed handling.
+- safe response-header relay.
+- MIME resolution from trusted upstream metadata.
+- rejection of unexpected HTML/XHTML/JSON interstitials.
 
-Separating local-file streaming from upstream HTTP range proxying keeps each service focused and avoids mixing browser protocol behavior with Moodle File API storage behavior.
+The proxy destination is derived server-side from a validated activity record. It is not a generic user-supplied URL proxy.
 
-## Google Drive PDF fast-first-byte cache flow
+## PDF fast-first-byte flow
 
 ```text
 PDF.js requests protected.php
 ↓
 Moodle authorization
 ↓
-Fresh local cache exists?
-├─ yes → protected_stream::send_file() with Range support (HIT)
-└─ no  → queue deduplicated precache_pdf ad-hoc task (MISS_QUEUED)
+Fresh local PDF cache?
+├─ yes → protected_stream::send_file() → HIT
+└─ no  → queue duplicate-suppressed precache_pdf task
           ↓
-          proxy requested range immediately through http_range_proxy
+          immediately proxy requested bytes → MISS_QUEUED
           ↓
-          Moodle cron warms complete PDF cache in background
+          Moodle cron warms complete PDF cache
           ↓
-          later requests use local cached PDF
+          later requests → HIT
 ```
 
-This design avoids blocking the first PDF open on a complete Google Drive download. The original PDF bytes are preserved; no image recompression or PDF transcoding is performed.
+The PDF is not recompressed, rasterized or transcoded.
 
-Cache files remain outside the web root under:
+Cache location:
 
 ```text
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
 
-## Video delivery flow
+## PDF rendering and memory strategy
 
-```text
-HTML5 <video> / Plyr
-↓
-protected.php?id=<cmid>
-↓
-http_range_proxy
-↓
-Google Drive download endpoint
-```
+The standard viewer:
 
-The proxy preserves valid partial-content metadata required for seeking and mobile media playback. The HTML5 source does not force a `video/mp4` type, allowing the browser to negotiate the MIME type returned by the protected endpoint.
+- renders only the visible page;
+- prefetches neighboring PDF page objects only;
+- bounds device-pixel-ratio rendering;
+- caches a limited number of extracted page-text entries for search;
+- does not eagerly rasterize the complete document;
+- restores the actual last saved page.
 
-On Apple mobile devices the player keeps inline playback attributes and allows the native media layer to handle iOS-specific presentation behavior while Plyr provides the enhanced UI when available.
+The mobile stabilizer does not resize the canvas and does not override user zoom.
 
-## Viewers
+## Progress model
 
-### Protected PDF book viewer
+`videoplayer_views` stores:
 
-`amd/src/bookviewer.js` uses locally bundled PDF.js. Desktop renders a two-page spread; mobile renders one page at a time.
+- cumulative progress/active time;
+- completion percentage;
+- actual last page;
+- total pages;
+- completion state;
+- cumulative time spent;
+- points.
 
-### Standard PDF viewer
+For the standard PDF viewer, completion percentage is based on pages observed by the viewer and persisted monotonically. `lastpage` is not monotonic: it represents the actual last reported page so resume behavior is accurate.
 
-`amd/src/pdfviewer.js` provides one-page PDF.js rendering when required.
+The server does not infer PDF completion merely from `lastpage / totalpages`.
 
-### Ebook viewer
-
-`amd/src/ebookviewer.js` uses local PDF.js with optional local StPageFlip assets. No CDN is permitted.
-
-### Video viewer
-
-`templates/video.mustache` renders the protected HTML5 media element and `amd/src/plyr.js` progressively enhances it with locally bundled Plyr. Native HTML5 controls remain the fallback.
-
-## Progress and completion
-
-Progress is saved through `mod_videoplayer_save_progress` and delegated to internal services:
-
-```text
-viewer AMD module
-↓
-core/ajax
-↓
-classes/external/save_progress.php
-↓
-classes/local/progress/progress_service.php
-↓
-classes/local/gamification/reward_service.php
-↓
-videoplayer_views / videoplayer_rewards
-↓
-Moodle Events API + Completion API
-```
-
-Tracked PDF state includes active time, last page, total pages, completion percentage, completion state and optional points/rewards.
-
-## Events
+## Events and completion
 
 The module emits:
 
-- `course_module_viewed`;
-- `progress_updated`;
-- `resource_completed`;
+- `course_module_viewed`.
+- `progress_updated`.
+- `resource_completed`.
 - `reward_awarded`.
 
-## Backup and restore
+Completion transitions are integrated with Moodle Completion API.
 
-Backup and restore include activity configuration, local PDF files, and user progress/rewards when user data is included.
+## Backup, restore and privacy
 
-## Privacy API
+Backup/restore covers activity configuration, local protected PDFs and user data when included.
 
-Privacy API export/delete covers progress, reading state, completion data and reward data.
+Privacy API covers progress, reading state, completion data and rewards.
 
-## Security boundary
+## Google Drive access model
 
-Browser restrictions such as hiding download controls or blocking right click are deterrents only. The enforceable boundary is Moodle server-side authorization in `protected.php`. Raw `fileId`, direct Google Drive download URLs and preview URLs must not be exposed by plugin-owned protected viewers.
+Release `1.1.18-beta` uses server-side access to shareable Google Drive/Google Docs resources. It does not yet provide site-owned OAuth/service-account Google Drive API access for private enterprise files.
+
+The enterprise target is:
+
+```text
+Moodle-authorized request
+↓
+server-owned Google OAuth credentials
+↓
+Google Drive API metadata/content access
+↓
+protected_stream/http_range_proxy equivalent delivery layer
+↓
+Moodle-owned viewer
+```
+
+That future integration must preserve the existing Moodle authorization boundary and must not expose Google access tokens or source URLs to learners.

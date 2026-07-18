@@ -4,6 +4,60 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.18-beta - 2026-07-17
+
+### Added
+
+- Protected image viewer that serves images only through the Moodle endpoint.
+- Searchable standard PDF.js toolbar with local text extraction and page navigation.
+- Exact persisted PDF page state through `visitedpages`.
+- Exact persisted video state through `lastsecond`, `totalseconds` and normalized `watchedranges`.
+- Video resume from the saved playback second.
+- Teacher reporting for PDF pages viewed, last PDF page, unique video seconds watched, last video second and active time.
+- Repository CI for PHP/JavaScript/XML/AMD architecture checks.
+- Formal `moodle-plugin-ci` matrix for Moodle 5.0/PHP 8.2 and Moodle 5.2/PHP 8.3 on PostgreSQL 16.
+- Database and release-gate documentation for precise progress and production approval.
+
+### Changed
+
+- PDF, Google Docs, Google Sheets and Google Slides route through Moodle-owned PDF.js viewers instead of a Google preview iframe.
+- Generic Google Drive `/file/d/...` links whose MIME type cannot be inferred require an explicit supported resource type.
+- PDF completion is calculated from the union of pages actually observed across sessions.
+- Video completion is calculated from unique playback ranges actually watched; seeking over content does not count skipped media.
+- `lastpage` stores the actual most recently reported page so PDF resume is accurate.
+- Video tracking stores the actual playback second and detected duration for resume.
+- PDF.js rendering serializes work on the visible canvas to avoid concurrent render operations.
+- Safari/iOS video resume retries when metadata-time seeking is not yet available.
+- PDF mobile stabilization no longer resizes the canvas or overrides user zoom.
+- Global tracking configuration is enforced both client-side and server-side.
+- Backup/Restore and Privacy API include exact PDF and video progress state.
+- Legacy unused `ebookviewer` AMD files and the obsolete native PDF iframe template were removed.
+- AMD source/production bundles for critical viewers are kept synchronized and checked by CI.
+- Release metadata is `1.1.18-beta` with plugin version `2026071702`.
+- Declared supported Moodle branches are 5.0 through 5.2.
+
+### Security
+
+- Removed the obsolete Google iframe resource path from the protected learner-facing architecture.
+- Unknown generic file types are not embedded as active same-origin content.
+- Protected upstream proxy rejects unexpected HTML, XHTML and JSON responses before they reach video/PDF viewers.
+- Protected upstream proxy keeps redirect cookies in a request-scoped in-memory flow.
+- Relayed MIME resolution uses safe upstream metadata and falls back to the configured protected resource type.
+- `If-Range` forwarding is bounded and only sent with a valid `Range` request.
+- Client progress JSON is bounded, sanitized and normalized before persistence.
+
+### Quality
+
+- Moodle 5.0 and Moodle 5.2 test environments install successfully in the formal CI matrix.
+- PHP lint, PHPDoc, plugin validation, XMLDB savepoints, Mustache validation and PHPUnit are enforced as release gates.
+- Moodle Code Checker and Grunt/Stylelint/ESLint are enforced with zero warning tolerance for the release candidate.
+
+### Production notes
+
+- This release still requires Moodle staging validation and physical iPhone/iPad Safari testing before deployment.
+- Current Google Drive delivery is based on shareable Drive/Docs resources. OAuth/service-account Google Drive API integration for private enterprise files remains a separate milestone.
+- Moodle 4.x remains a future compatibility target and is not production-supported by this release candidate.
+
 ## v1.1.17-beta - 2026-07-17
 
 ### Added
