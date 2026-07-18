@@ -46,7 +46,11 @@ class drive {
     }
 
     /**
-     * Detect resource type from a Google Drive URL.
+     * Detect resource type from a Google Drive URL when the URL itself exposes
+     * enough information.
+     *
+     * Generic drive.google.com/file/d/... links do not contain MIME metadata and
+     * therefore resolve to "file" until a teacher selects an explicit type.
      *
      * @param string $url
      * @return string
@@ -74,17 +78,6 @@ class drive {
         }
 
         return 'file';
-    }
-
-    /**
-     * Build a Google Drive preview URL.
-     *
-     * @param string $fileid
-     * @return \moodle_url
-     */
-    public static function preview_url(string $fileid): \moodle_url {
-        $fileid = clean_param($fileid, PARAM_ALPHANUMEXT);
-        return new \moodle_url('https://drive.google.com/file/d/' . rawurlencode($fileid) . '/preview');
     }
 
     /**
