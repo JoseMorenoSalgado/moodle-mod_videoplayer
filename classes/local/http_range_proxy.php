@@ -8,10 +8,9 @@ defined('MOODLE_INTERNAL') || die();
 /**
  * Resilient HTTP byte-range proxy for protected Drive resources.
  *
- * The proxy deliberately keeps Moodle as the only browser-visible endpoint and
- * forwards a single byte range without buffering the protected resource in PHP
- * memory. It also preserves the response metadata required by Safari/iOS media
- * playback and PDF.js range loading.
+ * Keeps Moodle as the only browser-visible endpoint, forwards one validated
+ * byte range and streams the upstream body without buffering the full resource
+ * in PHP memory.
  *
  * @package    mod_videoplayer
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
@@ -70,7 +69,7 @@ final class http_range_proxy {
                 return $length;
             }
 
-            $headers = [
+            $patterns = [
                 'content-length' => '/^Content-Length:\s*(\d+)/i',
                 'content-type' => '/^Content-Type:\s*(.+)$/i',
                 'content-range' => '/^Content-Range:\s*(.+)$/i',
@@ -79,7 +78,7 @@ final class http_range_proxy {
                 'last-modified' => '/^Last-Modified:\s*(.+)$/i',
             ];
 
-            foreach ($headers as $key => $pattern) {
+            foreach ($patterns as $key => $pattern) {
                 if (preg_match($pattern, $trimmed, $matches)) {
                     $responseheaders[$key] = trim($matches[1]);
                     break;
@@ -91,6 +90,7 @@ final class http_range_proxy {
 
         $ch = curl_init($url);
         if ($ch === false) {
+            debugging('Drive Resource proxy could not initialize cURL.', DEBUG_DEVELOPER);
             self::send_bad_gateway();
         }
 
@@ -125,9 +125,6 @@ final class http_range_proxy {
 
                 if ($headerssent) {
                     echo $data;
-                    if (function_exists('fastcgi_finish_request')) {
-                        // Do not finish the request here; keep streaming subsequent chunks.
-                    }
                     flush();
                 }
 
@@ -135,9 +132,9 @@ final class http_range_proxy {
             },
         ];
 
-        // CURLOPT_RANGE is the single source of the outgoing Range header. Do
-        // not also add a manual Range header because duplicate Range headers
-        // are handled inconsistently by upstream servers and mobile browsers.
+        // CURLOPT_RANGE is the single source of the outgoing Range header.
+        // Sending a manual Range header as well creates duplicate upstream
+        // headers and can break Safari/iOS seek negotiation.
         if ($range !== '') {
             $options[CURLOPT_RANGE] = substr($range, 6);
         }
@@ -161,10 +158,10 @@ final class http_range_proxy {
         }
 
         if ($result === false || $curlcode >= 400 || !in_array($curlcode, [200, 206], true)) {
+            debugging('Drive Resource proxy failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
             if (!$headerssent) {
                 self::send_bad_gateway();
             }
-            debugging('Drive Resource proxy failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
             die;
         }
 
@@ -217,8 +214,7 @@ final class http_range_proxy {
         string $filename,
         string $cachestatus
     ): void {
-        $status = (int)($headers['status'] ?? 200);
-        $status = $status === 206 ? 206 : 200;
+        $status = (int)($headers['status'] ?? 200) === 206 ? 206 : 200;
         $contenttype = self::safe_content_type((string)($headers['content-type'] ?? ''), $fallbacktype);
         $safefilename = str_replace(["\r", "\n", '"'], '', $filename);
 
