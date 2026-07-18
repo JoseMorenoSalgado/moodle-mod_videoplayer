@@ -1,97 +1,140 @@
 # Drive Resource security model
 
-Drive Resource is a protected Moodle delivery layer. Browser restrictions are not the security boundary.
+Drive Resource is a protected Moodle delivery layer. Browser restrictions are deterrents; server-side Moodle authorization is the security boundary.
 
-## Enforced server-side protection
+## Mandatory authorization
 
-Every protected resource request must validate:
+Every protected browser request must resolve and validate:
 
-- the course module exists and belongs to `mod_videoplayer`;
-- the course exists;
-- the activity instance exists;
-- `require_login($course, true, $cm)` succeeds;
-- `context_module::instance($cm->id)` is used;
-- the user has `mod/videoplayer:view`.
+- course module;
+- course;
+- Drive Resource activity instance;
+- `require_login($course, true, $cm)`;
+- `context_module::instance($cm->id)`;
+- `mod/videoplayer:view` capability.
 
-The default view capability excludes the guest archetype. Administrators can override Moodle roles, so production installations must still review role assignments and enrolment policies.
+The default view capability excludes guest access, but production administrators must still review role/enrolment overrides.
 
-## Data and URL exposure
+## Learner-facing URL exposure
 
-Plugin-owned protected viewers must never expose:
+Protected Moodle-owned viewers must not render:
 
 - raw Google Drive file IDs;
-- direct Google Drive download URLs;
+- direct Google download URLs;
 - Google preview URLs;
-- open-in-Drive links.
+- open-in-Drive links;
+- OAuth credentials or access tokens.
 
-Learner-facing PDF and video URLs point only to Moodle `protected.php`.
+The browser receives Moodle `protected.php` URLs for protected video, PDF and image delivery.
 
-Local PDFs are stored through Moodle File API outside the web root. Google Drive PDF cache files are stored under:
+## No Google preview iframe
+
+Release `1.1.18-beta` removes the obsolete generic Google preview iframe route from the protected learner-facing architecture.
+
+Google Docs, Sheets and Slides are exported server-side to PDF and rendered through local PDF.js. Images use a protected `<img>` route. Videos use protected HTML5 streaming.
+
+Unknown generic files are not embedded as active same-origin content.
+
+## Same-origin active content risk
+
+A generic remote HTML file proxied through Moodle and embedded with script permissions can execute as content from the Moodle origin. Therefore Drive Resource must never use a generic active iframe for untrusted/unknown file types.
+
+Only explicitly supported viewer types may render inline.
+
+## Local protected files
+
+Local PDFs are stored through Moodle File API outside the web root.
+
+Delivery path:
+
+```text
+protected.php authorization
+↓
+protected_stream
+↓
+Moodle filedir/cache path
+↓
+validated byte-range response
+```
+
+## Upstream proxy boundary
+
+`classes/local/http_range_proxy.php` is not a generic URL proxy.
+
+The upstream destination is generated server-side from a validated Drive Resource record and internal Google Drive helper logic.
+
+The proxy:
+
+- accepts only a validated single byte range;
+- uses one canonical outgoing range mechanism;
+- forwards `If-Range` only with a valid range;
+- bounds `If-Range` length;
+- preserves redirect cookies in a request-scoped cookie store/engine;
+- uses TLS peer/host verification;
+- streams without buffering the complete binary resource in PHP memory;
+- applies low-speed protection to stalled upstream connections;
+- sanitizes relayed response headers;
+- rejects unexpected HTML, XHTML and JSON interstitial bodies before sending successful media/PDF responses.
+
+## MIME handling
+
+Protected responses prefer a safe upstream `Content-Type`.
+
+When Google responds with `application/octet-stream`, the proxy may infer a supported MIME type from a sanitized upstream `Content-Disposition` filename. Otherwise it falls back to the explicitly configured protected resource type.
+
+This fallback is why generic `/file/d/...` links that cannot be auto-detected require an explicit teacher-selected type.
+
+## Response hardening
+
+Protected responses use appropriate combinations of:
+
+- `Content-Type`;
+- `Content-Disposition: inline` with sanitized filename;
+- `X-Content-Type-Options: nosniff`;
+- `X-Robots-Tag: noindex, nofollow, noarchive`;
+- private browser caching;
+- `no-transform`;
+- `Vary: Range, If-Range` for upstream proxy delivery;
+- `Accept-Ranges: bytes` when supported;
+- `Content-Range` for valid partial content.
+
+Invalid local/cache ranges return `416` with an unsatisfied `Content-Range`.
+
+## PDF cache security
+
+Google Drive PDF cache files are stored under:
 
 ```text
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
 
-Cached files are not public endpoints. Authorization is performed again on every browser request before any bytes are returned.
+They are not public web files. Every browser request still passes through Moodle authorization.
 
-## Delivery service boundaries
+Cache warming:
 
-### `protected_stream`
+- writes to temporary files;
+- validates PDF signature before final placement;
+- atomically renames valid files into cache;
+- cleans temporary/cookie artifacts;
+- uses duplicate-suppressed ad-hoc tasks for cold-cache warming.
 
-Responsible for trusted local/cache files:
+## Progress and privacy
 
-- byte-range parsing and local segment streaming;
-- private cache headers with `no-transform`;
-- PDF signature validation during cache warming;
-- local cache lifecycle and cleanup.
+Progress/reward records are personal data.
 
-### `http_range_proxy`
+Privacy API coverage includes:
 
-Responsible for upstream protected HTTP delivery:
-
-- accepts only a single validated byte range;
-- sends one canonical upstream range through cURL;
-- supports `If-Range` and `HEAD` where applicable;
-- relays only required safe response metadata;
-- sanitizes relayed header values;
-- does not expose upstream error bodies as successful content;
-- streams without loading complete resources into PHP memory.
-
-The proxy must not forward arbitrary browser headers to Google Drive. Only explicitly allowlisted headers should be forwarded.
-
-## HTTP response hardening
-
-Protected responses use:
-
-- `Content-Type` validated against a conservative MIME pattern;
-- `Content-Disposition: inline` with a sanitized filename;
-- `X-Content-Type-Options: nosniff`;
-- `X-Robots-Tag: noindex, nofollow, noarchive`;
-- private browser caching;
-- `no-transform` to avoid intermediary modification of ranged media/PDF data;
-- `Vary: Range, If-Range` for proxied upstream resources.
-
-Valid partial responses preserve `206 Partial Content`, `Content-Range` and `Content-Length`. Invalid upstream range requests return `416` where the upstream server provides that result.
-
-## SSRF boundary
-
-The browser never supplies an arbitrary proxy destination. `protected.php` derives the upstream URL only from a validated activity instance and the internal Google Drive URL helper. Future source integrations must maintain an explicit host allowlist and must not turn `protected.php` into a generic URL fetcher.
-
-## PDF cache warming
-
-Cold Google Drive PDFs are streamed immediately through the protected proxy and a deduplicated Moodle ad-hoc task warms the complete server cache.
-
-Security properties:
-
-- cache files remain outside the web root;
-- full cache downloads are validated as PDFs before final placement;
-- temporary files and cookie jars are cleaned up;
-- cache warming does not bypass the browser request authorization path;
-- the source URL remains server-side.
+- progress/active time;
+- completion percentage/state;
+- actual last page;
+- total pages;
+- cumulative time spent;
+- points;
+- rewards.
 
 ## Deterrent controls
 
-The following are UX deterrents, not DRM:
+The following are not DRM:
 
 - hiding download controls;
 - disabling right click;
@@ -99,32 +142,38 @@ The following are UX deterrents, not DRM:
 - watermark overlays;
 - custom fullscreen UI.
 
-A user who can view protected content can still capture screenshots, record the screen or inspect browser traffic to the Moodle endpoint. Product documentation must not claim absolute download prevention.
+A learner who can view content can still capture the screen or inspect requests to the Moodle protected endpoint.
 
-## Personal data
+## Google Drive credentials roadmap
 
-Progress and reward records are personal data. Privacy API coverage must include:
+The current release works with shareable Google Drive/Docs resources. It does not yet provide site-owned OAuth/service-account Drive API access for private enterprise files.
 
-- progress/active time;
-- completion percentage and state;
-- last page and total pages;
-- points;
-- earned rewards.
+Future authenticated Drive API integration must:
 
-## Commercial security validation
+- keep OAuth credentials/tokens server-side;
+- use least-privilege scopes;
+- never expose tokens to browser JavaScript;
+- validate Moodle authorization before Google content access is relayed;
+- validate returned MIME/metadata;
+- preserve the no-preview-iframe architecture.
 
-Before release:
+## Commercial security release gate
 
-- verify guest access is denied by default;
-- verify an unenrolled user without capability is denied;
-- verify enrolled learner and teacher access according to roles;
-- verify direct `protected.php?id=<cmid>` requests require login;
-- verify no raw Drive IDs/URLs are present in protected viewer HTML;
-- verify CR/LF cannot be injected through filenames or relayed headers;
-- verify upstream 4xx/5xx bodies are not returned with HTTP 200;
-- verify valid ranges return correct `206` metadata;
-- verify invalid ranges do not disclose upstream details;
-- verify local and cached PDFs cannot be fetched directly from the web root;
-- verify backup/restore does not leak files across course contexts;
-- verify Privacy API export/delete behavior;
-- review Moodle security advisories and supported PHP/Moodle versions before each commercial release.
+Before production:
+
+- guest access denied by default;
+- unenrolled user without capability denied;
+- enrolled learner/teacher access verified;
+- direct `protected.php?id=<cmid>` logged-out access denied;
+- no raw Drive IDs/URLs in learner HTML;
+- no Google preview iframe route;
+- unknown generic files not embedded;
+- upstream HTML/login/warning pages not returned as HTTP 200 media;
+- valid ranges return correct `206` metadata;
+- invalid ranges handled safely;
+- local/cached PDFs inaccessible directly from web root;
+- backup/restore does not leak files across contexts;
+- Privacy API export/delete verified;
+- Moodle developer debugging clean;
+- browser console/network inspection clean;
+- current Moodle/PHP security support reviewed before release.
