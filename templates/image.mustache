@@ -11,14 +11,15 @@
         <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
     </div>
 
-    <div class="mod-videoplayer-image-frame" oncontextmenu="return false;">
+    <div class="mod-videoplayer-image-frame" {{#disablecontextmenu}}oncontextmenu="return false;"{{/disablecontextmenu}}>
         <img
             class="mod-videoplayer-protected-image"
             src="{{imageurl}}"
             alt="{{title}}"
             loading="lazy"
             decoding="async"
-            draggable="false">
+            draggable="false"
+            {{#disablecontextmenu}}oncontextmenu="return false;"{{/disablecontextmenu}}>
         {{#enablewatermark}}
             <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
         {{/enablewatermark}}
