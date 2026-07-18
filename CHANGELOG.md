@@ -4,6 +4,44 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.18-beta - 2026-07-17
+
+### Added
+
+- Protected image viewer that serves images only through the Moodle endpoint.
+- Searchable standard PDF.js toolbar with local text extraction and page navigation.
+- Missing production AMD bundle for the mobile PDF stabilizer.
+- Repository CI for PHP 8.2/8.3 syntax, JavaScript syntax, XML validation, critical AMD consistency, local asset checks, CDN checks and protected-architecture guardrails.
+
+### Changed
+
+- PDF, Google Docs, Google Sheets and Google Slides now route through Moodle-owned PDF.js viewers instead of a Google preview iframe.
+- Generic Google Drive `/file/d/...` links whose MIME type cannot be inferred now require an explicit resource type rather than guessing.
+- Standard PDF viewer now restores the actual last saved page and cumulative active time.
+- Standard PDF completion is based on pages actually rendered during viewing and previously persisted completion, not simply the highest page number reached.
+- `lastpage` now stores the actual most recently reported page instead of the maximum historical page.
+- PDF mobile stabilization no longer resizes the canvas or overrides user zoom.
+- PDF.js source and production AMD bundle are synchronized.
+- The activity form now exposes the real PDF display-mode configuration instead of forcing a hidden value.
+- Release metadata bumped to `1.1.18-beta` with Moodle version `2026071701`.
+- Compatibility documentation now reflects the declared Moodle minimum build (`2025041400`, Moodle 5.0) instead of claiming unverified Moodle 4.x production support.
+
+### Security
+
+- Removed the obsolete Google iframe resource template and generic iframe renderer path.
+- Removed the unused Google preview URL helper from the protected architecture.
+- Unknown generic file types are no longer embedded as active same-origin content.
+- Protected upstream proxy rejects unexpected HTML, XHTML and JSON responses before they can reach video/PDF viewers.
+- Protected upstream proxy keeps redirect cookies in memory for Google download redirects.
+- Relayed MIME resolution uses safe upstream metadata and falls back to the configured protected resource type.
+- `If-Range` forwarding is bounded and only sent alongside a valid `Range` request.
+
+### Production notes
+
+- This release still requires staging validation and physical iPhone/iPad Safari testing before deployment.
+- Current Google Drive delivery is based on shareable Drive/Docs resources. OAuth/service-account Google Drive API integration for private enterprise files remains a separate commercial-hardening milestone.
+- Moodle 4.x remains a compatibility target but is not production-declared by the current plugin metadata.
+
 ## v1.1.17-beta - 2026-07-17
 
 ### Added
