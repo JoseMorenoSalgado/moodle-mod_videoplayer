@@ -29,10 +29,19 @@ class save_progress extends external_api {
             'cmid' => new external_value(PARAM_INT, 'Course module ID'),
             'progress' => new external_value(PARAM_FLOAT, 'Progress value', VALUE_DEFAULT, 0),
             'completed' => new external_value(PARAM_BOOL, 'Completion state', VALUE_DEFAULT, false),
-            'completionpercentage' => new external_value(PARAM_FLOAT, 'Completion percentage from 0 to 100', VALUE_DEFAULT, 0),
+            'completionpercentage' => new external_value(
+                PARAM_FLOAT,
+                'Completion percentage from 0 to 100',
+                VALUE_DEFAULT,
+                0
+            ),
             'lastpage' => new external_value(PARAM_INT, 'Last read page', VALUE_DEFAULT, 0),
             'totalpages' => new external_value(PARAM_INT, 'Total PDF pages', VALUE_DEFAULT, 0),
-            'timespent' => new external_value(PARAM_INT, 'Active time spent in seconds', VALUE_DEFAULT, 0),
+            'visitedpages' => new external_value(PARAM_RAW, 'JSON array of observed PDF pages', VALUE_DEFAULT, ''),
+            'lastsecond' => new external_value(PARAM_FLOAT, 'Last video playback second', VALUE_DEFAULT, 0),
+            'totalseconds' => new external_value(PARAM_FLOAT, 'Total video duration in seconds', VALUE_DEFAULT, 0),
+            'watchedranges' => new external_value(PARAM_RAW, 'JSON array of watched video ranges', VALUE_DEFAULT, ''),
+            'timespent' => new external_value(PARAM_INT, 'Cumulative active time spent in seconds', VALUE_DEFAULT, 0),
         ]);
     }
 
@@ -45,6 +54,10 @@ class save_progress extends external_api {
      * @param float $completionpercentage
      * @param int $lastpage
      * @param int $totalpages
+     * @param string $visitedpages
+     * @param float $lastsecond
+     * @param float $totalseconds
+     * @param string $watchedranges
      * @param int $timespent
      * @return array
      */
@@ -55,6 +68,10 @@ class save_progress extends external_api {
         float $completionpercentage = 0,
         int $lastpage = 0,
         int $totalpages = 0,
+        string $visitedpages = '',
+        float $lastsecond = 0,
+        float $totalseconds = 0,
+        string $watchedranges = '',
         int $timespent = 0
     ): array {
         global $DB, $USER;
@@ -66,6 +83,10 @@ class save_progress extends external_api {
             'completionpercentage' => $completionpercentage,
             'lastpage' => $lastpage,
             'totalpages' => $totalpages,
+            'visitedpages' => $visitedpages,
+            'lastsecond' => $lastsecond,
+            'totalseconds' => $totalseconds,
+            'watchedranges' => $watchedranges,
             'timespent' => $timespent,
         ]);
 
@@ -98,7 +119,11 @@ class save_progress extends external_api {
             'completionpercentage' => new external_value(PARAM_FLOAT, 'Saved completion percentage'),
             'lastpage' => new external_value(PARAM_INT, 'Last read page'),
             'totalpages' => new external_value(PARAM_INT, 'Total pages'),
-            'timespent' => new external_value(PARAM_INT, 'Active time spent'),
+            'visitedpages' => new external_value(PARAM_RAW, 'JSON array of observed PDF pages'),
+            'lastsecond' => new external_value(PARAM_FLOAT, 'Last video playback second'),
+            'totalseconds' => new external_value(PARAM_FLOAT, 'Total video duration in seconds'),
+            'watchedranges' => new external_value(PARAM_RAW, 'JSON array of watched video ranges'),
+            'timespent' => new external_value(PARAM_INT, 'Cumulative active time spent'),
             'points' => new external_value(PARAM_INT, 'Total points'),
             'rewards' => new external_multiple_structure(new external_single_structure([
                 'key' => new external_value(PARAM_ALPHANUMEXT, 'Reward key'),
