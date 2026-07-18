@@ -141,6 +141,15 @@ jobs:
           set -o pipefail
           moodle-plugin-ci grunt --max-lint-warnings 0 2>&1 | tee grunt.log
 
+      - name: Upload Grunt-generated AMD artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-amd-${{ matrix.moodle }}-php-${{ matrix.php }}
+          path: plugin/amd/build
+          if-no-files-found: error
+          retention-days: 1
+
       - name: PHPUnit
         if: ${{ !cancelled() }}
         shell: bash
