@@ -3,6 +3,9 @@
 /**
  * Protected PDF.js viewer for Drive Resource.
  *
+ * Renders only the visible page, supports bounded high-DPI output, page search,
+ * responsive zoom/fullscreen behavior and cumulative progress persistence.
+ *
  * @module     mod_videoplayer/pdfviewer
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -11,10 +14,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
     const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
     const SAVE_INTERVAL = 10000;
+    const HEARTBEAT_INTERVAL = 30000;
     const MIN_ZOOM = 0.75;
     const MAX_ZOOM = 2.75;
     const ZOOM_STEP = 0.15;
     const MOBILE_BREAKPOINT = 768;
+    const TEXT_CACHE_LIMIT = 30;
     let pdfjsPromise = null;
 
     const loadPdfJs = function() {
@@ -47,9 +52,17 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         return window.matchMedia('(max-width: ' + (MOBILE_BREAKPOINT - 1) + 'px)').matches;
     };
 
+    const normalizeSearchText = function(value) {
+        const text = String(value || '').toLowerCase();
+        if (typeof text.normalize === 'function') {
+            return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        }
+        return text;
+    };
+
     const showError = function(root, error) {
         hide(root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap'), true);
-        hide(root.querySelector('.mod-videoplayer-pdfjs-topbar'), true);
+        hide(root.querySelector('.mod-videoplayer-pdfjs-searchbar'), true);
         hide(root.querySelector('[data-region="pdfjs-loading"]'), true);
         hide(root.querySelector('[data-region="pdfjs-error"]'), false);
         if (error && window.console) {
@@ -61,6 +74,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         if (root.getAttribute('data-disable-context-menu') !== '1') {
             return;
         }
+
         [root, canvas].forEach(function(node) {
             if (!node) {
                 return;
@@ -70,28 +84,13 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 node.addEventListener(name, block, true);
             });
         });
+
         root.addEventListener('keydown', function(event) {
             const key = (event.key || '').toLowerCase();
-            if ((event.ctrlKey || event.metaKey) && ['s', 'p', 'c', 'a'].indexOf(key) !== -1) {
+            if ((event.ctrlKey || event.metaKey) && ['s', 'p'].indexOf(key) !== -1) {
                 block(event);
             }
         }, true);
-    };
-
-    const notifyRewards = function(root, rewards) {
-        const region = root.querySelector('[data-region="ebook-achievements"]');
-        if (!region || !rewards || !rewards.length) {
-            return;
-        }
-        rewards.forEach(function(reward) {
-            const item = document.createElement('div');
-            item.className = 'alert alert-success mod-videoplayer-reward';
-            item.textContent = reward.label + ' +' + reward.points;
-            region.appendChild(item);
-            window.setTimeout(function() {
-                item.remove();
-            }, 7000);
-        });
     };
 
     const initViewer = function(root, pdfjsLib) {
@@ -109,9 +108,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const zoomLevelNode = root.querySelector('[data-region="zoom-level"]');
         const loading = root.querySelector('[data-region="pdfjs-loading"]');
         const wrap = root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap');
+        const searchForm = root.querySelector('[data-region="pdf-search-form"]');
+        const searchInput = root.querySelector('[data-region="pdf-search-input"]');
+        const searchButton = root.querySelector('[data-action="search-pdf"]');
+        const searchStatus = root.querySelector('[data-region="pdf-search-status"]');
         const container = root.closest('.mod-videoplayer-container') || document;
-        const pointsNode = container.querySelector('[data-region="ebook-points"]');
-        const progressNode = container.querySelector('[data-region="ebook-progress"]');
+        const progressNode = container.querySelector('[data-region="pdfjs-progress"]');
 
         if (!pdfUrl || !canvas) {
             showError(root);
@@ -121,31 +123,39 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         hardenViewer(root, canvas);
         root.classList.toggle('is-mobile-viewer', isMobileViewport());
 
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', {alpha: false});
         let pdfDocument = null;
         let pageNumber = Math.max(1, parseInt(root.getAttribute('data-initial-page'), 10) || 1);
         let rendering = false;
         let pendingPage = null;
         let firstRender = true;
         let lastSave = 0;
-        let activeSeconds = 0;
+        let activeSeconds = Math.max(0, parseFloat(root.getAttribute('data-initial-progress')) || 0);
+        let timeSpent = Math.max(0, parseInt(root.getAttribute('data-initial-time-spent'), 10) || 0);
+        let initialCompletion = clamp(parseFloat(root.getAttribute('data-initial-completion')) || 0, 0, 100);
+        let completed = root.getAttribute('data-initial-completed') === '1';
         let lastTick = Date.now();
-        let completed = false;
         let zoomFactor = 1;
         let autoFit = true;
         let touchStartX = 0;
         let touchStartY = 0;
         let touchMoved = false;
+        let lastSearchQuery = '';
+        let lastSearchPage = 0;
+        let searchBusy = false;
+        const visitedPages = new Set();
+        const pageTextCache = new Map();
 
         const isFullscreen = function() {
-            return document.fullscreenElement || root.classList.contains('is-fallback-fullscreen');
+            return document.fullscreenElement === root || root.classList.contains('is-fallback-fullscreen');
         };
 
         const completionPercent = function() {
             if (!pdfDocument || !pdfDocument.numPages) {
-                return 0;
+                return initialCompletion;
             }
-            return Math.min(100, Math.round((pageNumber / pdfDocument.numPages) * 10000) / 100);
+            const observed = (visitedPages.size / pdfDocument.numPages) * 100;
+            return Math.min(100, Math.max(initialCompletion, Math.round(observed * 100) / 100));
         };
 
         const updateZoomStatus = function(baseScale, appliedScale) {
@@ -154,45 +164,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
             const relativeZoom = Math.round((appliedScale / baseScale) * 100);
             zoomLevelNode.textContent = relativeZoom + '%';
-        };
-
-        const saveProgress = function(force) {
-            if (!cmid || !pdfDocument) {
-                return Promise.resolve();
-            }
-            const now = Date.now();
-            if (!force && now - lastSave < SAVE_INTERVAL) {
-                return Promise.resolve();
-            }
-            activeSeconds += Math.max(0, Math.round((now - lastTick) / 1000));
-            lastTick = now;
-            lastSave = now;
-            const percent = completionPercent();
-            completed = completed || percent >= 100;
-            return Ajax.call([{
-                methodname: 'mod_videoplayer_save_progress',
-                args: {
-                    cmid: cmid,
-                    progress: activeSeconds,
-                    completed: completed,
-                    completionpercentage: percent,
-                    lastpage: pageNumber,
-                    totalpages: pdfDocument.numPages,
-                    timespent: activeSeconds
-                }
-            }])[0].then(function(response) {
-                if (response) {
-                    completed = Boolean(response.completed);
-                    if (pointsNode) {
-                        pointsNode.textContent = 'Points: ' + response.points;
-                    }
-                    if (progressNode) {
-                        progressNode.textContent = response.completionpercentage + '%';
-                    }
-                    notifyRewards(root, response.rewards);
-                }
-                return response;
-            }).catch(Notification.exception);
         };
 
         const updateButtons = function() {
@@ -222,11 +193,57 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
         };
 
+        const saveProgress = function(force) {
+            if (!cmid || !pdfDocument) {
+                return Promise.resolve();
+            }
+
+            const now = Date.now();
+            if (!force && now - lastSave < SAVE_INTERVAL) {
+                return Promise.resolve();
+            }
+
+            const delta = Math.max(0, Math.round((now - lastTick) / 1000));
+            activeSeconds += delta;
+            timeSpent += delta;
+            lastTick = now;
+            lastSave = now;
+
+            const percent = completionPercent();
+            completed = completed || percent >= 100;
+
+            return Ajax.call([{
+                methodname: 'mod_videoplayer_save_progress',
+                args: {
+                    cmid: cmid,
+                    progress: activeSeconds,
+                    completed: completed,
+                    completionpercentage: percent,
+                    lastpage: pageNumber,
+                    totalpages: pdfDocument.numPages,
+                    timespent: timeSpent
+                }
+            }])[0].then(function(response) {
+                if (response) {
+                    completed = Boolean(response.completed);
+                    initialCompletion = Math.max(initialCompletion, parseFloat(response.completionpercentage) || 0);
+                    activeSeconds = Math.max(activeSeconds, parseFloat(response.progress) || 0);
+                    timeSpent = Math.max(timeSpent, parseInt(response.timespent, 10) || 0);
+                    if (progressNode) {
+                        progressNode.textContent = response.completionpercentage + '%';
+                    }
+                }
+                return response;
+            }).catch(Notification.exception);
+        };
+
         const prefetch = function(num) {
             if (!pdfDocument || num < 1 || num > pdfDocument.numPages) {
                 return;
             }
-            pdfDocument.getPage(num).catch(function() {});
+            pdfDocument.getPage(num).catch(function() {
+                // Neighbor prefetch is best effort.
+            });
         };
 
         const restoreScrollPosition = function(oldWidth, oldHeight, oldScrollLeft, oldScrollTop) {
@@ -257,6 +274,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (firstRender) {
                 hide(loading, false);
             }
+
             pdfDocument.getPage(num).then(function(page) {
                 const horizontalPadding = isMobileViewport() ? 10 : 24;
                 const verticalPadding = isMobileViewport() ? 10 : 24;
@@ -269,13 +287,17 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 const appliedZoom = autoFit ? 1 : zoomFactor;
                 const cssScale = clamp(baseScale * appliedZoom, baseScale * MIN_ZOOM, baseScale * MAX_ZOOM);
                 const viewport = page.getViewport({scale: cssScale});
-                const outputScale = isFullscreen() ? Math.min(window.devicePixelRatio || 1, 3) : Math.min(window.devicePixelRatio || 1, 2.25);
-                canvas.width = Math.floor(viewport.width * outputScale);
-                canvas.height = Math.floor(viewport.height * outputScale);
+                const outputScale = isFullscreen()
+                    ? Math.min(window.devicePixelRatio || 1, 3)
+                    : Math.min(window.devicePixelRatio || 1, 2.25);
+
+                canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+                canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
                 canvas.style.width = Math.floor(viewport.width) + 'px';
                 canvas.style.height = Math.floor(viewport.height) + 'px';
                 context.setTransform(1, 0, 0, 1, 0, 0);
                 updateZoomStatus(baseScale, cssScale);
+
                 return page.render({
                     canvasContext: context,
                     viewport: viewport,
@@ -283,6 +305,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }).promise;
             }).then(function() {
                 rendering = false;
+                visitedPages.add(num);
                 restoreScrollPosition(oldScrollWidth, oldScrollHeight, oldScrollLeft, oldScrollTop);
                 firstRender = false;
                 hide(loading, true);
@@ -291,6 +314,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 prefetch(pageNumber + 1);
                 prefetch(pageNumber - 1);
                 saveProgress(false);
+
                 if (pendingPage !== null) {
                     const nextPage = pendingPage;
                     pendingPage = null;
@@ -298,6 +322,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }
             }).catch(function(error) {
                 rendering = false;
+                canvas.classList.remove('is-rendering');
                 Notification.exception(error);
                 showError(root, error);
             });
@@ -311,13 +336,15 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
         };
 
-        const go = function(num) {
+        const go = function(num, resetZoom) {
             if (!pdfDocument) {
                 return;
             }
             pageNumber = Math.max(1, Math.min(pdfDocument.numPages, num));
-            autoFit = true;
-            zoomFactor = 1;
+            if (resetZoom) {
+                autoFit = true;
+                zoomFactor = 1;
+            }
             queue(pageNumber);
         };
 
@@ -330,14 +357,115 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             queue(pageNumber);
         };
 
+        const cachePageText = function(page, text) {
+            if (pageTextCache.has(page)) {
+                pageTextCache.delete(page);
+            }
+            pageTextCache.set(page, text);
+            while (pageTextCache.size > TEXT_CACHE_LIMIT) {
+                pageTextCache.delete(pageTextCache.keys().next().value);
+            }
+        };
+
+        const getPageText = function(num) {
+            if (pageTextCache.has(num)) {
+                const cached = pageTextCache.get(num);
+                pageTextCache.delete(num);
+                pageTextCache.set(num, cached);
+                return Promise.resolve(cached);
+            }
+
+            return pdfDocument.getPage(num).then(function(page) {
+                return page.getTextContent();
+            }).then(function(content) {
+                const text = normalizeSearchText(content.items.map(function(item) {
+                    return item.str || '';
+                }).join(' '));
+                cachePageText(num, text);
+                return text;
+            });
+        };
+
+        const buildSearchOrder = function(start) {
+            const order = [];
+            for (let num = start; num <= pdfDocument.numPages; num++) {
+                order.push(num);
+            }
+            for (let num = 1; num < start; num++) {
+                order.push(num);
+            }
+            return order;
+        };
+
+        const findInPages = function(order, index, query) {
+            if (index >= order.length) {
+                return Promise.resolve(0);
+            }
+
+            const num = order[index];
+            return getPageText(num).then(function(text) {
+                if (text.indexOf(query) !== -1) {
+                    return num;
+                }
+                return findInPages(order, index + 1, query);
+            });
+        };
+
+        const searchDocument = function() {
+            if (!pdfDocument || !searchInput || searchBusy) {
+                return;
+            }
+
+            const rawQuery = searchInput.value.trim();
+            const query = normalizeSearchText(rawQuery);
+            if (!query) {
+                if (searchStatus) {
+                    searchStatus.textContent = '';
+                }
+                return;
+            }
+
+            const repeated = query === lastSearchQuery && lastSearchPage > 0;
+            let start = repeated ? lastSearchPage + 1 : pageNumber;
+            if (start > pdfDocument.numPages) {
+                start = 1;
+            }
+
+            searchBusy = true;
+            if (searchButton) {
+                searchButton.disabled = true;
+            }
+            root.classList.add('is-searching');
+
+            findInPages(buildSearchOrder(start), 0, query).then(function(foundPage) {
+                lastSearchQuery = query;
+                lastSearchPage = foundPage;
+                if (foundPage > 0) {
+                    if (searchStatus) {
+                        searchStatus.textContent =
+                            (root.getAttribute('data-search-result-page') || 'Result on page') + ' ' + foundPage;
+                    }
+                    go(foundPage, true);
+                } else if (searchStatus) {
+                    searchStatus.textContent = root.getAttribute('data-search-not-found') || 'No results found';
+                }
+            }).catch(Notification.exception).finally(function() {
+                searchBusy = false;
+                if (searchButton) {
+                    searchButton.disabled = false;
+                }
+                root.classList.remove('is-searching');
+            });
+        };
+
         if (previous) {
             previous.addEventListener('click', function() {
-                go(pageNumber - 1);
+                go(pageNumber - 1, true);
             });
         }
         if (next) {
             next.addEventListener('click', function() {
-                go(pageNumber + 1);
+                go(pageNumber + 1, true);
             });
         }
         if (zoomIn) {
@@ -355,6 +483,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 zoomFactor = 1;
                 autoFit = true;
                 queue(pageNumber);
+            });
+        }
+        if (searchForm) {
+            searchForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                searchDocument();
             });
         }
         if (wrap) {
@@ -389,11 +523,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.35) {
                     return;
                 }
-                if (dx < 0) {
-                    go(pageNumber + 1);
-                } else {
-                    go(pageNumber - 1);
-                }
+                go(pageNumber + (dx < 0 ? 1 : -1), true);
             }, {passive: true});
         }
         if (fullscreen) {
@@ -402,19 +532,33 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     document.exitFullscreen();
                     return;
                 }
+                if (root.classList.contains('is-fallback-fullscreen')) {
+                    root.classList.remove('is-fallback-fullscreen');
+                    document.documentElement.classList.remove('mod-videoplayer-no-scroll');
+                    document.body.classList.remove('mod-videoplayer-no-scroll');
+                    queue(pageNumber);
+                    return;
+                }
                 if (root.requestFullscreen) {
                     root.requestFullscreen().catch(function() {
                         root.classList.add('is-fallback-fullscreen');
+                        document.documentElement.classList.add('mod-videoplayer-no-scroll');
+                        document.body.classList.add('mod-videoplayer-no-scroll');
                         queue(pageNumber);
                     });
                 } else {
                     root.classList.add('is-fallback-fullscreen');
+                    document.documentElement.classList.add('mod-videoplayer-no-scroll');
+                    document.body.classList.add('mod-videoplayer-no-scroll');
                     queue(pageNumber);
                 }
             });
+
             document.addEventListener('fullscreenchange', function() {
                 if (!document.fullscreenElement) {
                     root.classList.remove('is-fallback-fullscreen');
+                    document.documentElement.classList.remove('mod-videoplayer-no-scroll');
+                    document.body.classList.remove('mod-videoplayer-no-scroll');
                 }
                 if (pdfDocument) {
                     queue(pageNumber);
@@ -422,14 +566,20 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             });
         }
 
+        let resizeTimer = null;
         window.addEventListener('resize', function() {
             root.classList.toggle('is-mobile-viewer', isMobileViewport());
-            if (pdfDocument) {
+            if (!pdfDocument) {
+                return;
+            }
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(function() {
                 autoFit = true;
                 zoomFactor = 1;
                 queue(pageNumber);
-            }
+            }, 180);
         });
+
         window.addEventListener('beforeunload', function() {
             saveProgress(true);
         });
@@ -440,11 +590,22 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 lastTick = Date.now();
             }
         });
+        window.setInterval(function() {
+            if (!document.hidden) {
+                saveProgress(false);
+            }
+        }, HEARTBEAT_INTERVAL);
 
         hide(loading, false);
-        pdfjsLib.getDocument({url: pdfUrl, withCredentials: true, rangeChunkSize: 262144}).promise.then(function(pdf) {
+        pdfjsLib.getDocument({
+            url: pdfUrl,
+            withCredentials: true,
+            rangeChunkSize: 262144,
+            disableAutoFetch: false,
+            disableStream: false
+        }).promise.then(function(pdf) {
             pdfDocument = pdf;
-            pageNumber = Math.min(pageNumber, pdfDocument.numPages);
+            pageNumber = Math.max(1, Math.min(pageNumber, pdfDocument.numPages));
             updateButtons();
             renderPage(pageNumber);
         }).catch(function(error) {
@@ -458,8 +619,13 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         if (!viewers.length) {
             return;
         }
+
         loadPdfJs().then(function(pdfjsLib) {
             viewers.forEach(function(root) {
+                if (root.dataset.pdfViewerReady === '1') {
+                    return;
+                }
+                root.dataset.pdfViewerReady = '1';
                 initViewer(root, pdfjsLib);
             });
         }).catch(function(error) {
