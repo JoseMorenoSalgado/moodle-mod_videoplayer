@@ -19,9 +19,13 @@
          data-title="{{title}}"
          data-cmid="{{cmid}}"
          data-initial-page="{{initialpage}}"
+         data-initial-progress="{{initialprogress}}"
+         data-initial-time-spent="{{initialtimespent}}"
+         data-visited-pages="{{visitedpages}}"
+         data-initial-completed="{{#completed}}1{{/completed}}{{^completed}}0{{/completed}}"
          data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
          data-watermark="{{#enablewatermark}}{{watermark}}{{/enablewatermark}}"
-         oncontextmenu="return false;">
+         {{#disablecontextmenu}}oncontextmenu="return false;"{{/disablecontextmenu}}>
 
         <div class="mod-videoplayer-book-stage" data-region="book-stage" aria-label="{{title}}">
             <div class="mod-videoplayer-book-loading" data-region="book-loading">
