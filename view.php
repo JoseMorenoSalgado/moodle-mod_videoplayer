@@ -75,6 +75,7 @@ if ($source === 'localpdf') {
 $ispdfcompatible = drive::is_pdf_type($type);
 $isvideo = $type === 'video';
 $isimage = $type === 'image';
+$trackingenabled = (string)get_config('mod_videoplayer', 'enabletracking') !== '0';
 
 $typestringkey = 'type' . $type;
 $typestring = get_string_manager()->string_exists($typestringkey, 'mod_videoplayer')
@@ -82,7 +83,7 @@ $typestring = get_string_manager()->string_exists($typestringkey, 'mod_videoplay
     : get_string('typefile', 'mod_videoplayer');
 
 $progressrecord = null;
-if (!isguestuser()) {
+if (!isguestuser() && $trackingenabled) {
     $progressrecord = $DB->get_record('videoplayer_views', [
         'videoplayerid' => $videoplayer->id,
         'userid' => $USER->id,
@@ -92,7 +93,7 @@ if (!isguestuser()) {
 $initialprogress = $progressrecord ? (float)$progressrecord->progress : 0;
 $initialtimespent = $progressrecord ? (int)($progressrecord->timespent ?? 0) : 0;
 $completed = $progressrecord ? (bool)$progressrecord->completed : false;
-$requiredseconds = max(60, ((int)($videoplayer->completionpercentage ?? 80)) * 6);
+$requiredseconds = max(60, (int)get_config('mod_videoplayer', 'defaultrequiredseconds'));
 $displaymode = clean_param($videoplayer->displaymode ?? 'standard', PARAM_ALPHANUMEXT);
 if (!in_array($displaymode, ['standard', 'ebook'], true)) {
     $displaymode = 'standard';
@@ -100,7 +101,7 @@ if (!in_array($displaymode, ['standard', 'ebook'], true)) {
 
 // PDF and video resources have dedicated, content-aware progress trackers.
 // Other resources use generic active-presence tracking.
-if (!isguestuser() && !$ispdfcompatible && !$isvideo) {
+if ($trackingenabled && !isguestuser() && !$ispdfcompatible && !$isvideo) {
     $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
         'cmid' => $cm->id,
         'requiredSeconds' => $requiredseconds,
@@ -156,6 +157,8 @@ $templatecontext = [
     'type' => $type,
     'source' => $source,
     'cmid' => $cm->id,
+    'trackingcmid' => $trackingenabled ? $cm->id : 0,
+    'trackingenabled' => $trackingenabled,
     'resourcetype' => get_string('resourcetype', 'mod_videoplayer') . ': ' . $typestring,
     'pdfurl' => $protectedurl->out(false),
     'videourl' => $protectedurl->out(false),
