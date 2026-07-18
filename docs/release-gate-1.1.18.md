@@ -6,6 +6,8 @@ This document records the release gate for `1.1.18-beta` (`2026071702`).
 
 The release candidate must pass both repository workflows on the exact commit proposed for deployment.
 
+The final automated run must occur after the precise progress-report, language, changelog and formal-CI remediation changes are present in the branch. A previously green commit is not sufficient for release approval.
+
 ### Drive Resource quality
 
 Required checks:
