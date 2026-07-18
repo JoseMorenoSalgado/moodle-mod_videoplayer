@@ -4,6 +4,25 @@
     @template mod_videoplayer/pdfjs
 
     Protected PDF.js viewer for Drive Resource.
+    Example context (json):
+    {
+        "type": "pdf",
+        "cmid": 42,
+        "trackingcmid": 42,
+        "resourcetype": "Resource type: PDF",
+        "pdfurl": "https://example.invalid/protected.php?id=42",
+        "title": "Protected PDF",
+        "initialpage": 3,
+        "initialprogress": 30,
+        "initialtimespent": 30,
+        "completionpercent": 10,
+        "completed": false,
+        "visitedpages": "[1,2,3]",
+        "disablecontextmenu": true,
+        "enablewatermark": true,
+        "watermark": "Example User"
+    }
+
 }}
 <div class="mod-videoplayer-container mod-videoplayer-pdfjs" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">
@@ -24,7 +43,7 @@
     <div class="mod-videoplayer-pdfjs-viewer"
          data-pdf-url="{{pdfurl}}"
          data-title="{{title}}"
-         data-cmid="{{cmid}}"
+         data-cmid="{{trackingcmid}}"
          data-initial-page="{{initialpage}}"
          data-initial-progress="{{initialprogress}}"
          data-initial-time-spent="{{initialtimespent}}"

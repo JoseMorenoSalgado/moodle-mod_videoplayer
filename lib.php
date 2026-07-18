@@ -1,6 +1,29 @@
 <?php
-defined('MOODLE_INTERNAL') || die();
+// This file is part of Moodle - http://moodle.org/.
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * Core library callbacks for Drive Resource.
+ *
+ * @package    mod_videoplayer
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+
+/** File area used for protected local PDF files. */
 const VIDEOPLAYER_LOCALPDF_FILEAREA = 'localpdf';
 
 /**
@@ -8,6 +31,7 @@ const VIDEOPLAYER_LOCALPDF_FILEAREA = 'localpdf';
  *
  * @param string $feature
  * @return bool|null
+ * @package    mod_videoplayer
  */
 function videoplayer_supports($feature) {
     switch ($feature) {
@@ -30,6 +54,7 @@ function videoplayer_supports($feature) {
  * Queue PDF precache only for Google Drive PDF resources.
  *
  * @param int $instanceid
+ * @package    mod_videoplayer
  */
 function videoplayer_queue_pdf_precache(int $instanceid): void {
     global $DB;
@@ -50,6 +75,7 @@ function videoplayer_queue_pdf_precache(int $instanceid): void {
  *
  * @param stdClass $data
  * @return stdClass
+ * @package    mod_videoplayer
  */
 function videoplayer_normalise_instance_data(stdClass $data): stdClass {
     $data->source = clean_param($data->source ?? 'googledrive', PARAM_ALPHANUMEXT);
@@ -79,6 +105,7 @@ function videoplayer_normalise_instance_data(stdClass $data): stdClass {
  * @param stdClass $data
  * @param int $instanceid
  * @return void
+ * @package    mod_videoplayer
  */
 function videoplayer_save_localpdf_file(stdClass $data, int $instanceid): void {
     if (($data->source ?? 'googledrive') !== 'localpdf' || empty($data->localpdffile) || empty($data->coursemodule)) {
@@ -106,6 +133,7 @@ function videoplayer_save_localpdf_file(stdClass $data, int $instanceid): void {
  * @param stdClass $data
  * @param moodleform|null $mform
  * @return int
+ * @package    mod_videoplayer
  */
 function videoplayer_add_instance($data, $mform = null) {
     global $DB;
@@ -127,6 +155,7 @@ function videoplayer_add_instance($data, $mform = null) {
  * @param stdClass $data
  * @param moodleform|null $mform
  * @return bool
+ * @package    mod_videoplayer
  */
 function videoplayer_update_instance($data, $mform = null) {
     global $DB;
@@ -149,6 +178,7 @@ function videoplayer_update_instance($data, $mform = null) {
  *
  * @param int $id
  * @return bool
+ * @package    mod_videoplayer
  */
 function videoplayer_delete_instance($id) {
     global $DB;
@@ -175,6 +205,7 @@ function videoplayer_delete_instance($id) {
  *
  * @param context_module $context
  * @return stored_file|null
+ * @package    mod_videoplayer
  */
 function videoplayer_get_localpdf_file(context_module $context): ?stored_file {
     $fs = get_file_storage();

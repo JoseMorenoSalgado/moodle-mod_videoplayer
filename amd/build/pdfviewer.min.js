@@ -385,6 +385,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     pageNumber = queued;
                     renderPage(queued);
                 }
+                return null;
             }).catch(function(error) {
                 if (currentVersion !== renderVersion) {
                     return;
@@ -511,6 +512,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 } else if (searchStatus) {
                     searchStatus.textContent = root.getAttribute('data-search-not-found') || 'No results found';
                 }
+                return null;
             }).catch(Notification.exception).finally(function() {
                 searchBusy = false;
                 if (searchButton) {
@@ -674,6 +676,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             pageNumber = Math.max(1, Math.min(pageNumber, pdfDocument.numPages));
             updateButtons();
             renderPage(pageNumber);
+            return null;
         }).catch(function(error) {
             Notification.exception(error);
             showError(root, error);
@@ -694,6 +697,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 root.dataset.pdfViewerReady = '1';
                 initViewer(root, pdfjsLib);
             });
+            return null;
         }).catch(function(error) {
             Notification.exception(error);
             viewers.forEach(function(root) {

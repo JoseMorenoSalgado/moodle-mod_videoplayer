@@ -131,7 +131,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (isMobile()) {
                 return num;
             }
-            return num <= 1 ? 1 : (num % 2 === 0 ? num : num - 1);
+            if (num <= 1) {
+                return 1;
+            }
+            return num % 2 === 0 ? num : num - 1;
         };
 
         const getVisiblePages = function() {
@@ -285,30 +288,31 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 return renderPromises.get(cacheKey);
             }
 
+            let renderedCanvas = null;
             const promise = pdfDocument.getPage(pageIndex).then(function(page) {
                 const base = page.getViewport({scale: 1});
                 const targetWidth = getPageWidth();
                 const scale = Math.min(Math.max(targetWidth / base.width, 0.5), 2.2);
                 const viewport = page.getViewport({scale: scale});
                 const outputScale = Math.min(window.devicePixelRatio || 1, 2);
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d', {alpha: false});
+                renderedCanvas = document.createElement('canvas');
+                const context = renderedCanvas.getContext('2d', {alpha: false});
 
-                canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
-                canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
-                canvas.style.width = Math.floor(viewport.width) + 'px';
-                canvas.style.height = Math.floor(viewport.height) + 'px';
-                canvas.setAttribute('draggable', 'false');
+                renderedCanvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+                renderedCanvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+                renderedCanvas.style.width = Math.floor(viewport.width) + 'px';
+                renderedCanvas.style.height = Math.floor(viewport.height) + 'px';
+                renderedCanvas.setAttribute('draggable', 'false');
 
                 return page.render({
                     canvasContext: context,
                     viewport: viewport,
                     transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null
-                }).promise.then(function() {
-                    pageCache.set(cacheKey, canvas);
-                    pruneCache();
-                    return canvas;
-                });
+                }).promise;
+            }).then(function() {
+                pageCache.set(cacheKey, renderedCanvas);
+                pruneCache();
+                return renderedCanvas;
             }).finally(function() {
                 renderPromises.delete(cacheKey);
             });
@@ -373,6 +377,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     pagesRegion.appendChild(createPageNode(canvas, visiblePages[index], index));
                 });
                 finishRender(visiblePages);
+                return null;
             }).catch(function(err) {
                 rendering = false;
                 hide(loading, true);
@@ -529,6 +534,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
             updateStatus();
             renderSpread();
+            return null;
         }).catch(function(err) {
             hide(loading, true);
             hide(error, false);
@@ -549,6 +555,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 root.dataset.bookViewerReady = '1';
                 initViewer(root, pdfjsLib);
             });
+            return null;
         }).catch(function(err) {
             Notification.exception(err);
             roots.forEach(function(root) {

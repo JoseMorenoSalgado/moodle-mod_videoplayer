@@ -1,9 +1,21 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/.
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace mod_videoplayer\local;
 
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Resilient HTTP byte-range proxy for protected Drive resources.
@@ -17,7 +29,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class http_range_proxy {
-
     /** @var int cURL streaming buffer size in bytes. */
     private const STREAM_BUFFER_SIZE = 262144;
 
@@ -65,7 +76,7 @@ final class http_range_proxy {
         $invalidcontent = false;
         $ishead = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD';
 
-        $headercallback = static function($curl, string $header) use (&$responseheaders, &$discardbody): int {
+        $headercallback = static function ($curl, string $header) use (&$responseheaders, &$discardbody): int {
             $length = strlen($header);
             $trimmed = trim($header);
             if ($trimmed === '') {
@@ -121,7 +132,10 @@ final class http_range_proxy {
             // Enable libcurl's in-memory cookie engine so cookies set during
             // Google redirects are retained for subsequent redirect hops.
             CURLOPT_COOKIEFILE => '',
-            CURLOPT_WRITEFUNCTION => static function($curl, string $data) use (
+            CURLOPT_WRITEFUNCTION => static function (
+                $curl,
+                string $data
+            ) use (
                 &$headerssent,
                 &$responseheaders,
                 &$discardbody,

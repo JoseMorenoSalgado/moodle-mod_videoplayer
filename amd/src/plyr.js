@@ -456,6 +456,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 });
                 markOrientation(node);
             });
+            return null;
         }).catch(function(error) {
             nodes.forEach(function(node) {
                 node.controls = true;

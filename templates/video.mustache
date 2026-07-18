@@ -4,6 +4,23 @@
     @template mod_videoplayer/video
 
     Protected HTML5 video viewer with precise playback progress state.
+    Example context (json):
+    {
+        "type": "video",
+        "cmid": 42,
+        "trackingcmid": 42,
+        "resourcetype": "Resource type: Video",
+        "videourl": "https://example.invalid/protected.php?id=42",
+        "title": "Protected video",
+        "disablecontextmenu": true,
+        "lastsecond": 15.5,
+        "totalseconds": 120,
+        "initialtimespent": 20,
+        "watchedranges": "[[0,15.5]]",
+        "completionpercent": 12.92,
+        "completed": false
+    }
+
 }}
 <div class="mod-videoplayer-container mod-videoplayer-native" data-resource-type="{{type}}" data-cmid="{{cmid}}"{{#playerstyle}} style="{{playerstyle}}"{{/playerstyle}}>
     <div class="mod-videoplayer-meta mb-2">
@@ -18,14 +35,11 @@
         <video
             class="mod-videoplayer-native-video js-drive-resource-video"
             controls
-            controlslist="nodownload"
             draggable="false"
             {{#disablecontextmenu}}oncontextmenu="return false;"{{/disablecontextmenu}}
             playsinline
-            webkit-playsinline
-            x-webkit-airplay="allow"
             preload="metadata"
-            data-cmid="{{cmid}}"
+            data-cmid="{{trackingcmid}}"
             data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
             data-initial-second="{{lastsecond}}"
             data-total-seconds="{{totalseconds}}"

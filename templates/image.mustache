@@ -4,6 +4,18 @@
     @template mod_videoplayer/image
 
     Protected image viewer for Drive Resource.
+    Example context (json):
+    {
+        "type": "image",
+        "cmid": 42,
+        "resourcetype": "Resource type: Image",
+        "imageurl": "https://example.invalid/protected.php?id=42",
+        "title": "Protected image",
+        "disablecontextmenu": true,
+        "enablewatermark": true,
+        "watermark": "Example User"
+    }
+
 }}
 <div class="mod-videoplayer-container mod-videoplayer-image" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">

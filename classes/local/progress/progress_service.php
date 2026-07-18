@@ -1,5 +1,18 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of Moodle - http://moodle.org/.
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace mod_videoplayer\local\progress;
 
@@ -14,7 +27,6 @@ use mod_videoplayer\local\gamification\reward_service;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class progress_service {
-
     /** @var int Maximum PDF page identifiers accepted in one progress record. */
     private const MAX_VISITED_PAGES = 20000;
 
@@ -32,13 +44,13 @@ class progress_service {
      * ranges. Client-provided percentages are therefore advisory only for
      * generic resource types.
      *
-     * @param \cm_info|object $cm
-     * @param object $course
-     * @param object $videoplayer
-     * @param \context_module $context
-     * @param int $userid
-     * @param array $input
-     * @return array
+     * @param object $cm Course module information.
+     * @param object $course Course record.
+     * @param object $videoplayer Drive Resource activity record.
+     * @param \context_module $context Module context.
+     * @param int $userid User ID.
+     * @param array $input Sanitised progress input.
+     * @return array Persisted progress state.
      */
     public function save_progress(
         object $cm,
@@ -343,7 +355,7 @@ class progress_service {
      */
     private function merge_ranges(array $existing, array $incoming, float $duration): array {
         $ranges = array_merge($existing, $incoming);
-        usort($ranges, static function(array $a, array $b): int {
+        usort($ranges, static function (array $a, array $b): int {
             return $a[0] <=> $b[0];
         });
 
