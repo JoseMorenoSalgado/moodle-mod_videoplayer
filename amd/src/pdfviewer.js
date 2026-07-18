@@ -366,7 +366,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }).promise;
             }).then(function(result) {
                 if (result === null || currentVersion !== renderVersion) {
-                    return;
+                    return null;
                 }
                 rendering = false;
                 visitedPages.add(num);
