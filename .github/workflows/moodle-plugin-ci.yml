@@ -15,6 +15,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  source-snapshot:
+    name: Source snapshot
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: drive-resource-source-${{ github.sha }}
+          path: plugin
+          include-hidden-files: true
+          retention-days: 1
+
   formal-prechecks:
     name: Moodle ${{ matrix.moodle }} / PHP ${{ matrix.php }} formal prechecks
     runs-on: ubuntu-22.04
