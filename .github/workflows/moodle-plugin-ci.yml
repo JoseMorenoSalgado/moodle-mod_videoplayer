@@ -77,32 +77,73 @@ jobs:
 
       - name: PHP lint
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci phplint
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci phplint 2>&1 | tee phplint.log
 
       - name: Moodle Code Checker
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci phpcs --max-warnings 0
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci phpcs --max-warnings 0 2>&1 | tee phpcs.log
 
       - name: Moodle PHPDoc Checker
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci phpdoc --max-warnings 0
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci phpdoc --max-warnings 0 2>&1 | tee phpdoc.log
 
       - name: Plugin validation
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci validate
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci validate 2>&1 | tee validate.log
 
       - name: Upgrade savepoints
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci savepoints
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci savepoints 2>&1 | tee savepoints.log
 
       - name: Mustache lint
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci mustache
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci mustache 2>&1 | tee mustache.log
 
       - name: Grunt build and lint checks
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci grunt --max-lint-warnings 0
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci grunt --max-lint-warnings 0 2>&1 | tee grunt.log
 
       - name: PHPUnit
         if: ${{ !cancelled() }}
-        run: moodle-plugin-ci phpunit --fail-on-warning
+        shell: bash
+        run: |
+          set -o pipefail
+          moodle-plugin-ci phpunit --fail-on-warning 2>&1 | tee phpunit.log
+
+      - name: Upload formal precheck diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: moodle-plugin-ci-${{ matrix.moodle }}-php-${{ matrix.php }}
+          path: |
+            phplint.log
+            phpcs.log
+            phpdoc.log
+            validate.log
+            savepoints.log
+            mustache.log
+            grunt.log
+            phpunit.log
+          if-no-files-found: ignore
+          retention-days: 7
