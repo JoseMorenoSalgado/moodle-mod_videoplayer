@@ -50,23 +50,30 @@ jobs:
 
           path = Path('plugin/amd/src/pdfviewer.js')
           text = path.read_text(encoding='utf-8')
-          old = """            const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
+          old = '''            const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
               pageNumber = safe;
               if (rendering) {
                   pendingPage = safe;
                   renderVersion++;
                   rendering = false;
               }
-              renderPage(safe);
-          """
+              renderPage(safe);'''.replace('              ', '            ', 1)
+          # Use the exact source block, independent of YAML indentation.
+          old = """            const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
+            pageNumber = safe;
+            if (rendering) {
+                pendingPage = safe;
+                renderVersion++;
+                rendering = false;
+            }
+            renderPage(safe);"""
           new = """            const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
-              if (rendering) {
-                  pendingPage = safe;
-                  return;
-              }
-              pageNumber = safe;
-              renderPage(safe);
-          """
+            if (rendering) {
+                pendingPage = safe;
+                return;
+            }
+            pageNumber = safe;
+            renderPage(safe);"""
           if old not in text:
               raise SystemExit('Expected unsafe PDF render queue pattern not found')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
