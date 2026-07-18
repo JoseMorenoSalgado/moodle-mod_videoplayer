@@ -1,0 +1,108 @@
+name: Moodle Plugin CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'production/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moodle-plugin-ci-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  formal-prechecks:
+    name: Moodle ${{ matrix.moodle }} / PHP ${{ matrix.php }} formal prechecks
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - moodle: '5.0'
+            moodlebranch: MOODLE_500_STABLE
+            php: '8.2'
+          - moodle: '5.2'
+            moodlebranch: MOODLE_502_STABLE
+            php: '8.3'
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, dom, fileinfo, gd, intl, json, mbstring, pgsql, simplexml, sodium, xml, xmlreader, zip
+          ini-values: max_input_vars=5000
+          coverage: none
+
+      - name: Install moodle-plugin-ci
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer create-project -n --no-dev --prefer-dist moodlehq/moodle-plugin-ci ci '^4'
+          echo "$(cd ci/bin && pwd)" >> "$GITHUB_PATH"
+          echo "$(cd ci/vendor/bin && pwd)" >> "$GITHUB_PATH"
+          sudo locale-gen en_AU.UTF-8
+          echo "NVM_DIR=$HOME/.nvm" >> "$GITHUB_ENV"
+
+      - name: Install Moodle test environment
+        shell: bash
+        run: moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
+        env:
+          DB: pgsql
+          MOODLE_BRANCH: ${{ matrix.moodlebranch }}
+
+      - name: PHP lint
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci phplint
+
+      - name: Moodle Code Checker
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci phpcs --max-warnings 0
+
+      - name: Moodle PHPDoc Checker
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci phpdoc --max-warnings 0
+
+      - name: Plugin validation
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci validate
+
+      - name: Upgrade savepoints
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci savepoints
+
+      - name: Mustache lint
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci mustache
+
+      - name: Grunt build and lint checks
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci grunt --max-lint-warnings 0
+
+      - name: PHPUnit
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci phpunit --fail-on-warning
