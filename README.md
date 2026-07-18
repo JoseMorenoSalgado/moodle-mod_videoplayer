@@ -2,24 +2,56 @@
 
 **Drive Resource** is a Moodle activity module for publishing protected learning resources from Google Drive and Moodle private storage.
 
-The internal Moodle component remains `mod_videoplayer` for compatibility with existing installations. The user-facing commercial product name is **Drive Resource**.
+The internal Moodle component remains `mod_videoplayer` for upgrade compatibility. The commercial product name is **Drive Resource**.
+
+## Current production architecture
+
+```text
+Google Drive share link / Moodle private PDF
+↓
+Drive Resource activity
+↓
+protected.php
+↓
+require_login + course module + context_module + capability
+↓
+protected_stream OR http_range_proxy
+↓
+Moodle-owned viewer
+↓
+learner
+```
+
+Supported protected viewer paths:
+
+- Video: HTML5 + locally bundled Plyr.
+- PDF: locally bundled PDF.js.
+- Google Docs: server-side PDF export + local PDF.js.
+- Google Sheets: server-side PDF export + local PDF.js.
+- Google Slides: server-side PDF export + local PDF.js.
+- Images: protected Moodle endpoint + native responsive image viewer.
+- Local PDFs: Moodle File API + protected byte-range delivery + local PDF.js.
+
+The learner-facing protected paths do not use the Google Drive preview iframe and do not render raw Drive file IDs, preview URLs or direct download URLs in the plugin-owned viewer HTML.
 
 ## Features
 
-- Google Drive resources delivered through Moodle-owned protected endpoints.
-- Videos, PDFs, images, documents, spreadsheets and presentations.
-- Local protected PDFs stored through Moodle File API.
-- Local PDF.js rendering with no CDN dependency.
-- HTML5 video playback progressively enhanced with local Plyr assets.
-- iPhone/iPad-oriented video streaming with proper byte-range semantics.
-- `Range`, `If-Range`, `HEAD`, `206 Partial Content` and `416` handling for protected upstream delivery.
+- Server-side Moodle authorization before protected bytes are delivered.
+- `Range`, `If-Range`, `HEAD`, `206 Partial Content` and `416` handling.
+- Dedicated upstream `http_range_proxy` service.
+- Rejection of unexpected HTML/JSON interstitial responses before they reach media/PDF viewers.
+- Redirect cookie continuity for Google download flows.
+- HTML5 video with local Plyr enhancement and native fallback.
+- iPhone/iPad inline playback attributes and protected seeking.
+- Local PDF.js with page navigation, zoom, fit-to-screen, fullscreen and text search.
+- Responsive mobile PDF layout with bounded device-pixel-ratio rendering.
 - Fast-first-byte Google Drive PDF loading.
-- Asynchronous, deduplicated PDF cache warming through Moodle ad-hoc tasks.
+- Deduplicated asynchronous PDF cache warming through Moodle ad-hoc tasks.
 - Protected PDF cache outside the web root.
-- Responsive protected book viewer.
-- Fullscreen, page navigation and mobile swipe behavior.
-- Reading/progress tracking and Moodle Completion API integration.
-- Moodle Events API integration.
+- Resume from the actual last saved page.
+- PDF completion based on pages observed by the standard viewer rather than simply reaching the last page.
+- Cumulative active-time tracking across PDF sessions.
+- Moodle Completion API and Events API integration.
 - Optional watermark and gamification features.
 - Backup & Restore support.
 - Privacy API support.
@@ -27,28 +59,37 @@ The internal Moodle component remains `mod_videoplayer` for compatibility with e
 
 ## Requirements
 
-- Moodle 4.x or Moodle 5.x target environment.
-- PHP 8.2+ recommended.
+The current plugin metadata declares:
+
+```text
+$plugin->requires = 2025041400
+```
+
+Therefore the current production baseline is **Moodle 5.0 or newer**. Moodle 4.x remains a project compatibility target, but it must not be advertised as production-supported until a dedicated 4.x compatibility test matrix is completed and the minimum Moodle requirement is intentionally lowered.
+
+Additional requirements:
+
+- PHP version supported by the installed Moodle branch.
 - PHP cURL extension.
-- HTTPS for production use.
-- Moodle cron configured and running.
+- HTTPS in production.
+- Moodle cron configured and running frequently.
 - Writable `$CFG->localcachedir`.
 - Required third-party libraries bundled locally.
 
+For Moodle 5.2 deployments, follow Moodle's PHP requirements for that branch rather than relying only on the plugin's PHP syntax compatibility.
+
 ## Required local libraries
 
-Drive Resource must not use CDN assets in production.
+Runtime CDN dependencies are not permitted.
 
 ```text
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
 thirdpartylibs/plyr/plyr.css
 thirdpartylibs/plyr/plyr.min.js
-thirdpartylibs/pageflip/page-flip.browser.js   # optional
-thirdpartylibs/pageflip/page-flip.css         # optional
+thirdpartylibs/pageflip/page-flip.browser.js   # optional book mode
+thirdpartylibs/pageflip/page-flip.css         # optional book mode
 ```
-
-PageFlip is optional. Protected PDF.js rendering remains available without it.
 
 ## Installation
 
@@ -64,47 +105,23 @@ Run Moodle upgrade:
 php admin/cli/upgrade.php
 ```
 
-Then purge Moodle caches and verify cron/ad-hoc task execution.
+Then:
 
-See `docs/installation.md` for production validation.
-
-## Protected delivery architecture
-
-```text
-Google Drive link / Moodle private PDF
-↓
-Drive Resource activity
-↓
-protected.php
-↓
-require_login + course module + context_module + capability
-↓
-protected_stream OR http_range_proxy
-↓
-Moodle-owned viewer
-↓
-learner
-```
-
-### Local and cached files
-
-`classes/local/protected_stream.php` handles trusted local/cache file delivery and byte ranges.
-
-### Upstream resources
-
-`classes/local/http_range_proxy.php` handles protected upstream HTTP streaming. It forwards a single validated byte range and safely preserves the metadata needed by Safari/iOS media playback and PDF.js range loading.
-
-The plugin-owned protected video/PDF UI does not expose raw Google Drive file IDs, download URLs or preview URLs.
+1. Purge Moodle caches.
+2. Confirm cron and ad-hoc tasks run successfully.
+3. Confirm `$CFG->localcachedir` is writable.
+4. Run the staging checklist in `docs/manual-test-checklist.md`.
+5. Validate physical iPhone/iPad playback before production deployment.
 
 ## Fast-first-byte PDF loading
 
-When a Google Drive PDF is already cached:
+Warm cache:
 
 ```text
 protected.php → local cache → Range response → PDF.js
 ```
 
-When the PDF cache is cold:
+Cold cache:
 
 ```text
 PDF.js range request
@@ -120,15 +137,15 @@ Moodle cron warms complete PDF cache
 later requests use local cache
 ```
 
-This avoids making the first page wait for a complete PDF download. The PDF is not recompressed, rasterized or transcoded, so document quality is preserved.
+The cache flow does not recompress, rasterize or transcode the PDF, preserving original document quality.
 
-Cache files are stored under:
+Cache location:
 
 ```text
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
 
-Possible diagnostic headers include:
+Diagnostic response states include:
 
 ```text
 X-Drive-Resource-Cache: LOCAL
@@ -140,19 +157,23 @@ X-Drive-Resource-Cache: BYPASS
 
 ## iPhone/iPad video playback
 
-Protected video playback uses an HTML5 `<video>` element and local Plyr enhancement.
-
-The current implementation:
+Protected video playback:
 
 - keeps `playsinline` and `webkit-playsinline`;
-- uses `preload="metadata"` to reduce initial transfer pressure;
-- does not force every source to `video/mp4`;
-- preserves native HTML5 controls as a fallback;
-- uses the protected range proxy for seeking;
-- avoids duplicate upstream `Range` headers;
-- safely relays valid partial-content metadata.
+- uses `preload="metadata"`;
+- keeps native HTML5 controls as a fallback;
+- uses a single canonical upstream byte range;
+- safely relays valid partial-content metadata;
+- preserves redirect cookies in the cURL flow;
+- rejects HTML login/warning pages instead of returning them as successful media.
 
-Production QA should include Safari on physical iPhone/iPad devices because simulator behavior does not cover every media-stack edge case.
+Production QA must still include physical Safari/iOS testing because server-side protocol correctness cannot replace validation against the Apple media stack and the actual Google Drive file being used.
+
+## Google Drive access model and enterprise roadmap
+
+The current release supports server-side delivery of **shareable Google Drive/Google Docs resources**. Generic `drive.google.com/file/d/...` links do not contain MIME metadata, so teachers must explicitly choose Video, PDF or Image when automatic detection cannot determine the resource type.
+
+The current release does **not yet implement a site-owned OAuth/service-account Google Drive API integration for private enterprise files**. That is a separate commercial-hardening milestone. A future Drive API integration should use authenticated server-side metadata/content access while preserving the same Moodle authorization boundary and protected viewer URLs.
 
 ## Security model
 
@@ -166,22 +187,24 @@ protected.php
 protected_stream / http_range_proxy
 ```
 
-Browser controls such as hiding download buttons, disabling right click and showing watermarks are deterrents, not DRM.
+Browser restrictions such as hiding download controls, disabling right click and displaying watermarks are deterrents, not DRM.
 
-See `docs/security.md` for the complete threat model and release checklist.
+Unknown generic file types are not embedded as active same-origin HTML. Only explicitly supported protected viewer types are rendered.
+
+See `docs/security.md` for the threat model.
 
 ## Progress tracking
 
-Drive Resource tracks supported reading/viewing state including:
+Drive Resource stores supported viewing state including:
 
-- active time;
+- cumulative active time;
 - completion percentage;
-- last page;
+- actual last page;
 - total pages;
 - completion state;
-- points/rewards when enabled.
+- optional points/rewards.
 
-Moodle completion and events are updated through the plugin service layer.
+The standard PDF viewer maintains monotonic completion progress while keeping `lastpage` as the actual page where the learner stopped, allowing correct resume behavior.
 
 ## JavaScript AMD build
 
@@ -197,13 +220,27 @@ Production bundles:
 amd/build/
 ```
 
-Build with Moodle tooling:
+Critical production AMD modules must exist in `amd/build/`. The repository CI checks JavaScript syntax and verifies that the production PDF viewer bundle matches its source implementation.
+
+For normal development, rebuild AMD with Moodle tooling:
 
 ```bash
 npx grunt amd
 ```
 
-or the equivalent `grunt amd` command in a configured Moodle development environment.
+## Quality gates
+
+The repository contains `.github/workflows/quality.yml` with checks for:
+
+- PHP syntax on PHP 8.2 and 8.3;
+- JavaScript syntax;
+- XML well-formedness;
+- critical AMD bundle consistency;
+- required local third-party assets;
+- runtime CDN regressions;
+- reintroduction of Google preview/iframe paths into the protected learner-facing architecture.
+
+CI is necessary but not sufficient. Staging Moodle, cron, real Drive files and physical mobile devices must be tested before release.
 
 ## Documentation
 
@@ -216,13 +253,14 @@ or the equivalent `grunt amd` command in a configured Moodle development environ
 
 ## Compatibility
 
-Current development release:
+Current release candidate:
 
-- Release: `1.1.17-beta`
+- Release: `1.1.18-beta`
 - Moodle component: `mod_videoplayer`
 - Product name: Drive Resource
-- Target Moodle versions: 4.x and 5.x
-- Recommended PHP: 8.2+
+- Declared minimum Moodle build: `2025041400` (Moodle 5.0)
+- Moodle 4.x: compatibility target, not yet production-declared
+- PHP: use a version supported by the selected Moodle release
 
 ## License
 
