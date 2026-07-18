@@ -1,3 +1,10 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template mod_videoplayer/pdfjs
+
+    Protected PDF.js viewer for Drive Resource.
+}}
 <div class="mod-videoplayer-container mod-videoplayer-pdfjs" data-resource-type="{{type}}" data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">
         <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
@@ -7,22 +14,44 @@
         {{/completionpercent}}
     </div>
 
-    {{#initialpage}}
-        <div class="mod-videoplayer-resume alert alert-info" data-region="pdfjs-resume" {{^totalpages}}hidden{{/totalpages}}>
+    {{#totalpages}}
+        <div class="mod-videoplayer-resume alert alert-info" data-region="pdfjs-resume">
             {{#str}} resumereading, mod_videoplayer {{/str}}
-            <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
+            <strong>{{initialpage}}</strong> / {{totalpages}}
         </div>
-    {{/initialpage}}
+    {{/totalpages}}
 
     <div class="mod-videoplayer-pdfjs-viewer"
          data-pdf-url="{{pdfurl}}"
          data-title="{{title}}"
          data-cmid="{{cmid}}"
          data-initial-page="{{initialpage}}"
+         data-initial-progress="{{initialprogress}}"
+         data-initial-time-spent="{{initialtimespent}}"
+         data-initial-completion="{{completionpercent}}"
+         data-initial-completed="{{#completed}}1{{/completed}}{{^completed}}0{{/completed}}"
          data-display-mode="standard"
          data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
          data-watermark="{{#enablewatermark}}{{watermark}}{{/enablewatermark}}"
+         data-search-not-found="{{#str}} searchpdfnotfound, mod_videoplayer {{/str}}"
+         data-search-result-page="{{#str}} searchpdfresultpage, mod_videoplayer {{/str}}"
          oncontextmenu="return false;">
+
+        <form class="mod-videoplayer-pdfjs-searchbar" data-region="pdf-search-form" role="search">
+            <label class="sr-only visually-hidden" for="mod-videoplayer-pdf-search-{{cmid}}">{{#str}} searchpdf, mod_videoplayer {{/str}}</label>
+            <input
+                id="mod-videoplayer-pdf-search-{{cmid}}"
+                class="form-control mod-videoplayer-pdfjs-search-input"
+                type="search"
+                data-region="pdf-search-input"
+                placeholder="{{#str}} searchpdfplaceholder, mod_videoplayer {{/str}}"
+                autocomplete="off">
+            <button type="submit" class="btn btn-secondary mod-videoplayer-pdfjs-search-button" data-action="search-pdf">
+                {{#str}} searchpdf, mod_videoplayer {{/str}}
+            </button>
+            <span class="mod-videoplayer-pdfjs-search-status" data-region="pdf-search-status" aria-live="polite"></span>
+        </form>
+
         <div class="mod-videoplayer-pdfjs-canvas-wrap" oncontextmenu="return false;">
             <div class="mod-videoplayer-pdfjs-loading" data-region="pdfjs-loading">
                 <span class="mod-videoplayer-pdfjs-spinner" aria-hidden="true"></span>
@@ -34,7 +63,7 @@
                     <span aria-hidden="true">‹</span>
                 </button>
 
-                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomout" data-action="zoom-out" title="Alejar" aria-label="Alejar">
+                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomout" data-action="zoom-out" title="{{#str}} zoomout, mod_videoplayer {{/str}}" aria-label="{{#str}} zoomout, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">−</span>
                 </button>
 
@@ -43,11 +72,11 @@
                     <span class="mod-videoplayer-pdfjs-zoom-status" data-region="zoom-level">100%</span>
                 </span>
 
-                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomin" data-action="zoom-in" title="Acercar" aria-label="Acercar">
+                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomin" data-action="zoom-in" title="{{#str}} zoomin, mod_videoplayer {{/str}}" aria-label="{{#str}} zoomin, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">+</span>
                 </button>
 
-                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fit" data-action="fit-screen" title="Ajustar a pantalla" aria-label="Ajustar a pantalla">
+                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fit" data-action="fit-screen" title="{{#str}} fitscreen, mod_videoplayer {{/str}}" aria-label="{{#str}} fitscreen, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">⤢</span>
                 </button>
 
