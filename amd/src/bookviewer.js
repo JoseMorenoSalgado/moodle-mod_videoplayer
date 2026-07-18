@@ -1,10 +1,10 @@
 // This file is part of Moodle - http://moodle.org/
 
 /**
- * Protected responsive book viewer for Drive Resource.
+ * Protected responsive PDF book viewer for Drive Resource.
  *
- * Desktop renders a two-page spread. Mobile renders one page with a light
- * flip-style transition. The PDF source remains protected through Moodle.
+ * Desktop renders a two-page spread and mobile renders one page. The viewer
+ * persists exact observed pages and cumulative active reading time.
  *
  * @module     mod_videoplayer/bookviewer
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
@@ -14,10 +14,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
     const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
     const SAVE_INTERVAL = 10000;
+    const HEARTBEAT_INTERVAL = 30000;
     const MOBILE_QUERY = '(max-width: 767.98px)';
     const MOBILE_CACHE_LIMIT = 5;
     const DESKTOP_CACHE_LIMIT = 8;
-    const PREFETCH_DELAY = 80;
+    const MAX_VISITED_PAGES = 20000;
     let pdfjsPromise = null;
 
     const loadPdfJs = function() {
@@ -46,6 +47,27 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         return false;
     };
 
+    const parseVisitedPages = function(value) {
+        let parsed;
+        try {
+            parsed = JSON.parse(value || '[]');
+        } catch (error) {
+            parsed = [];
+        }
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        const unique = new Set();
+        parsed.slice(0, MAX_VISITED_PAGES).forEach(function(page) {
+            const num = parseInt(page, 10);
+            if (num > 0) {
+                unique.add(num);
+            }
+        });
+        return Array.from(unique);
+    };
+
     const hardenViewer = function(root) {
         if (root.getAttribute('data-disable-context-menu') !== '1') {
             return;
@@ -55,7 +77,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         });
         root.addEventListener('keydown', function(event) {
             const key = (event.key || '').toLowerCase();
-            if ((event.ctrlKey || event.metaKey) && ['s', 'p', 'c', 'a'].indexOf(key) !== -1) {
+            if ((event.ctrlKey || event.metaKey) && ['s', 'p'].indexOf(key) !== -1) {
                 block(event);
             }
         }, true);
@@ -75,7 +97,8 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const totalPagesNode = root.querySelector('[data-region="total-pages"]');
         const loading = root.querySelector('[data-region="book-loading"]');
         const error = root.querySelector('[data-region="book-error"]');
-        const progressNode = (root.closest('.mod-videoplayer-container') || document).querySelector('[data-region="book-progress"]');
+        const container = root.closest('.mod-videoplayer-container') || document;
+        const progressNode = container.querySelector('[data-region="book-progress"]');
 
         if (!pdfUrl || !stage || !pagesRegion) {
             hide(loading, true);
@@ -90,15 +113,17 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         let rendering = false;
         let pendingPage = null;
         let lastSave = 0;
-        let activeSeconds = 0;
+        let activeSeconds = Math.max(0, parseFloat(root.getAttribute('data-initial-progress')) || 0);
+        let timeSpent = Math.max(0, parseInt(root.getAttribute('data-initial-time-spent'), 10) || 0);
         let lastTick = Date.now();
-        let completed = false;
+        let completed = root.getAttribute('data-initial-completed') === '1';
         let touchStartX = 0;
         let touchStartY = 0;
         let touchMoved = false;
-        let renderVersion = 0;
         let turnDirection = 'forward';
-
+        let saveInFlight = null;
+        let saveQueued = false;
+        const visitedPages = new Set(parseVisitedPages(root.getAttribute('data-visited-pages')));
         const pageCache = new Map();
         const renderPromises = new Map();
 
@@ -136,8 +161,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         const pruneCache = function() {
             const limit = isMobile() ? MOBILE_CACHE_LIMIT : DESKTOP_CACHE_LIMIT;
             while (pageCache.size > limit) {
-                const firstKey = pageCache.keys().next().value;
-                pageCache.delete(firstKey);
+                pageCache.delete(pageCache.keys().next().value);
             }
         };
 
@@ -146,12 +170,33 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             renderPromises.clear();
         };
 
+        const serializeVisitedPages = function() {
+            return JSON.stringify(Array.from(visitedPages).sort(function(a, b) {
+                return a - b;
+            }).slice(0, MAX_VISITED_PAGES));
+        };
+
+        const absorbServerPages = function(value) {
+            parseVisitedPages(value).forEach(function(page) {
+                if (!pdfDocument || page <= pdfDocument.numPages) {
+                    visitedPages.add(page);
+                }
+            });
+        };
+
+        const completionPercent = function() {
+            if (!pdfDocument || !pdfDocument.numPages) {
+                return 0;
+            }
+            return Math.min(100, Math.round((visitedPages.size / pdfDocument.numPages) * 10000) / 100);
+        };
+
         const updateStatus = function() {
             if (!pdfDocument) {
                 return;
             }
+            const pages = getVisiblePages();
             if (currentPageNode) {
-                const pages = getVisiblePages();
                 currentPageNode.textContent = pages.length > 1 ? pages[0] + '-' + pages[1] : String(pageNumber);
             }
             if (totalPagesNode) {
@@ -165,11 +210,12 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
         };
 
-        const completionPercent = function() {
-            if (!pdfDocument || !pdfDocument.numPages) {
-                return 0;
-            }
-            return Math.min(100, Math.round((pageNumber / pdfDocument.numPages) * 10000) / 100);
+        const accrueActiveTime = function() {
+            const now = Date.now();
+            const delta = Math.max(0, Math.round((now - lastTick) / 1000));
+            activeSeconds += delta;
+            timeSpent += delta;
+            lastTick = now;
         };
 
         const saveProgress = function(force) {
@@ -180,44 +226,61 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (!force && now - lastSave < SAVE_INTERVAL) {
                 return Promise.resolve();
             }
-            activeSeconds += Math.max(0, Math.round((now - lastTick) / 1000));
-            lastTick = now;
+            accrueActiveTime();
             lastSave = now;
-            const percent = completionPercent();
-            completed = completed || percent >= 100;
 
-            return Ajax.call([{
+            if (saveInFlight) {
+                saveQueued = saveQueued || force;
+                return saveInFlight;
+            }
+
+            const percent = completionPercent();
+            saveInFlight = Ajax.call([{
                 methodname: 'mod_videoplayer_save_progress',
                 args: {
                     cmid: cmid,
                     progress: activeSeconds,
-                    completed: completed,
+                    completed: completed || percent >= 100,
                     completionpercentage: percent,
                     lastpage: pageNumber,
                     totalpages: pdfDocument.numPages,
-                    timespent: activeSeconds
+                    visitedpages: serializeVisitedPages(),
+                    lastsecond: 0,
+                    totalseconds: 0,
+                    watchedranges: '',
+                    timespent: timeSpent
                 }
             }])[0].then(function(response) {
                 if (response) {
                     completed = Boolean(response.completed);
+                    activeSeconds = Math.max(activeSeconds, parseFloat(response.progress) || 0);
+                    timeSpent = Math.max(timeSpent, parseInt(response.timespent, 10) || 0);
+                    absorbServerPages(response.visitedpages || '');
                     if (progressNode) {
                         progressNode.textContent = response.completionpercentage + '%';
                     }
                 }
                 return response;
-            }).catch(Notification.exception);
+            }).catch(Notification.exception).finally(function() {
+                saveInFlight = null;
+                if (saveQueued) {
+                    saveQueued = false;
+                    window.setTimeout(function() {
+                        saveProgress(true);
+                    }, 0);
+                }
+            });
+            return saveInFlight;
         };
 
         const renderPageCanvas = function(pageIndex) {
             const cacheKey = getCacheKey(pageIndex);
-
             if (pageCache.has(cacheKey)) {
                 const cached = pageCache.get(cacheKey);
                 pageCache.delete(cacheKey);
                 pageCache.set(cacheKey, cached);
                 return Promise.resolve(cached);
             }
-
             if (renderPromises.has(cacheKey)) {
                 return renderPromises.get(cacheKey);
             }
@@ -229,10 +292,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 const viewport = page.getViewport({scale: scale});
                 const outputScale = Math.min(window.devicePixelRatio || 1, 2);
                 const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
+                const context = canvas.getContext('2d', {alpha: false});
 
-                canvas.width = Math.floor(viewport.width * outputScale);
-                canvas.height = Math.floor(viewport.height * outputScale);
+                canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+                canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
                 canvas.style.width = Math.floor(viewport.width) + 'px';
                 canvas.style.height = Math.floor(viewport.height) + 'px';
                 canvas.setAttribute('draggable', 'false');
@@ -254,33 +317,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return promise;
         };
 
-        const getPrefetchPages = function() {
-            if (!pdfDocument) {
-                return [];
-            }
-
-            if (isMobile()) {
-                return [pageNumber + 1, pageNumber - 1].filter(function(num) {
-                    return num >= 1 && num <= pdfDocument.numPages;
-                });
-            }
-
-            const start = getSpreadStart(pageNumber);
-            return [start + 2, start + 3, start - 1, start - 2].filter(function(num) {
-                return num >= 1 && num <= pdfDocument.numPages;
-            });
-        };
-
-        const prefetchPages = function() {
-            window.setTimeout(function() {
-                getPrefetchPages().forEach(function(num) {
-                    renderPageCanvas(num).catch(function() {
-                        // Prefetch is best-effort and should never block reading.
-                    });
-                });
-            }, PREFETCH_DELAY);
-        };
-
         const createPageNode = function(canvas, pageIndex, position) {
             const pageNode = document.createElement('div');
             pageNode.className = 'mod-videoplayer-book-page';
@@ -288,42 +324,27 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
             if (isMobile()) {
                 pageNode.classList.add('mod-videoplayer-book-page-single', 'is-mobile-turning');
-                pageNode.classList.add(turnDirection === 'backward' ? 'is-mobile-turning-backward' : 'is-mobile-turning-forward');
+                pageNode.classList.add(turnDirection === 'backward'
+                    ? 'is-mobile-turning-backward'
+                    : 'is-mobile-turning-forward');
             } else {
                 const side = position === 0 ? 'left' : 'right';
                 pageNode.classList.add('mod-videoplayer-book-page-' + side);
-                if (turnDirection === 'forward' && side === 'right') {
-                    pageNode.classList.add('is-turning-forward');
-                } else if (turnDirection === 'backward' && side === 'left') {
-                    pageNode.classList.add('is-turning-backward');
-                }
             }
-
             pageNode.appendChild(canvas);
             return pageNode;
         };
 
-        const createPlaceholderNode = function(referenceCanvas, position) {
-            const pageNode = document.createElement('div');
-            const side = position === 0 ? 'left' : 'right';
-            pageNode.className = 'mod-videoplayer-book-page mod-videoplayer-book-page-' + side + ' is-page-loading';
-            if (referenceCanvas) {
-                pageNode.style.width = referenceCanvas.style.width;
-                pageNode.style.height = referenceCanvas.style.height;
-            }
-            return pageNode;
-        };
-
-        const finishRender = function(currentRenderVersion) {
-            if (currentRenderVersion !== renderVersion) {
-                return;
-            }
+        const finishRender = function(visiblePages) {
+            visiblePages.forEach(function(page) {
+                visitedPages.add(page);
+            });
             rendering = false;
             hide(loading, true);
             pagesRegion.classList.remove('is-turning', 'is-turning-forward', 'is-turning-backward');
             updateStatus();
             saveProgress(false);
-            prefetchPages();
+
             if (pendingPage !== null) {
                 const queued = pendingPage;
                 pendingPage = null;
@@ -336,57 +357,22 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 return;
             }
 
-            const currentRenderVersion = ++renderVersion;
             rendering = true;
+            const visiblePages = getVisiblePages();
             pagesRegion.classList.remove('is-turning-forward', 'is-turning-backward');
-            pagesRegion.classList.add('is-turning', turnDirection === 'backward' ? 'is-turning-backward' : 'is-turning-forward');
+            pagesRegion.classList.add('is-turning', turnDirection === 'backward'
+                ? 'is-turning-backward'
+                : 'is-turning-forward');
             hide(loading, false);
             pagesRegion.innerHTML = '';
 
-            const visiblePages = getVisiblePages();
-            if (!visiblePages.length) {
-                finishRender(currentRenderVersion);
-                return;
-            }
-
-            renderPageCanvas(visiblePages[0]).then(function(firstCanvas) {
-                if (currentRenderVersion !== renderVersion) {
-                    return Promise.resolve();
-                }
-
-                pagesRegion.appendChild(createPageNode(firstCanvas, visiblePages[0], 0));
-                let placeholder = null;
-
-                if (!isMobile() && visiblePages.length > 1) {
-                    placeholder = createPlaceholderNode(firstCanvas, 1);
-                    pagesRegion.appendChild(placeholder);
-                } else if (!isMobile() && visiblePages.length === 1) {
-                    const empty = createPlaceholderNode(firstCanvas, 1);
-                    empty.classList.add('is-empty');
-                    pagesRegion.appendChild(empty);
-                }
-
-                hide(loading, true);
-                updateStatus();
-
-                const remaining = visiblePages.slice(1).map(function(num, index) {
-                    const position = index + 1;
-                    return renderPageCanvas(num).then(function(canvas) {
-                        if (currentRenderVersion !== renderVersion) {
-                            return;
-                        }
-                        const node = createPageNode(canvas, num, position);
-                        if (placeholder && placeholder.parentNode) {
-                            placeholder.parentNode.replaceChild(node, placeholder);
-                        } else {
-                            pagesRegion.appendChild(node);
-                        }
-                    });
+            Promise.all(visiblePages.map(function(num) {
+                return renderPageCanvas(num);
+            })).then(function(canvases) {
+                canvases.forEach(function(canvas, index) {
+                    pagesRegion.appendChild(createPageNode(canvas, visiblePages[index], index));
                 });
-
-                return Promise.all(remaining).then(function() {
-                    finishRender(currentRenderVersion);
-                });
+                finishRender(visiblePages);
             }).catch(function(err) {
                 rendering = false;
                 hide(loading, true);
@@ -400,15 +386,14 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (!pdfDocument) {
                 return;
             }
-            const previousPage = pageNumber;
             const safe = Math.max(1, Math.min(pdfDocument.numPages, num));
-            const targetPage = isMobile() ? safe : getSpreadStart(safe);
-            turnDirection = targetPage < previousPage ? 'backward' : 'forward';
-            pageNumber = targetPage;
+            const target = isMobile() ? safe : getSpreadStart(safe);
+            turnDirection = target < pageNumber ? 'backward' : 'forward';
             if (rendering) {
-                pendingPage = pageNumber;
+                pendingPage = target;
                 return;
             }
+            pageNumber = target;
             renderSpread();
         };
 
@@ -428,12 +413,22 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     document.exitFullscreen();
                     return;
                 }
+                if (reader.classList.contains('is-fallback-fullscreen')) {
+                    reader.classList.remove('is-fallback-fullscreen');
+                    clearPageCache();
+                    renderSpread();
+                    return;
+                }
                 if (reader.requestFullscreen) {
                     reader.requestFullscreen().catch(function() {
                         reader.classList.add('is-fallback-fullscreen');
+                        clearPageCache();
+                        renderSpread();
                     });
                 } else {
                     reader.classList.add('is-fallback-fullscreen');
+                    clearPageCache();
+                    renderSpread();
                 }
             });
             document.addEventListener('fullscreenchange', function() {
@@ -441,7 +436,13 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     reader.classList.remove('is-fallback-fullscreen');
                 }
                 clearPageCache();
-                window.setTimeout(renderSpread, 160);
+                window.setTimeout(function() {
+                    if (!rendering) {
+                        renderSpread();
+                    } else {
+                        pendingPage = pageNumber;
+                    }
+                }, 160);
             });
         }
 
@@ -473,21 +474,26 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             }
             const dx = changed.clientX - touchStartX;
             const dy = changed.clientY - touchStartY;
-            if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.35) {
-                return;
+            if (Math.abs(dx) >= 60 && Math.abs(dx) >= Math.abs(dy) * 1.35) {
+                goToPage(pageNumber + (dx < 0 ? 1 : -1));
             }
-            goToPage(pageNumber + (dx < 0 ? 1 : -1));
         }, {passive: true});
 
+        let resizeTimer = null;
         window.addEventListener('resize', function() {
-            clearPageCache();
-            window.setTimeout(renderSpread, 120);
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(function() {
+                clearPageCache();
+                if (rendering) {
+                    pendingPage = pageNumber;
+                } else {
+                    pageNumber = isMobile() ? pageNumber : getSpreadStart(pageNumber);
+                    renderSpread();
+                }
+            }, 180);
         });
-        window.addEventListener('orientationchange', function() {
-            clearPageCache();
-            window.setTimeout(renderSpread, 280);
-        });
-        window.addEventListener('beforeunload', function() {
+
+        window.addEventListener('pagehide', function() {
             saveProgress(true);
         });
         document.addEventListener('visibilitychange', function() {
@@ -497,10 +503,26 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 lastTick = Date.now();
             }
         });
+        window.setInterval(function() {
+            if (!document.hidden) {
+                saveProgress(false);
+            }
+        }, HEARTBEAT_INTERVAL);
 
         hide(loading, false);
-        pdfjsLib.getDocument({url: pdfUrl, withCredentials: true, rangeChunkSize: 262144}).promise.then(function(pdf) {
+        pdfjsLib.getDocument({
+            url: pdfUrl,
+            withCredentials: true,
+            rangeChunkSize: 262144,
+            disableAutoFetch: false,
+            disableStream: false
+        }).promise.then(function(pdf) {
             pdfDocument = pdf;
+            Array.from(visitedPages).forEach(function(page) {
+                if (page > pdfDocument.numPages) {
+                    visitedPages.delete(page);
+                }
+            });
             pageNumber = Math.min(initialPage, pdfDocument.numPages);
             if (!isMobile()) {
                 pageNumber = getSpreadStart(pageNumber);
@@ -521,6 +543,10 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         }
         loadPdfJs().then(function(pdfjsLib) {
             roots.forEach(function(root) {
+                if (root.dataset.bookViewerReady === '1') {
+                    return;
+                }
+                root.dataset.bookViewerReady = '1';
                 initViewer(root, pdfjsLib);
             });
         }).catch(function(err) {
