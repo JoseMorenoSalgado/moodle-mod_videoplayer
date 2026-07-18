@@ -1,0 +1,26 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    @template mod_videoplayer/image
+
+    Protected image viewer for Drive Resource.
+}}
+<div class="mod-videoplayer-container mod-videoplayer-image" data-resource-type="{{type}}" data-cmid="{{cmid}}">
+    <div class="mod-videoplayer-meta mb-2">
+        <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
+        <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
+    </div>
+
+    <div class="mod-videoplayer-image-frame" oncontextmenu="return false;">
+        <img
+            class="mod-videoplayer-protected-image"
+            src="{{imageurl}}"
+            alt="{{title}}"
+            loading="lazy"
+            decoding="async"
+            draggable="false">
+        {{#enablewatermark}}
+            <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
+        {{/enablewatermark}}
+    </div>
+</div>
