@@ -73,6 +73,10 @@ class backup_videoplayer_activity_structure_step extends backup_activity_structu
             'completionpercentage',
             'lastpage',
             'totalpages',
+            'visitedpages',
+            'lastsecond',
+            'totalseconds',
+            'watchedranges',
             'timespent',
             'points',
         ]);
@@ -92,6 +96,7 @@ class backup_videoplayer_activity_structure_step extends backup_activity_structu
         $rewards->add_child($reward);
 
         $videoplayer->set_source_table('videoplayer', ['id' => backup::VAR_ACTIVITYID]);
+        $videoplayer->annotate_files('mod_videoplayer', 'intro', null);
         $videoplayer->annotate_files('mod_videoplayer', 'localpdf', null);
 
         if ($userinfo) {
