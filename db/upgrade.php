@@ -133,9 +133,20 @@ function xmldb_videoplayer_upgrade($oldversion) {
             $viewstable->add_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']);
             $dbman->create_table($viewstable);
         } else {
-            $DB->execute("UPDATE {videoplayer_views} SET progress = 0 WHERE progress IS NULL");
-            $DB->execute("UPDATE {videoplayer_views} SET completed = 0 WHERE completed IS NULL");
-            $DB->execute("UPDATE {videoplayer_views} SET completionpercentage = 0 WHERE completionpercentage IS NULL");
+            $progressfield = new xmldb_field('progress');
+            if ($dbman->field_exists($viewstable, $progressfield)) {
+                $DB->execute("UPDATE {videoplayer_views} SET progress = 0 WHERE progress IS NULL");
+            }
+
+            $completedfield = new xmldb_field('completed');
+            if ($dbman->field_exists($viewstable, $completedfield)) {
+                $DB->execute("UPDATE {videoplayer_views} SET completed = 0 WHERE completed IS NULL");
+            }
+
+            $completionpercentagefield = new xmldb_field('completionpercentage');
+            if ($dbman->field_exists($viewstable, $completionpercentagefield)) {
+                $DB->execute("UPDATE {videoplayer_views} SET completionpercentage = 0 WHERE completionpercentage IS NULL");
+            }
 
             $completedindex = new xmldb_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']);
             if ($dbman->index_exists($viewstable, $completedindex)) {
