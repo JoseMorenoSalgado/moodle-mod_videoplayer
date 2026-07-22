@@ -4,6 +4,26 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.18-beta - 2026-07-22
+
+### Fixed
+
+- Fixed Moodle XMLDB `ddldependencyerror` when upgrading legacy installations where `source_idx` already depends on the `videoplayer.source` field.
+- Indexed `source` and `type` fields are now migrated safely by dropping their logical XMLDB indexes before field type/default changes and recreating the indexes afterwards.
+- The same dependency-safe migration pattern is applied to the legacy `videoplayer_views.completed` field and its `completed_idx` index.
+- Legacy nullable values are normalized before enforcing current `NOT NULL` definitions for `source`, `videourl`, `type`, completion and progress fields.
+- Legacy progress normalization now checks field existence before issuing data updates, preserving compatibility with partially migrated tables.
+
+### Changed
+
+- Release metadata bumped to `1.1.18-beta` with Moodle version `2026072200`.
+- `db/install.xml` metadata aligned to `20260722`.
+
+### Upgrade notes
+
+- Sites stopped by `ddl_dependency_exception` can deploy this release and rerun the normal Moodle upgrade process; the historical upgrade step is intentionally idempotent and recreates required indexes after the field migration.
+- Administrators should not manually remove the physical database index when the corrected plugin files are available; XMLDB performs the dependency-safe index lifecycle using logical index definitions.
+
 ## v1.1.17-beta - 2026-07-17
 
 ### Added
