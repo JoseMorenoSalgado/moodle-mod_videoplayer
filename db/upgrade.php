@@ -40,7 +40,7 @@ function xmldb_videoplayer_upgrade($oldversion) {
 
             $fields = [
                 new xmldb_field('source', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'googledrive', 'introformat'),
-                new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, null, 'source'),
+                new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, '', 'source'),
                 new xmldb_field('type', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'auto', 'videourl'),
                 new xmldb_field('video', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'type'),
                 new xmldb_field('endscreentext', XMLDB_TYPE_TEXT, null, null, null, null, null, 'video'),
@@ -60,9 +60,28 @@ function xmldb_videoplayer_upgrade($oldversion) {
                 }
             }
 
-            $videourlfield = new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, null, 'source');
+            // Normalize legacy nullable values before enforcing NOT NULL definitions.
+            $DB->execute("UPDATE {videoplayer} SET source = 'googledrive' WHERE source IS NULL OR source = ''");
+            $DB->execute("UPDATE {videoplayer} SET videourl = '' WHERE videourl IS NULL");
+            $DB->execute("UPDATE {videoplayer} SET type = 'auto' WHERE type IS NULL OR type = ''");
+            $DB->execute("UPDATE {videoplayer} SET completionpercentage = 80 WHERE completionpercentage IS NULL OR completionpercentage = 0");
+
+            // XMLDB does not allow changing an indexed field while a dependent index exists.
+            // Drop the logical indexes first; Moodle resolves the actual database-specific names.
+            $sourceindex = new xmldb_index('source_idx', XMLDB_INDEX_NOTUNIQUE, ['source']);
+            if ($dbman->index_exists($table, $sourceindex)) {
+                $dbman->drop_index($table, $sourceindex);
+            }
+
+            $typeindex = new xmldb_index('type_idx', XMLDB_INDEX_NOTUNIQUE, ['type']);
+            if ($dbman->index_exists($table, $typeindex)) {
+                $dbman->drop_index($table, $typeindex);
+            }
+
+            $videourlfield = new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, '', 'source');
             if ($dbman->field_exists($table, $videourlfield)) {
                 $dbman->change_field_type($table, $videourlfield);
+                $dbman->change_field_default($table, $videourlfield);
             }
 
             $sourcefield = new xmldb_field('source', XMLDB_TYPE_CHAR, '32', null, XMLDB_NOTNULL, null, 'googledrive', 'introformat');
@@ -83,14 +102,10 @@ function xmldb_videoplayer_upgrade($oldversion) {
                 $dbman->change_field_default($table, $completionfield);
             }
 
-            $DB->execute("UPDATE {videoplayer} SET source = 'googledrive' WHERE source IS NULL OR source = ''");
-            $DB->execute("UPDATE {videoplayer} SET type = 'auto' WHERE type IS NULL OR type = ''");
-            $DB->execute("UPDATE {videoplayer} SET completionpercentage = 80 WHERE completionpercentage IS NULL OR completionpercentage = 0");
-
             $indexes = [
                 new xmldb_index('course_idx', XMLDB_INDEX_NOTUNIQUE, ['course']),
-                new xmldb_index('source_idx', XMLDB_INDEX_NOTUNIQUE, ['source']),
-                new xmldb_index('type_idx', XMLDB_INDEX_NOTUNIQUE, ['type']),
+                $sourceindex,
+                $typeindex,
             ];
 
             foreach ($indexes as $index) {
@@ -118,6 +133,15 @@ function xmldb_videoplayer_upgrade($oldversion) {
             $viewstable->add_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']);
             $dbman->create_table($viewstable);
         } else {
+            $DB->execute("UPDATE {videoplayer_views} SET progress = 0 WHERE progress IS NULL");
+            $DB->execute("UPDATE {videoplayer_views} SET completed = 0 WHERE completed IS NULL");
+            $DB->execute("UPDATE {videoplayer_views} SET completionpercentage = 0 WHERE completionpercentage IS NULL");
+
+            $completedindex = new xmldb_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']);
+            if ($dbman->index_exists($viewstable, $completedindex)) {
+                $dbman->drop_index($viewstable, $completedindex);
+            }
+
             $fields = [
                 new xmldb_field('progress', XMLDB_TYPE_NUMBER, '10, 2', null, XMLDB_NOTNULL, null, '0', 'timemodified'),
                 new xmldb_field('completed', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0', 'progress'),
@@ -134,7 +158,7 @@ function xmldb_videoplayer_upgrade($oldversion) {
             }
 
             $indexes = [
-                new xmldb_index('completed_idx', XMLDB_INDEX_NOTUNIQUE, ['completed']),
+                $completedindex,
                 new xmldb_index('timemodified_idx', XMLDB_INDEX_NOTUNIQUE, ['timemodified']),
             ];
 
@@ -190,6 +214,7 @@ function xmldb_videoplayer_upgrade($oldversion) {
 
             $videourlfield = new xmldb_field('videourl', XMLDB_TYPE_CHAR, '1024', null, XMLDB_NOTNULL, null, '', 'source');
             if ($dbman->field_exists($table, $videourlfield)) {
+                $DB->execute("UPDATE {videoplayer} SET videourl = '' WHERE videourl IS NULL");
                 $dbman->change_field_default($table, $videourlfield);
             }
         }
@@ -243,6 +268,10 @@ function xmldb_videoplayer_upgrade($oldversion) {
 
     if ($oldversion < 2026062203) {
         upgrade_mod_savepoint(true, 2026062203, 'videoplayer');
+    }
+
+    if ($oldversion < 2026072200) {
+        upgrade_mod_savepoint(true, 2026072200, 'videoplayer');
     }
 
     return true;
