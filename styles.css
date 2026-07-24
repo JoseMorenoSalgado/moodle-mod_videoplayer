@@ -343,7 +343,8 @@
     box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
 }
 
-.is-fallback-fullscreen {
+.mod-videoplayer-container .is-fallback-fullscreen,
+.mod-videoplayer-container.is-fallback-fullscreen {
     position: fixed !important;
     inset: 0 !important;
     z-index: 1055 !important;
@@ -353,7 +354,8 @@
     border-radius: 0 !important;
 }
 
-.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+.mod-videoplayer-container .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
+.mod-videoplayer-container.is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
     min-height: 100vh;
 }
 
