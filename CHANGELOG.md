@@ -4,6 +4,26 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.20-beta - 2026-07-24
+
+### Fixed
+
+- Removed all Drive Resource viewer rules from the globally compiled `styles.css` bundle.
+- Prevented the activity viewer CSS from affecting third-party course formats such as Tiles/Mosaico, Moodle navigation, cards, modals, themes, or unrelated plugins.
+- Preserved the complete PDF, ebook, video and fullscreen presentation by moving the former global rules to `styles_activity.css`, which is requested only by `mod/videoplayer/view.php`.
+
+### Changed
+
+- `styles.css` is intentionally limited to documentation comments so Moodle can compile it globally without introducing presentation or interaction rules.
+- Release metadata bumped to `1.1.20-beta` with Moodle version `2026072401`.
+
+### Upgrade notes
+
+- Deploy the complete plugin directory so the new `styles_activity.css` file is present.
+- Run the normal Moodle upgrade and purge all caches after deployment.
+- Perform a browser hard refresh because the previous global module CSS may remain in the browser or theme cache until it is regenerated.
+- No changes to `format_tiles` or any other third-party plugin are required.
+
 ## v1.1.19-beta - 2026-07-24
 
 ### Fixed
