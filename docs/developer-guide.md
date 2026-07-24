@@ -38,6 +38,8 @@ docs/                            product and engineering documentation
 lang/                            language packs
 templates/                       Mustache templates
 thirdpartylibs/                  locally bundled third-party libraries
+styles.css                       intentionally empty global stylesheet
+styles_activity.css              base viewer styles loaded only by view.php
 ```
 
 ## Service boundaries
@@ -217,6 +219,21 @@ Use `amd/src/pdfmobile.js` only for viewport/layout corrections. Authorization, 
 
 `amd/src/ebookviewer.js` may use locally bundled StPageFlip. It must keep a PDF.js fallback and must never load PageFlip or PDF.js from a CDN.
 
+## CSS and theme isolation
+
+Moodle automatically compiles a module's root `styles.css` into the global theme bundle. Any rule placed there can affect every course format and page, including pages where Drive Resource is not open.
+
+Production rules:
+
+1. Keep `styles.css` free of presentation rules.
+2. Put shared viewer presentation in `styles_activity.css`.
+3. Load `styles_activity.css` explicitly from `view.php` before specialized stylesheets.
+4. Prefix every selector, animation and custom property with `mod-videoplayer` or `drive-resource`.
+5. Never use generic state classes such as `.fullscreen`, `.is-active`, `.overlay`, `.loading` or `.is-fallback-fullscreen` without a Drive Resource root selector.
+6. Verify that course formats such as Tiles/Mosaico still animate and navigate normally after every CSS change.
+
+Do not modify third-party course formats to compensate for Drive Resource CSS. The module must remain self-contained and compatible through strict presentation boundaries.
+
 ## Database changes
 
 For schema changes:
@@ -281,6 +298,9 @@ Before release:
 - run JavaScript lint/build checks.
 - verify no CDN references.
 - verify third-party libraries in `thirdpartylibs.xml`.
+- verify `styles.css` contains no viewer presentation rules.
+- verify all activity styles are loaded only from `view.php`.
+- test Tiles/Mosaico and another course format with animated navigation enabled.
 - test fresh install and upgrade.
 - test backup/restore.
 - test Privacy API export/delete.
