@@ -131,6 +131,30 @@ On Apple mobile devices the player keeps inline playback attributes and allows t
 
 `templates/video.mustache` renders the protected HTML5 media element and `amd/src/plyr.js` progressively enhances it with locally bundled Plyr. Native HTML5 controls remain the fallback.
 
+## Presentation and CSS isolation
+
+Moodle compiles `mod/videoplayer/styles.css` into the site-wide theme CSS. For that reason, the root file must remain free of viewer presentation rules.
+
+The presentation boundary is:
+
+```text
+course page / third-party format
+↓
+no Drive Resource viewer CSS
+
+mod/videoplayer/view.php
+↓
+styles_activity.css
+↓
+viewer-specific CSS files
+↓
+Drive Resource template root
+```
+
+`view.php` explicitly loads `styles_activity.css` before the more specialized PDF, book and visual refinement stylesheets. This guarantees that viewer rules are present only while rendering a Drive Resource activity and cannot modify Tiles/Mosaico navigation, course cards, Moodle modals, course indexes, theme components or unrelated plugins.
+
+New root-level CSS must not be added to `styles.css`. New presentation code belongs in an activity-only stylesheet and all selectors must remain prefixed with `mod-videoplayer`.
+
 ## Progress and completion
 
 Progress is saved through `mod_videoplayer_save_progress` and delegated to internal services:
