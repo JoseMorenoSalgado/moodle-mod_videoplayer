@@ -24,6 +24,7 @@ The internal Moodle component remains `mod_videoplayer` for compatibility with e
 - Backup & Restore support.
 - Privacy API support.
 - Teacher progress reporting.
+- Activity-only viewer CSS that cannot alter third-party course formats or site navigation.
 
 ## Requirements
 
@@ -67,6 +68,20 @@ php admin/cli/upgrade.php
 Then purge Moodle caches and verify cron/ad-hoc task execution.
 
 See `docs/installation.md` for production validation.
+
+## CSS isolation
+
+Moodle compiles a module's root `styles.css` into the site-wide theme bundle. Drive Resource therefore keeps `styles.css` intentionally free of viewer rules.
+
+The complete PDF, ebook, video and fullscreen presentation is stored in:
+
+```text
+styles_activity.css
+```
+
+`view.php` requests that file only on `mod/videoplayer/view.php`. This prevents Drive Resource from changing or blocking navigation in third-party course formats such as Tiles/Mosaico, themes, cards, modals, course indexes or unrelated plugins.
+
+After upgrading from `1.1.19-beta` or earlier, deploy the complete plugin directory and purge Moodle and browser caches so the previous global CSS bundle is discarded.
 
 ## Protected delivery architecture
 
@@ -218,7 +233,7 @@ or the equivalent `grunt amd` command in a configured Moodle development environ
 
 Current development release:
 
-- Release: `1.1.17-beta`
+- Release: `1.1.20-beta`
 - Moodle component: `mod_videoplayer`
 - Product name: Drive Resource
 - Target Moodle versions: 4.x and 5.x
