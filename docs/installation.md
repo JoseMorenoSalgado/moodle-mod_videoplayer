@@ -162,17 +162,43 @@ The HTML5 source intentionally does not force `video/mp4`; the protected endpoin
 
 ## Upgrade notes
 
-Release `1.1.17-beta` introduces a dedicated `http_range_proxy` service and changes cold Google Drive PDF loading to immediate range proxying plus asynchronous cache warming. There is no database schema change in this release.
+Release `1.1.19-beta` scopes fallback fullscreen CSS to Drive Resource containers. This prevents a generic fullscreen class from interfering with course cards, activity links, breadcrumbs or theme navigation controls.
+
+Release `1.1.18-beta` fixes the legacy XMLDB index dependency upgrade failure for `source`, `type` and progress fields.
+
+Release `1.1.17-beta` introduces a dedicated `http_range_proxy` service and changes cold Google Drive PDF loading to immediate range proxying plus asynchronous cache warming.
 
 After upgrade:
 
 1. run Moodle upgrade so the new plugin version is registered;
-2. purge caches;
-3. confirm cron is running;
-4. confirm PHP cURL is available;
-5. run the streaming and PDF cache validation below.
+2. purge all Moodle caches;
+3. perform a browser hard refresh or clear the browser cache;
+4. confirm cron is running;
+5. confirm PHP cURL is available;
+6. run the streaming and PDF cache validation below.
 
 Always validate upgrades on a staging Moodle before commercial production deployment.
+
+## Recovering unresponsive course links after an upgrade
+
+If course cards or activity links do not respond after deploying Drive Resource, first deploy `1.1.19-beta` or newer and run:
+
+```bash
+php admin/cli/maintenance.php --disable
+php admin/cli/upgrade.php --non-interactive
+php admin/cli/purge_caches.php
+```
+
+Then force-refresh the browser with `Ctrl+F5` or open the site in a private window. Do not delete courses, activities or database tables.
+
+To distinguish a theme/JavaScript issue from a server-side failure, open a course directly using:
+
+```text
+/course/view.php?id=<courseid>
+```
+
+- If the direct URL opens, inspect the browser console and theme JavaScript because navigation interception is client-side.
+- If the direct URL returns an error, inspect the PHP/web-server log and complete the Moodle upgrade before further changes.
 
 ## Post-installation checklist
 
