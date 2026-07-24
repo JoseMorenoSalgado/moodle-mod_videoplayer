@@ -4,6 +4,21 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.19-beta - 2026-07-24
+
+### Fixed
+
+- Scoped the fallback fullscreen CSS rule to Drive Resource containers so the plugin cannot accidentally turn an unrelated theme or Moodle element into a fixed full-viewport layer.
+- Prevented potential invisible overlays from intercepting clicks on course cards, activity links, breadcrumbs or other Moodle navigation controls when a theme reuses the generic `is-fallback-fullscreen` class.
+
+### Changed
+
+- Release metadata bumped to `1.1.19-beta` with Moodle version `2026072400` so Moodle registers the CSS hotfix and administrators can purge compiled theme caches after deployment.
+
+### Upgrade notes
+
+- After deploying this release, run the normal Moodle upgrade and purge all caches. Browser hard refresh may also be required because the affected rule is part of Moodle's compiled theme CSS.
+
 ## v1.1.18-beta - 2026-07-22
 
 ### Fixed
