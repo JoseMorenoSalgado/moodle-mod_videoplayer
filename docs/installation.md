@@ -12,19 +12,29 @@
 
 ## Installation
 
-Place the plugin in:
+Place the complete plugin directory in:
 
 ```text
 mod/videoplayer
 ```
 
+Do not copy only the modified PHP files. Release `1.1.20-beta` requires the new activity-only stylesheet:
+
+```text
+mod/videoplayer/styles_activity.css
+```
+
 Run Moodle upgrade:
 
 ```bash
-php admin/cli/upgrade.php
+php admin/cli/upgrade.php --non-interactive
 ```
 
-Then purge Moodle caches.
+Then purge Moodle caches:
+
+```bash
+php admin/cli/purge_caches.php
+```
 
 ## Required local libraries
 
@@ -162,7 +172,11 @@ The HTML5 source intentionally does not force `video/mp4`; the protected endpoin
 
 ## Upgrade notes
 
-Release `1.1.19-beta` scopes fallback fullscreen CSS to Drive Resource containers. This prevents a generic fullscreen class from interfering with course cards, activity links, breadcrumbs or theme navigation controls.
+Release `1.1.20-beta` removes all viewer presentation rules from Moodle's globally compiled module stylesheet. The same viewer rules now live in `styles_activity.css` and are loaded only when a Drive Resource activity is opened.
+
+This release is self-contained. **Do not modify `format_tiles`, the active Moodle theme or any other third-party plugin.** Compatibility is achieved by preventing Drive Resource CSS from entering third-party course-format pages.
+
+Release `1.1.19-beta` scoped the fallback fullscreen selector but still left the activity rules inside the global module stylesheet. Release `1.1.20-beta` completes the isolation.
 
 Release `1.1.18-beta` fixes the legacy XMLDB index dependency upgrade failure for `source`, `type` and progress fields.
 
@@ -170,44 +184,54 @@ Release `1.1.17-beta` introduces a dedicated `http_range_proxy` service and chan
 
 After upgrade:
 
-1. run Moodle upgrade so the new plugin version is registered;
-2. purge all Moodle caches;
-3. perform a browser hard refresh or clear the browser cache;
-4. confirm cron is running;
-5. confirm PHP cURL is available;
-6. run the streaming and PDF cache validation below.
+1. confirm the complete `mod/videoplayer` directory was deployed;
+2. confirm `styles_activity.css` exists;
+3. run Moodle upgrade;
+4. purge all Moodle caches;
+5. perform a browser hard refresh or clear the browser cache;
+6. confirm cron is running;
+7. confirm PHP cURL is available;
+8. validate both Drive Resource and the installed course format.
 
 Always validate upgrades on a staging Moodle before commercial production deployment.
 
-## Recovering unresponsive course links after an upgrade
+## Recovering Tiles/Mosaico animated navigation
 
-If course cards or activity links do not respond after deploying Drive Resource, first deploy `1.1.19-beta` or newer and run:
+When animated course navigation stopped immediately after installing an earlier Drive Resource update, deploy `1.1.20-beta` or newer. No edit to Tiles/Mosaico is required.
+
+From the Moodle application root run:
 
 ```bash
-php admin/cli/maintenance.php --disable
+php admin/cli/maintenance.php --enable
 php admin/cli/upgrade.php --non-interactive
 php admin/cli/purge_caches.php
+php admin/cli/maintenance.php --disable
 ```
 
-Then force-refresh the browser with `Ctrl+F5` or open the site in a private window. Do not delete courses, activities or database tables.
+Then clear the browser cache or test in a private window. Moodle must regenerate the theme bundle without the previous Drive Resource viewer rules.
 
-To distinguish a theme/JavaScript issue from a server-side failure, open a course directly using:
+Validate:
 
-```text
-/course/view.php?id=<courseid>
-```
+1. open a Tiles/Mosaico course;
+2. open and close several animated mosaics;
+3. navigate through the course index;
+4. open a Drive Resource activity;
+5. return to the course and repeat animated navigation;
+6. confirm the browser console has no click, overlay or JavaScript-navigation errors.
 
-- If the direct URL opens, inspect the browser console and theme JavaScript because navigation interception is client-side.
-- If the direct URL returns an error, inspect the PHP/web-server log and complete the Moodle upgrade before further changes.
+Do not delete courses, activities or database tables.
 
 ## Post-installation checklist
 
 - confirm `thirdpartylibs.xml` is valid;
+- confirm `styles.css` contains no viewer rules;
+- confirm `styles_activity.css` is present;
 - confirm local PDF.js files are present;
 - confirm `plyr.min.js` and `plyr.css` are present;
 - confirm PageFlip files if that optional mode is used;
 - confirm `$CFG->localcachedir` is writable;
 - confirm Moodle cron/ad-hoc tasks execute;
+- test the installed third-party course format with its animated navigation enabled;
 - create and open a local protected PDF as a learner;
 - create and open a Google Drive PDF with cold cache;
 - verify first request is not blocked on complete cache warming;
