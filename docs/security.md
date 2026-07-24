@@ -89,6 +89,22 @@ Security properties:
 - cache warming does not bypass the browser request authorization path;
 - the source URL remains server-side.
 
+## UI and CSS isolation
+
+Availability and integrity include ensuring that Drive Resource cannot disable navigation or interaction elsewhere in Moodle.
+
+Moodle compiles a module's root `styles.css` globally. Drive Resource therefore keeps that file free of viewer rules and loads `styles_activity.css` only from the authorized activity page.
+
+Security and compatibility requirements:
+
+- viewer CSS must never execute on course overview or third-party course-format pages;
+- selectors must remain under Drive Resource-specific class names;
+- fixed-position overlays and fullscreen fallback rules must be scoped to the activity root;
+- the module must not patch or override `format_tiles`, themes or other plugins;
+- release testing must confirm that course cards, indexes, breadcrumbs, modal controls and animated navigation remain clickable.
+
+This boundary reduces the risk of accidental click interception, invisible overlays, UI denial of service and cross-plugin CSS collisions.
+
 ## Deterrent controls
 
 The following are UX deterrents, not DRM:
@@ -125,6 +141,8 @@ Before release:
 - verify valid ranges return correct `206` metadata;
 - verify invalid ranges do not disclose upstream details;
 - verify local and cached PDFs cannot be fetched directly from the web root;
+- verify `styles.css` contains no viewer rules;
+- verify Tiles/Mosaico and standard course formats navigate normally after cache regeneration;
 - verify backup/restore does not leak files across course contexts;
 - verify Privacy API export/delete behavior;
 - review Moodle security advisories and supported PHP/Moodle versions before each commercial release.
