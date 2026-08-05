@@ -1,0 +1,105 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+
+namespace mod_videoplayer;
+
+use mod_videoplayer\local\drive;
+
+/**
+ * Tests for the Google Drive URL helper.
+ *
+ * @package    mod_videoplayer
+ * @category   test
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+final class drive_test extends \advanced_testcase {
+
+    /**
+     * Supported sharing URL formats must resolve to the same file identifier.
+     *
+     * @dataProvider supported_url_provider
+     * @param string $url Sharing URL.
+     * @param string $expectedid Expected Drive identifier.
+     */
+    public function test_extract_file_id(string $url, string $expectedid): void {
+        $this->assertSame($expectedid, drive::extract_file_id($url));
+        $this->assertTrue(drive::is_supported_url($url));
+    }
+
+    /**
+     * URL data provider.
+     *
+     * @return array<string, array{string, string}>
+     */
+    public static function supported_url_provider(): array {
+        return [
+            'drive file' => [
+                'https://drive.google.com/file/d/1AbC_def-123/view?usp=sharing',
+                '1AbC_def-123',
+            ],
+            'drive open' => [
+                'https://drive.google.com/open?id=1AbC_def-123',
+                '1AbC_def-123',
+            ],
+            'document' => [
+                'https://docs.google.com/document/d/1AbC_def-123/edit',
+                '1AbC_def-123',
+            ],
+            'spreadsheet' => [
+                'https://docs.google.com/spreadsheets/d/1AbC_def-123/edit',
+                '1AbC_def-123',
+            ],
+            'presentation' => [
+                'https://docs.google.com/presentation/d/1AbC_def-123/edit',
+                '1AbC_def-123',
+            ],
+        ];
+    }
+
+    /**
+     * Unsupported hosts and malformed links must be rejected.
+     */
+    public function test_rejects_unsupported_urls(): void {
+        $this->assertFalse(drive::is_supported_url('https://example.com/file/d/1AbC_def-123'));
+        $this->assertFalse(drive::is_supported_url('not-a-url'));
+        $this->assertNull(drive::extract_file_id('https://drive.google.com/drive/my-drive'));
+    }
+
+    /**
+     * Google Workspace resources must use PDF export endpoints server-side.
+     */
+    public function test_protected_content_url_uses_expected_exports(): void {
+        $fileid = '1AbC_def-123';
+
+        $this->assertSame(
+            'https://docs.google.com/document/d/1AbC_def-123/export?format=pdf',
+            drive::protected_content_url('', $fileid, 'document')
+        );
+        $this->assertSame(
+            'https://docs.google.com/spreadsheets/d/1AbC_def-123/export?format=pdf',
+            drive::protected_content_url('', $fileid, 'spreadsheet')
+        );
+        $this->assertSame(
+            'https://docs.google.com/presentation/d/1AbC_def-123/export/pdf',
+            drive::protected_content_url('', $fileid, 'presentation')
+        );
+        $this->assertSame(
+            'https://drive.google.com/uc?export=download&id=1AbC_def-123',
+            drive::protected_content_url('', $fileid, 'video')
+        );
+    }
+
+    /**
+     * Resource detection must stay deterministic for typed Workspace URLs.
+     */
+    public function test_detect_type(): void {
+        $this->assertSame('document', drive::detect_type('https://docs.google.com/document/d/example/edit'));
+        $this->assertSame('spreadsheet', drive::detect_type('https://docs.google.com/spreadsheets/d/example/edit'));
+        $this->assertSame('presentation', drive::detect_type('https://docs.google.com/presentation/d/example/edit'));
+        $this->assertSame('pdf', drive::detect_type('https://drive.google.com/file.pdf?download=1'));
+        $this->assertSame('video', drive::detect_type('https://drive.google.com/video.mp4'));
+        $this->assertSame('image', drive::detect_type('https://drive.google.com/image.webp'));
+        $this->assertSame('file', drive::detect_type('https://drive.google.com/file/d/example/view'));
+    }
+}
