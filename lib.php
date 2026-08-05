@@ -76,14 +76,18 @@ function videoplayer_queue_pdf_precache(int $instanceid): void {
 function videoplayer_normalise_instance_data(stdClass $data): stdClass {
     $data->source = clean_param($data->source ?? 'googledrive', PARAM_ALPHANUMEXT);
 
+    $displaymode = clean_param($data->displaymode ?? 'ebook', PARAM_ALPHANUMEXT);
+    if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+        $displaymode = 'ebook';
+    }
+    $data->displaymode = $displaymode;
+
     if ($data->source === 'localpdf') {
         $data->type = 'pdf';
         $data->videourl = '';
-        $data->displaymode = clean_param($data->displaymode ?? 'ebook', PARAM_ALPHANUMEXT);
         $data->disabledownload = 1;
     } else {
         $data->videourl = trim((string)($data->videourl ?? ''));
-        $data->displaymode = clean_param($data->displaymode ?? 'standard', PARAM_ALPHANUMEXT);
     }
 
     $data->disabledownload = empty($data->disabledownload) ? 0 : 1;
