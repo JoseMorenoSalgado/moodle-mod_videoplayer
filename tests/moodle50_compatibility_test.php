@@ -22,7 +22,7 @@ final class moodle50_compatibility_test extends \advanced_testcase {
         $this->assertNotNull($plugininfo);
         $this->assertSame('mod_videoplayer', $plugininfo->component);
         $this->assertSame(2025041400, (int) $plugininfo->versionrequires);
-        $this->assertContains(500, $plugininfo->supported);
+        $this->assertSame([500, 502], $plugininfo->pluginsupported);
     }
 
     /**
