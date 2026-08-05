@@ -17,6 +17,7 @@
 namespace mod_videoplayer;
 
 use mod_videoplayer\local\drive;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -27,6 +28,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversClass(drive::class)]
 final class drive_test extends \advanced_testcase {
     /**
      * Supported sharing URL formats must resolve to the same file identifier.
