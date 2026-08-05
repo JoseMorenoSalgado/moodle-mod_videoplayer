@@ -76,9 +76,14 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         $mform->setDefault('type', 'auto');
         $mform->disabledIf('type', 'source', 'eq', 'localpdf');
 
-        $mform->addElement('hidden', 'displaymode', 'standard');
-        $mform->setType('displaymode', PARAM_ALPHANUMEXT);
-        $mform->setDefault('displaymode', 'standard');
+        $displaymodes = [
+            'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
+            'book' => get_string('displaymodebook', 'mod_videoplayer'),
+            'standard' => get_string('displaymodestandard', 'mod_videoplayer'),
+        ];
+        $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
+        $mform->setDefault('displaymode', 'ebook');
+        $mform->addHelpButton('displaymode', 'displaymode', 'mod_videoplayer');
 
         $mform->addElement('advcheckbox', 'disabledownload', get_string('disabledownload', 'mod_videoplayer'));
         $mform->setDefault('disabledownload', 1);
@@ -119,7 +124,12 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             );
             $defaultvalues['localpdffile'] = $draftitemid;
         }
-        $defaultvalues['displaymode'] = 'standard';
+
+        $displaymode = clean_param($defaultvalues['displaymode'] ?? 'ebook', PARAM_ALPHANUMEXT);
+        if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+            $displaymode = 'ebook';
+        }
+        $defaultvalues['displaymode'] = $displaymode;
     }
 
     /**
@@ -153,6 +163,11 @@ class mod_videoplayer_mod_form extends moodleform_mod {
                     break;
                 }
             }
+        }
+
+        $displaymode = clean_param($data['displaymode'] ?? '', PARAM_ALPHANUMEXT);
+        if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+            $errors['displaymode'] = get_string('invaliddisplaymode', 'mod_videoplayer');
         }
 
         if (isset($data['completionpercentage']) && ($data['completionpercentage'] < 0 || $data['completionpercentage'] > 100)) {
