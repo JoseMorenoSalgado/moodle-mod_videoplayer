@@ -29,13 +29,13 @@ class progress_service {
     /**
      * Save progress and return the persisted state.
      *
-     * @param \cm_info|object $cm
-     * @param object $course
-     * @param object $videoplayer
-     * @param \context_module $context
-     * @param int $userid
-     * @param array $input
-     * @return array
+     * @param object $cm Course module information.
+     * @param object $course Course record.
+     * @param object $videoplayer Drive Resource activity instance.
+     * @param \context_module $context Module context.
+     * @param int $userid User identifier.
+     * @param array $input Validated progress payload.
+     * @return array Persisted progress state.
      */
     public function save_progress(
         object $cm,
