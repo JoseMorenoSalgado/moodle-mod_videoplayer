@@ -8,7 +8,7 @@
 - PHP cURL and the standard extensions required by Moodle 5.0.
 - HTTPS, working Moodle cron and writable `$CFG->localcachedir`.
 
-Moodle 4.x is not supported by release `1.1.23-beta`.
+Moodle 4.x is not supported by release `1.1.24-beta`.
 
 ## Install or upgrade
 
@@ -23,8 +23,11 @@ Verify these required files exist:
 ```text
 mod/videoplayer/version.php
 mod/videoplayer/styles_activity.css
+mod/videoplayer/templates/pdfjs.mustache
 mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs
 mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs
+mod/videoplayer/thirdpartylibs/pageflip/page-flip.browser.js
+mod/videoplayer/thirdpartylibs/pageflip/page-flip.css
 mod/videoplayer/thirdpartylibs/plyr/plyr.css
 mod/videoplayer/thirdpartylibs/plyr/plyr.min.js
 ```
@@ -47,11 +50,13 @@ For cPanel PHP 8.3:
 /opt/cpanel/ea-php83/root/usr/bin/php admin/cli/maintenance.php --disable
 ```
 
+Release `1.1.24-beta` restores the protected Ebook/PageFlip viewer and exposes a real PDF display-mode selector. Historical activities that stored the hidden value `standard` are interpreted as Ebook activities. The explicit standard PDF.js mode now stores `pdfjs`.
+
 Release `1.1.23-beta` updates protected Google Drive blob delivery, preserves optional sharing `resourcekey` values and rejects HTML/error responses before they reach a media viewer.
 
 Release `1.1.22-beta` changed `videoplayer.videourl` to a nullable XMLDB field. This is required because local protected PDFs do not have a Google Drive URL. The upgrade step preserves every existing URL and only removes the obsolete `NOT NULL`/empty-string requirement.
 
-Clear browser caches or test in a private window after every upgrade involving AMD, CSS or protected media delivery.
+Clear browser caches or test in a private window after every upgrade involving AMD, Mustache, CSS or protected media delivery.
 
 ## Moodle 5.0 metadata
 
@@ -84,13 +89,32 @@ All viewer dependencies are local. No runtime CDN is allowed.
 ```text
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
+thirdpartylibs/pageflip/page-flip.browser.js
+thirdpartylibs/pageflip/page-flip.css
 thirdpartylibs/plyr/plyr.css
 thirdpartylibs/plyr/plyr.min.js
-thirdpartylibs/pageflip/page-flip.browser.js   # optional
-thirdpartylibs/pageflip/page-flip.css         # optional
 ```
 
-PDF.js remains available when optional PageFlip assets are absent. Native HTML5 controls remain available when Plyr enhancement cannot initialise.
+PDF.js remains available when PageFlip cannot initialise. Native HTML5 controls remain available when Plyr enhancement cannot initialise.
+
+## PDF display modes
+
+### Protected Ebook
+
+This is the default mode. PDF.js renders the protected document locally and PageFlip provides the page-turn effect. The viewer supports:
+
+- previous and next page;
+- fullscreen;
+- mobile touch navigation;
+- saved reading position;
+- page-based progress and completion;
+- optional watermark and gamification.
+
+### Standard PDF.js
+
+This mode uses a single PDF.js canvas and provides zoom, fit-to-screen, previous/next page and fullscreen controls.
+
+The teacher selects the mode in the activity settings. Existing activities created while the field was hidden automatically use Protected Ebook after upgrading to `1.1.24-beta`.
 
 ## Cron and cache
 
@@ -106,18 +130,47 @@ Cron must process ad-hoc tasks frequently. The PHP/web user must be able to crea
 
 After installation, verify:
 
-1. Administration reports Drive Resource `1.1.23-beta` and version `2026080502`.
+1. Administration reports Drive Resource `1.1.24-beta` and version `2026080503`.
 2. A teacher can create and edit an activity.
-3. An enrolled learner can open it.
-4. Guest and unauthorised users are denied.
-5. A local protected PDF opens through PDF.js without requiring a URL.
-6. A Google Drive PDF opens with cold cache and later reports a cache hit.
-7. A protected video starts, exposes a non-zero duration, pauses and seeks.
-8. iPhone Safari supports inline playback, rotation and resume.
-9. Progress and completion persist.
-10. Backup and Restore preserve configuration and local files.
-11. Privacy export/delete completes.
-12. Tiles/Mosaico and a standard course format navigate normally before and after opening Drive Resource.
+3. The PDF display-mode selector offers Protected Ebook and Standard PDF.js.
+4. An enrolled learner can open the activity.
+5. Guest and unauthorised users are denied.
+6. A local protected PDF opens with the Ebook page-turn effect.
+7. A Google Drive PDF opens with cold cache and later reports a cache hit.
+8. Standard PDF.js mode provides working zoom and fit controls.
+9. A protected video starts, exposes a non-zero duration, pauses and seeks.
+10. iPhone Safari supports inline playback, rotation and resume.
+11. Progress and completion persist.
+12. Backup and Restore preserve configuration and local files.
+13. Privacy export/delete completes.
+14. Tiles/Mosaico and a standard course format navigate normally before and after opening Drive Resource.
+
+## Ebook troubleshooting
+
+When a PDF opens without the page-turn effect, verify:
+
+```text
+thirdpartylibs/pageflip/page-flip.browser.js
+thirdpartylibs/pageflip/page-flip.css
+```
+
+Then inspect the activity settings and confirm the display mode is **Protected Ebook**. Purge Moodle caches after replacing the plugin because Mustache templates are cached.
+
+The Ebook page should contain:
+
+```text
+data-display-mode="ebook"
+data-region="ebook-stage"
+```
+
+The browser Network panel should load:
+
+```text
+mod/videoplayer/thirdpartylibs/pageflip/page-flip.browser.js
+mod/videoplayer/thirdpartylibs/pageflip/page-flip.css
+mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs
+mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs
+```
 
 ## Protected video troubleshooting
 
