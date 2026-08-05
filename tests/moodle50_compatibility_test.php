@@ -16,6 +16,8 @@
 
 namespace mod_videoplayer;
 
+use PHPUnit\Framework\Attributes\CoversNothing;
+
 /**
  * Moodle 5.0 compatibility contract tests.
  *
@@ -24,6 +26,7 @@ namespace mod_videoplayer;
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[CoversNothing]
 final class moodle50_compatibility_test extends \advanced_testcase {
     /**
      * The plugin metadata must explicitly include Moodle 5.0.
