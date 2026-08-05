@@ -4,6 +4,31 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.23-beta - 2026-08-05
+
+### Fixed
+
+- Switched protected Google Drive blob delivery to the `drive.usercontent.google.com` content endpoint with an explicit download confirmation parameter.
+- Preserved optional Google Drive `resourcekey` values from sharing URLs so protected files that require a resource key remain accessible to the Moodle server.
+- Prevented Google Drive login, permission, warning or error HTML from being forwarded to HTML5 video, audio, image or PDF viewers.
+- Generic binary upstream responses now use the viewer's expected MIME type while valid specific media MIME types continue to pass through.
+
+### Security
+
+- Added strict upstream MIME compatibility validation before protected response headers or bytes are sent to the learner.
+- Added non-sensitive `X-Drive-Resource-Status` diagnostics without exposing Google Drive IDs, URLs or response bodies.
+
+### Validation
+
+- Added PHPUnit coverage for Drive resource-key handling, protected content URL generation and upstream MIME rejection.
+- Release metadata bumped to `1.1.23-beta` with plugin version `2026080502`.
+
+### Upgrade notes
+
+- Deploy the complete plugin directory and run the normal Moodle upgrade and cache purge.
+- Existing activities do not need to be recreated. Activities whose original sharing URL contains `resourcekey` will begin forwarding it server-side after upgrade.
+- Google Drive files must permit link access and download; owner-level download restrictions cannot be bypassed by the plugin.
+
 ## v1.1.22-beta - 2026-08-05
 
 ### Fixed
