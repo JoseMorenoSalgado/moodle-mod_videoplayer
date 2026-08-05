@@ -142,9 +142,11 @@ if (get_config('mod_videoplayer', 'playercolormode') === 'custom') {
 }
 
 $initialpage = 1;
-$totalpages = ($source === 'localpdf') ? 0 : ($progressrecord && !empty($progressrecord->totalpages) ? (int)$progressrecord->totalpages : 0);
-$points = $progressrecord && !empty($progressrecord->points) ? (int)$progressrecord->points : 0;
-$completionpercent = $progressrecord ? (float)$progressrecord->completionpercentage : 0;
+$totalpages = $source === 'localpdf'
+    ? 0
+    : ($progressrecord && !empty($progressrecord->totalpages) ? (int) $progressrecord->totalpages : 0);
+$points = $progressrecord && !empty($progressrecord->points) ? (int) $progressrecord->points : 0;
+$completionpercent = $progressrecord ? (float) $progressrecord->completionpercentage : 0;
 $watermark = fullname($USER) . ' · ' . userdate(time(), get_string('strftimedatetimeshort', 'langconfig'));
 
 $templatecontext = [
@@ -163,7 +165,7 @@ $templatecontext = [
     'disablecontextmenu' => !empty($videoplayer->disablecontextmenu),
     'enablewatermark' => !empty($videoplayer->enablewatermark),
     'enablegamification' => !empty($videoplayer->enablegamification),
-    'pointsperpage' => (int)($videoplayer->pointsperpage ?? 1),
+    'pointsperpage' => (int) ($videoplayer->pointsperpage ?? 1),
     'initialpage' => 1,
     'totalpages' => $totalpages,
     'points' => $points,
