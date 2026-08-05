@@ -14,12 +14,12 @@
 // along with Moodle. If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Normalised local PDF.js loader for Drive Resource.
+ * Local PDF.js ESM loader for Drive Resource.
  *
- * Dynamic import implementations can expose PDF.js as a direct ESM
- * namespace, a default wrapper, or the global namespace installed by
- * the bundle. This adapter validates those shapes before configuring
- * the locally bundled worker.
+ * Moodle compiles AMD source through Babel and transforms dynamic import()
+ * expressions into RequireJS requests. PDF.js is distributed as an ES module,
+ * not an AMD module, so it must be loaded through a module script. The local
+ * PDF.js bundle registers its API as globalThis.pdfjsLib after evaluation.
  *
  * @module     mod_videoplayer/pdfjsloader
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
@@ -29,6 +29,7 @@ define([], function() {
     const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
     const PDFJS_WORKER_URL = M.cfg.wwwroot +
         '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
+    const SCRIPT_ID = 'mod-videoplayer-pdfjs-module';
 
     let loadPromise = null;
 
@@ -47,27 +48,19 @@ define([], function() {
     };
 
     /**
-     * Resolve PDF.js from known browser module namespace shapes.
+     * Configure the local PDF.js worker and return the validated API.
      *
-     * @param {Object} moduleNamespace
+     * @param {*} candidate
      * @returns {Object}
      * @throws {TypeError}
      */
-    const resolveLibrary = function(moduleNamespace) {
-        const candidates = [
-            moduleNamespace,
-            moduleNamespace && moduleNamespace.default,
-            moduleNamespace && moduleNamespace.pdfjsLib,
-            window.pdfjsLib || null
-        ];
-
-        for (let index = 0; index < candidates.length; index++) {
-            if (isLibrary(candidates[index])) {
-                return candidates[index];
-            }
+    const configureLibrary = function(candidate) {
+        if (!isLibrary(candidate)) {
+            throw new TypeError('Drive Resource could not initialise the local PDF.js API.');
         }
 
-        throw new TypeError('Drive Resource could not initialise the local PDF.js API.');
+        candidate.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        return candidate;
     };
 
     /**
@@ -76,13 +69,38 @@ define([], function() {
      * @returns {Promise<Object>}
      */
     const load = function() {
+        if (isLibrary(window.pdfjsLib)) {
+            return Promise.resolve(configureLibrary(window.pdfjsLib));
+        }
+
         if (!loadPromise) {
-            loadPromise = import(PDFJS_URL).then(function(moduleNamespace) {
-                const pdfjsLib = resolveLibrary(moduleNamespace);
-                pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                return pdfjsLib;
+            loadPromise = new Promise(function(resolve, reject) {
+                const previous = document.getElementById(SCRIPT_ID);
+                if (previous) {
+                    previous.remove();
+                }
+
+                const script = document.createElement('script');
+                script.id = SCRIPT_ID;
+                script.type = 'module';
+                script.src = PDFJS_URL;
+                script.async = true;
+                script.onload = function() {
+                    try {
+                        resolve(configureLibrary(window.pdfjsLib));
+                    } catch (error) {
+                        loadPromise = null;
+                        reject(error);
+                    }
+                };
+                script.onerror = function() {
+                    loadPromise = null;
+                    reject(new TypeError('Drive Resource could not load the local PDF.js module.'));
+                };
+                document.head.appendChild(script);
             });
         }
+
         return loadPromise;
     };
 
