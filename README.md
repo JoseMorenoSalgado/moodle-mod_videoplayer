@@ -50,6 +50,7 @@ The complete directory is required, including:
 
 ```text
 styles_activity.css
+amd/build/pdfjsloader.min.js
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
 thirdpartylibs/pageflip/page-flip.browser.js
@@ -65,9 +66,11 @@ php admin/cli/upgrade.php --non-interactive
 php admin/cli/purge_caches.php
 ```
 
-Release `1.1.24-beta` restores the protected Ebook/PageFlip execution path. Historical `displaymode = standard` records are treated as Ebook because earlier releases stored that value in a hidden field even when the activity displayed the ebook experience. The newly selectable standard PDF.js mode is stored as `pdfjs`.
+Release `1.1.25-beta` fixes mobile PDF.js initialization by loading the bundled ES module through a native local `<script type="module">` element. Moodle's AMD build must not transform `pdf.min.mjs` into a RequireJS request. The shared `pdfjsloader` validates the API before assigning the bundled worker URL.
 
-After upgrading, clear the browser cache so Moodle discards previous Mustache, JavaScript and theme cache entries.
+Release `1.1.24-beta` restored the protected Ebook/PageFlip execution path. Historical `displaymode = standard` records are treated as Ebook because earlier releases stored that value in a hidden field even when the activity displayed the ebook experience. The newly selectable standard PDF.js mode is stored as `pdfjs`.
+
+After upgrading, clear the Moodle caches and the browser/site cache so previous Mustache, JavaScript and theme entries are discarded.
 
 ## Protected delivery architecture
 
@@ -115,6 +118,24 @@ Cache path:
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
 
+### PDF.js loading boundary
+
+The PDF.js application and worker are bundled locally as ES modules. Viewer modules do not call `import()` directly because Moodle's AMD/Babel pipeline transforms dynamic imports into RequireJS requests, while `pdf.min.mjs` is not an AMD module.
+
+```text
+Ebook / responsive book / standard PDF viewer
+↓
+mod_videoplayer/pdfjsloader
+↓
+local script type="module"
+↓
+window.pdfjsLib validation
+↓
+local pdf.worker.min.mjs configuration
+```
+
+The loader is cached once per page and reports a controlled viewer error when the local module cannot be initialized.
+
 ### PDF display modes
 
 **Protected Ebook** is the default. PDF.js renders each page locally and the bundled PageFlip library provides the page-turn effect. The viewer includes previous/next navigation, fullscreen, reading progress and mobile touch support.
@@ -141,7 +162,7 @@ GitHub Actions runs `.github/workflows/moodle-50-ci.yml` against:
 - PHP 8.2 and 8.3;
 - MariaDB 10.11 and PostgreSQL 15.
 
-The workflow performs PHP lint, Moodle coding style, PHPDoc validation, plugin validation, upgrade-savepoint checks, Mustache validation, AMD/JavaScript validation and PHPUnit tests.
+The workflow performs PHP lint, Moodle coding style, PHPDoc validation, plugin validation, upgrade-savepoint checks, Mustache validation, AMD/JavaScript validation, the PDF.js native-ESM bundle contract and PHPUnit tests.
 
 ## Development
 
@@ -151,7 +172,7 @@ AMD sources are under `amd/src/` and production bundles under `amd/build/`.
 npx grunt amd
 ```
 
-Any change to an AMD source must include its rebuilt production bundle.
+Any change to an AMD source must include its rebuilt production bundle. The generated `pdfjsloader.min.js` must contain native module-script creation and must not contain Moodle's dynamic-import transformer.
 
 ## Documentation
 
@@ -163,8 +184,8 @@ Any change to an AMD source must include its rebuilt production bundle.
 
 ## Release
 
-- Release: `1.1.24-beta`
-- Moodle plugin version: `2026080503`
+- Release: `1.1.25-beta`
+- Moodle plugin version: `2026080504`
 - Component: `mod_videoplayer`
 - Product: Drive Resource
 - Supported Moodle branches: 5.0–5.2
