@@ -44,6 +44,8 @@ Each environment executes:
 - Formatted the English and Spanish language packs with the ruleset loaded by an installed Moodle 5.0 environment.
 - Added PHPUnit coverage attributes required by the Moodle test standard.
 - Kept viewer CSS outside the globally compiled module stylesheet to preserve third-party course-format navigation.
+- Validated the AMD source with Moodle 5.0 Grunt and regenerated all production bundles and source maps under `amd/build/`.
+- Removed the one-time write-enabled AMD rebuild workflow after the generated bundles were committed.
 
 ## APIs reviewed
 
