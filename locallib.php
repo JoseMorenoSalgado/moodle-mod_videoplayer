@@ -13,4 +13,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
-// Archivo requerido por Moodle aunque esté vacío.
+
+/**
+ * Local library placeholder for Drive Resource.
+ *
+ * @package    mod_videoplayer
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
