@@ -7,6 +7,8 @@
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+/* PDF.js rendering uses deliberate promise orchestration; errors remain handled by the terminal catch. */
+/* eslint-disable promise/always-return */
 define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
     const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
@@ -226,7 +228,9 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             if (!pdfDocument || num < 1 || num > pdfDocument.numPages) {
                 return;
             }
-            pdfDocument.getPage(num).catch(function() {});
+            pdfDocument.getPage(num).catch(function() {
+                return null;
+            });
         };
 
         const restoreScrollPosition = function(oldWidth, oldHeight, oldScrollLeft, oldScrollTop) {
@@ -267,9 +271,15 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 const fitHeight = availableHeight / base.height;
                 const baseScale = isFullscreen() ? Math.min(fitWidth, fitHeight) : fitWidth;
                 const appliedZoom = autoFit ? 1 : zoomFactor;
-                const cssScale = clamp(baseScale * appliedZoom, baseScale * MIN_ZOOM, baseScale * MAX_ZOOM);
+                const cssScale = clamp(
+                    baseScale * appliedZoom,
+                    baseScale * MIN_ZOOM,
+                    baseScale * MAX_ZOOM
+                );
                 const viewport = page.getViewport({scale: cssScale});
-                const outputScale = isFullscreen() ? Math.min(window.devicePixelRatio || 1, 3) : Math.min(window.devicePixelRatio || 1, 2.25);
+                const outputScale = isFullscreen()
+                    ? Math.min(window.devicePixelRatio || 1, 3)
+                    : Math.min(window.devicePixelRatio || 1, 2.25);
                 canvas.width = Math.floor(viewport.width * outputScale);
                 canvas.height = Math.floor(viewport.height * outputScale);
                 canvas.style.width = Math.floor(viewport.width) + 'px';

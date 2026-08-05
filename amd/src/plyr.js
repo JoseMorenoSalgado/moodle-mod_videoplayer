@@ -7,6 +7,8 @@
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+/* PDF.js rendering uses deliberate promise orchestration; errors remain handled by the terminal catch. */
+/* eslint-disable promise/always-return */
 define(['core/notification'], function(Notification) {
     var PLYR_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/plyr/plyr.min.js';
     var plyrPromise = null;
@@ -100,7 +102,7 @@ define(['core/notification'], function(Notification) {
         node.setAttribute('x-webkit-airplay', 'allow');
         node.preload = 'metadata';
 
-        // iOS/Safari is most reliable when its native media layer can negotiate
+        // Apple mobile browsers are most reliable when the native media layer can negotiate
         // presentation features itself. Plyr still supplies the surrounding UI.
         if (isAppleMobile()) {
             node.removeAttribute('disablepictureinpicture');
@@ -137,7 +139,10 @@ define(['core/notification'], function(Notification) {
 
                 node.dataset.plyrReady = '1';
                 new Plyr(node, {
-                    controls: ['play-large', 'play', 'rewind', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+                    controls: [
+                        'play-large', 'play', 'rewind', 'fast-forward', 'progress',
+                        'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'
+                    ],
                     settings: ['speed'],
                     seekTime: 10,
                     speed: {

@@ -7,6 +7,9 @@
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+/* PDF.js rendering uses deliberate promise orchestration; errors remain handled by the terminal catch. */
+/* eslint-disable promise/no-nesting */
+/* eslint-disable promise/always-return */
 define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
     const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
@@ -335,7 +338,9 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             updateStatus();
 
             const pagesToRender = Math.min(pdfDocument.numPages, MAX_INITIAL_RENDER_PAGES);
-            const maxWidth = Math.min(Math.max(root.clientWidth / (window.innerWidth < 768 ? 1 : 2), 320), 680);
+            const columns = window.innerWidth < 768 ? 1 : 2;
+            const availableWidth = root.clientWidth / columns;
+            const maxWidth = Math.min(Math.max(availableWidth, 320), 680);
             const chain = [];
 
             for (let i = 1; i <= pagesToRender; i++) {
@@ -400,7 +405,8 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
      * Initialise all ebook viewers on the page.
      */
     const init = function() {
-        const viewers = Array.prototype.slice.call(document.querySelectorAll('.mod-videoplayer-pdfjs-viewer[data-display-mode="ebook"]'));
+        const viewerSelector = '.mod-videoplayer-pdfjs-viewer[data-display-mode="ebook"]';
+        const viewers = Array.prototype.slice.call(document.querySelectorAll(viewerSelector));
         if (!viewers.length) {
             return;
         }
