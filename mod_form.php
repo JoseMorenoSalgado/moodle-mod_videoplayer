@@ -78,7 +78,7 @@ class mod_videoplayer_mod_form extends moodleform_mod {
 
         $displaymodes = [
             'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
-            'standard' => get_string('displaymodestandard', 'mod_videoplayer'),
+            'pdfjs' => get_string('displaymodestandard', 'mod_videoplayer'),
         ];
         $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
         $mform->setDefault('displaymode', 'ebook');
@@ -125,7 +125,10 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         }
 
         $displaymode = clean_param($defaultvalues['displaymode'] ?? 'ebook', PARAM_ALPHANUMEXT);
-        if (!in_array($displaymode, ['ebook', 'standard'], true)) {
+        if ($displaymode === 'standard') {
+            $displaymode = 'ebook';
+        }
+        if (!in_array($displaymode, ['ebook', 'pdfjs'], true)) {
             $displaymode = 'ebook';
         }
         $defaultvalues['displaymode'] = $displaymode;
