@@ -24,7 +24,6 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          license_marker = "// If not, see <https://www.gnu.org/licenses/>.\n\n"
           copyright_line = " * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud\n"
           license_line = " * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later\n"
 
@@ -41,20 +40,25 @@ jobs:
           for filename, description in file_descriptions.items():
               path = Path(filename)
               text = path.read_text(encoding="utf-8")
-              if license_marker not in text:
-                  raise RuntimeError(f"License marker not found in {filename}")
-              insertion = (
-                  license_marker
-                  + "/**\n"
+              lines = text.splitlines(keepends=True)
+              insertion_index = next(
+                  (index + 1 for index, line in enumerate(lines) if "along with Moodle.  If not, see" in line),
+                  None,
+              )
+              if insertion_index is None:
+                  raise RuntimeError(f"License line not found in {filename}")
+
+              docblock = (
+                  "\n/**\n"
                   + f" * {description}\n"
                   + " *\n"
                   + " * @package    mod_videoplayer\n"
                   + copyright_line
                   + license_line
-                  + " */\n\n"
+                  + " */\n"
               )
-              text = text.replace(license_marker, insertion, 1)
-              path.write_text(text, encoding="utf-8")
+              lines.insert(insertion_index, docblock)
+              path.write_text("".join(lines), encoding="utf-8")
 
           guard_files = [
               "lib.php",
