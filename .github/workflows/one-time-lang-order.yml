@@ -1,0 +1,54 @@
+name: One-time Moodle language ordering
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  order:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Moodle CodeSniffer
+        run: composer create-project --no-interaction --no-dev --prefer-dist moodlehq/moodle-plugin-ci:^4 ci
+
+      - name: Order only the language files
+        run: |
+          set +e
+          ci/vendor/bin/phpcbf \
+            --standard=moodle \
+            --sniffs=moodle.Files.LangFilesOrdering \
+            lang/en/videoplayer.php \
+            lang/es/videoplayer.php
+          result=$?
+          set -e
+          rm -rf ci
+          if [ "$result" -gt 1 ]; then
+            exit "$result"
+          fi
+
+      - name: Remove this temporary workflow
+        run: rm -f .github/workflows/one-time-lang-order.yml
+
+      - name: Commit ordered language strings
+        run: |
+          git config user.name "Elearning Cloud CI"
+          git config user.email "94720805+JoseMorenoSalgado@users.noreply.github.com"
+          git add lang/en/videoplayer.php lang/es/videoplayer.php .github/workflows/one-time-lang-order.yml
+          git commit -m "style: order Moodle language strings"
+          git push origin HEAD:main
