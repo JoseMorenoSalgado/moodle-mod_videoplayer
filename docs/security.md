@@ -52,6 +52,29 @@ The endpoint must never become a generic URL proxy. Upstream destinations must c
 
 Protected responses use validated MIME types, inline disposition with sanitised filenames, `nosniff`, no-index directives, private caching and `no-transform`. Valid ranges preserve `206`, `Content-Range` and `Content-Length`; invalid ranges return `416` without leaking upstream details.
 
+## PDF.js browser-code boundary
+
+PDF.js and its worker are local, same-origin ES modules:
+
+```text
+thirdpartylibs/pdfjs/pdf.min.mjs
+thirdpartylibs/pdfjs/pdf.worker.min.mjs
+```
+
+`mod_videoplayer/pdfjsloader` may load only the constant plugin-owned PDF.js URL. It must never accept a URL from activity data, request parameters or user input.
+
+The loader must:
+
+- create a same-origin `<script type="module">`;
+- reject when the expected PDF.js API is absent;
+- configure only the bundled worker path;
+- avoid CDN, `eval`, inline executable source and arbitrary dynamic imports;
+- expose failures through the controlled viewer error path.
+
+The Moodle site's Content Security Policy must allow same-origin module scripts and workers. The plugin does not require external script origins or `unsafe-eval`.
+
+The generated AMD bundle is checked to ensure Moodle has not converted the ES-module load into an incompatible RequireJS request. This check protects availability and prevents future build changes from silently bypassing the intended loader boundary.
+
 ## Task and cache safety
 
 PDF cache warming uses Moodle ad-hoc tasks with duplicate suppression. Full files are written to temporary paths, verified as PDFs and atomically renamed. Lock, cookie and temporary files are cleaned up.
@@ -70,7 +93,7 @@ Progress, active time, completion, page position, points and rewards are persona
 
 ## Moodle 5.0 security validation
 
-The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints, Mustache, AMD and PHPUnit against Moodle 5.0. Production validation additionally requires:
+The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints, Mustache, AMD, the PDF.js native-ESM bundle contract and PHPUnit against Moodle 5.0. Production validation additionally requires:
 
 - current supported Moodle 5.0 maintenance release;
 - guest and unenrolled access denial;
@@ -80,6 +103,8 @@ The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints
 - upstream failures not returned as HTTP 200;
 - correct valid/invalid range behaviour;
 - no direct web access to local/cache files;
+- PDF.js and worker loaded only from the plugin's same-origin paths;
+- physical mobile validation without unhandled `workerSrc` errors;
 - normal navigation in Tiles/Mosaico and standard formats;
 - Backup/Restore and Privacy API tests;
 - review of current Moodle security advisories before release.
