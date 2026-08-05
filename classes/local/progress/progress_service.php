@@ -37,21 +37,28 @@ class progress_service {
      * @param array $input
      * @return array
      */
-    public function save_progress(object $cm, object $course, object $videoplayer, \context_module $context, int $userid, array $input): array {
+    public function save_progress(
+        object $cm,
+        object $course,
+        object $videoplayer,
+        \context_module $context,
+        int $userid,
+        array $input
+    ): array {
         global $DB;
 
-        $completionpercentage = max(0, min(100, (float)($input['completionpercentage'] ?? 0)));
-        $lastpage = max(0, (int)($input['lastpage'] ?? 0));
-        $totalpages = max(0, (int)($input['totalpages'] ?? 0));
-        $timespent = max(0, (int)($input['timespent'] ?? 0));
-        $progress = max(0, (float)($input['progress'] ?? 0));
+        $completionpercentage = max(0, min(100, (float) ($input['completionpercentage'] ?? 0)));
+        $lastpage = max(0, (int) ($input['lastpage'] ?? 0));
+        $totalpages = max(0, (int) ($input['totalpages'] ?? 0));
+        $timespent = max(0, (int) ($input['timespent'] ?? 0));
+        $progress = max(0, (float) ($input['progress'] ?? 0));
         $completed = !empty($input['completed']);
 
         if ($totalpages > 0 && $lastpage > 0) {
             $completionpercentage = max($completionpercentage, min(100, ($lastpage / $totalpages) * 100));
         }
 
-        $required = isset($videoplayer->completionpercentage) ? (int)$videoplayer->completionpercentage : 80;
+        $required = isset($videoplayer->completionpercentage) ? (int) $videoplayer->completionpercentage : 80;
         if ($completionpercentage >= $required) {
             $completed = true;
         }
@@ -65,12 +72,12 @@ class progress_service {
         $wascompleted = false;
         if ($record = $DB->get_record('videoplayer_views', $conditions)) {
             $wascompleted = !empty($record->completed);
-            $record->progress = max((float)$record->progress, $progress);
-            $record->completionpercentage = max((float)$record->completionpercentage, $completionpercentage);
+            $record->progress = max((float) $record->progress, $progress);
+            $record->completionpercentage = max((float) $record->completionpercentage, $completionpercentage);
             $record->completed = $record->completed || $completed ? 1 : 0;
-            $record->lastpage = max((int)($record->lastpage ?? 0), $lastpage);
-            $record->totalpages = max((int)($record->totalpages ?? 0), $totalpages);
-            $record->timespent = max((int)($record->timespent ?? 0), $timespent);
+            $record->lastpage = max((int) ($record->lastpage ?? 0), $lastpage);
+            $record->totalpages = max((int) ($record->totalpages ?? 0), $totalpages);
+            $record->timespent = max((int) ($record->timespent ?? 0), $timespent);
             $record->timemodified = $now;
         } else {
             $record = (object) [
@@ -91,7 +98,7 @@ class progress_service {
 
         $rewarddata = [
             'rewards' => [],
-            'totalpoints' => (int)($record->points ?? 0),
+            'totalpoints' => (int) ($record->points ?? 0),
         ];
         if (!empty($videoplayer->enablegamification)) {
             $rewarddata = (new reward_service())->award_rewards($videoplayer, $record, $userid, $context);
@@ -106,9 +113,9 @@ class progress_service {
             'userid' => $userid,
             'other' => [
                 'videoplayerid' => $videoplayer->id,
-                'completionpercentage' => (float)$record->completionpercentage,
-                'lastpage' => (int)($record->lastpage ?? 0),
-                'totalpages' => (int)($record->totalpages ?? 0),
+                'completionpercentage' => (float) $record->completionpercentage,
+                'lastpage' => (int) ($record->lastpage ?? 0),
+                'totalpages' => (int) ($record->totalpages ?? 0),
             ],
         ])->trigger();
 
@@ -124,22 +131,22 @@ class progress_service {
                 'userid' => $userid,
                 'other' => [
                     'videoplayerid' => $videoplayer->id,
-                    'completionpercentage' => (float)$record->completionpercentage,
+                    'completionpercentage' => (float) $record->completionpercentage,
                 ],
             ])->trigger();
         }
 
         return [
             'status' => true,
-            'completed' => (bool)$record->completed,
-            'progress' => (float)$record->progress,
-            'completionpercentage' => (float)$record->completionpercentage,
-            'lastpage' => (int)($record->lastpage ?? 0),
-            'totalpages' => (int)($record->totalpages ?? 0),
-            'timespent' => (int)($record->timespent ?? 0),
-            'points' => (int)($record->points ?? 0),
+            'completed' => (bool) $record->completed,
+            'progress' => (float) $record->progress,
+            'completionpercentage' => (float) $record->completionpercentage,
+            'lastpage' => (int) ($record->lastpage ?? 0),
+            'totalpages' => (int) ($record->totalpages ?? 0),
+            'timespent' => (int) ($record->timespent ?? 0),
+            'points' => (int) ($record->points ?? 0),
             'rewards' => $rewarddata['rewards'],
-            'timemodified' => (int)$record->timemodified,
+            'timemodified' => (int) $record->timemodified,
         ];
     }
 }
