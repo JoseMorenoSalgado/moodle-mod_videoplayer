@@ -82,6 +82,16 @@ final class drive_test extends \advanced_testcase {
     }
 
     /**
+     * Resource keys must be retained only when they are valid.
+     */
+    public function test_extract_resource_key(): void {
+        $url = 'https://drive.google.com/file/d/1AbC_def-123/view?resourcekey=0-AbC_def-456&usp=sharing';
+
+        $this->assertSame('0-AbC_def-456', drive::extract_resource_key($url));
+        $this->assertNull(drive::extract_resource_key('https://drive.google.com/file/d/1AbC_def-123/view'));
+    }
+
+    /**
      * Google Workspace resources must use PDF export endpoints server-side.
      */
     public function test_protected_content_url_uses_expected_exports(): void {
@@ -100,8 +110,21 @@ final class drive_test extends \advanced_testcase {
             drive::protected_content_url('', $fileid, 'presentation')
         );
         $this->assertSame(
-            'https://drive.google.com/uc?export=download&id=1AbC_def-123',
+            'https://drive.usercontent.google.com/download?id=1AbC_def-123&export=download&confirm=t',
             drive::protected_content_url('', $fileid, 'video')
+        );
+    }
+
+    /**
+     * Protected URLs must preserve a Drive resource key server-side.
+     */
+    public function test_protected_content_url_preserves_resource_key(): void {
+        $originalurl = 'https://drive.google.com/file/d/1AbC_def-123/view?resourcekey=0-AbC_def-456';
+
+        $this->assertSame(
+            'https://drive.usercontent.google.com/download?id=1AbC_def-123&export=download&confirm=t' .
+                '&resourcekey=0-AbC_def-456',
+            drive::protected_content_url($originalurl, '1AbC_def-123', 'video')
         );
     }
 
