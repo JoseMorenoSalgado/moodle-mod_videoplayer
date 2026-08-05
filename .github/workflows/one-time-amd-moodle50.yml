@@ -171,7 +171,8 @@ jobs:
         run: moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
 
       - name: Lint and rebuild AMD production bundles
-        run: moodle-plugin-ci grunt --max-lint-warnings 0
+        working-directory: moodle
+        run: npx grunt amd --root=mod/videoplayer
 
       - name: Copy production bundles back to repository
         run: |
