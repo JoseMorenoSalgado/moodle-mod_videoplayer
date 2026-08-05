@@ -85,25 +85,25 @@ jobs:
         run: moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
 
       - name: PHP syntax
-        run: moodle-plugin-ci phplint ./plugin
+        run: moodle-plugin-ci phplint
 
       - name: Moodle coding style
-        run: moodle-plugin-ci phpcs --max-warnings 0 ./plugin
+        run: moodle-plugin-ci phpcs --max-warnings 0
 
       - name: PHPDoc
-        run: moodle-plugin-ci phpdoc --max-warnings 0 ./plugin
+        run: moodle-plugin-ci phpdoc --max-warnings 0
 
       - name: Plugin validation
-        run: moodle-plugin-ci validate ./plugin
+        run: moodle-plugin-ci validate
 
       - name: Upgrade savepoints
-        run: moodle-plugin-ci savepoints ./plugin
+        run: moodle-plugin-ci savepoints
 
       - name: Mustache validation
-        run: moodle-plugin-ci mustache ./plugin
+        run: moodle-plugin-ci mustache
 
       - name: AMD and JavaScript validation
-        run: moodle-plugin-ci grunt --max-lint-warnings 0 ./plugin
+        run: moodle-plugin-ci grunt --max-lint-warnings 0
 
       - name: PHPUnit
-        run: moodle-plugin-ci phpunit --fail-on-warning ./plugin
+        run: moodle-plugin-ci phpunit --fail-on-warning
