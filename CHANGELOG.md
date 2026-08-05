@@ -4,6 +4,31 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.24-beta - 2026-08-05
+
+### Fixed
+
+- Restored the protected Ebook/PageFlip execution path that had become disconnected when `view.php` began forcing the internal responsive book viewer.
+- Restored the missing ebook stage in the PDF.js Mustache template so the bundled PageFlip library can create the page-turn experience.
+- Prevented PageFlip from initialising against a hidden zero-dimension element, improving first render sizing and page proportions.
+- Existing activities whose historical hidden field stored `displaymode = standard` are interpreted as Ebook activities again.
+- The standard single-page PDF.js viewer now uses the explicit `pdfjs` display-mode value, avoiding ambiguity with historical records.
+- The activity form once again exposes a supported PDF display-mode selector instead of overwriting the value with a hidden field.
+- Resume rendering now uses the learner's saved last page instead of always returning to page 1.
+
+### Changed
+
+- Protected Ebook is the default PDF experience.
+- Teachers can choose between Protected Ebook and Standard PDF.js when configuring the activity.
+- PageFlip CSS and JavaScript are loaded only on Ebook activity pages.
+- Release metadata bumped to `1.1.24-beta` with plugin version `2026080503`.
+
+### Upgrade notes
+
+- Deploy the complete plugin directory, including `templates/pdfjs.mustache` and `thirdpartylibs/pageflip/`.
+- Run Moodle upgrade and purge all caches so the revised Mustache template and viewer routing are loaded.
+- Existing PDF activities do not need to be recreated or edited.
+
 ## v1.1.23-beta - 2026-08-05
 
 ### Fixed
