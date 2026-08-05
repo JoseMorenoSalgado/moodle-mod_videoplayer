@@ -41,7 +41,7 @@ Each environment executes:
 - Normalised Backup/Restore task classes for Moodle 5.0.
 - Added PHPUnit tests for Drive URL handling and the Moodle 5.0 API contract.
 - Added the standard `videoplayer:addinstance` capability language string.
-- Ordered English and Spanish language keys according to Moodle Coding Style.
+- Formatted the English and Spanish language packs with the ruleset loaded by an installed Moodle 5.0 environment.
 - Added PHPUnit coverage attributes required by the Moodle test standard.
 - Kept viewer CSS outside the globally compiled module stylesheet to preserve third-party course-format navigation.
 
