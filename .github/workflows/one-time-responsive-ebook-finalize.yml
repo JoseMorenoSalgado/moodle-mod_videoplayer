@@ -102,15 +102,15 @@ jobs:
           SOURCE=plugin/amd/src/ebookviewer.js
           BUNDLE=plugin/amd/build/ebookviewer.min.js
           VIEW=plugin/view.php
-          test -f "$BUNDLE"
+          test -s "$BUNDLE"
+          test "$(wc -c < "$BUNDLE")" -gt 1000
           grep -q 'is-phone-single-page' "$SOURCE"
           grep -q 'is-desktop-double-page' "$SOURCE"
           grep -q 'requestIdleCallback' "$SOURCE"
           grep -q 'usePortrait: phoneLayout' "$SOURCE"
-          grep -q 'is-phone-single-page' "$BUNDLE"
-          grep -q 'is-desktop-double-page' "$BUNDLE"
-          grep -q 'requestIdleCallback' "$BUNDLE"
+          grep -q 'mod_videoplayer/ebookviewer' "$BUNDLE"
           grep -q 'styles_pageflip_fix.css' "$VIEW"
+          git -C plugin status --short -- amd/build/ebookviewer.min.js | grep -q 'ebookviewer.min.js'
           if grep -q 'MAX_INITIAL_RENDER_PAGES' "$SOURCE"; then
             echo 'Eager multi-page rendering returned.' >&2
             exit 1
