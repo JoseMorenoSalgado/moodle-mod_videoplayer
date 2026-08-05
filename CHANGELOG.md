@@ -4,6 +4,25 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.22-beta - 2026-08-05
+
+### Fixed
+
+- Corrected the Moodle 5.0 XMLDB definition of `videoplayer.videourl`: local protected resources can now store `NULL` instead of an artificial empty URL.
+- Added an idempotent upgrade step that removes the obsolete `NOT NULL` and default-empty-string constraints while preserving every existing Google Drive URL.
+- Resolved Moodle Coding Style violations in PHP file headers, Backup/Restore tasks, Privacy API, progress services, reports and event descriptions.
+
+### Changed
+
+- Release metadata bumped to `1.1.22-beta` with plugin version `2026080501`.
+- The clean-install schema now matches the real domain model: Google Drive resources require a URL; Moodle-local PDFs do not.
+
+### Validation
+
+- Moodle 5.0 clean installation was exercised with PHP 8.2/8.3 against MariaDB and PostgreSQL.
+- PHP syntax validation passed for the complete plugin PHP codebase.
+- Full CI remains the release gate for PHPCS, PHPDoc, plugin validation, XMLDB savepoints, Mustache, AMD and PHPUnit.
+
 ## v1.1.21-beta - 2026-08-05
 
 ### Added
@@ -69,7 +88,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Fixed Moodle XMLDB `ddldependencyerror` when upgrading legacy installations where `source_idx` already depends on the `videoplayer.source` field.
 - Indexed `source` and `type` fields are now migrated safely by dropping their logical XMLDB indexes before field type/default changes and recreating the indexes afterwards.
 - The same dependency-safe migration pattern is applied to the legacy `videoplayer_views.completed` field and its `completed_idx` index.
-- Legacy nullable values are normalized before enforcing current `NOT NULL` definitions for `source`, `videourl`, `type`, completion and progress fields.
+- Legacy nullable values are normalized before enforcing current `NOT NULL` definitions for `source`, `type`, completion and progress fields.
 - Legacy progress normalization now checks field existence before issuing data updates, preserving compatibility with partially migrated tables.
 
 ### Changed
