@@ -117,6 +117,7 @@ $string['setting_pdfcacheenabled_desc'] = 'Stores protected PDF files in Moodle 
 $string['setting_pdfcachettl'] = 'PDF cache lifetime';
 $string['setting_pdfcachettl_desc'] = 'Lifetime in seconds for cached PDF files. Default is 2592000 seconds, equivalent to 30 days.';
 $string['task_cleanup_pdf_cache'] = 'Clean Drive Resource PDF cache';
+$string['videoplayer:addinstance'] = 'Add a new Drive Resource';
 $string['mod_videoplayer:addinstance'] = 'Add a new Drive Resource';
 $string['mod_videoplayer:addinstance_help'] = 'Allows users to add a new Drive Resource activity to a course.';
 $string['mod_videoplayer:view'] = 'View Drive Resource';
