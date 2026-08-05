@@ -112,7 +112,10 @@ if (!isguestuser()) {
 $initialprogress = $progressrecord ? (float) $progressrecord->progress : 0;
 $completed = $progressrecord ? (bool) $progressrecord->completed : false;
 $requiredseconds = max(60, ((int) ($videoplayer->completionpercentage ?? 80)) * 6);
-$displaymode = 'book';
+$displaymode = clean_param($videoplayer->displaymode ?? 'ebook', PARAM_ALPHANUMEXT);
+if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+    $displaymode = 'ebook';
+}
 
 if (!isguestuser()) {
     $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
@@ -125,9 +128,16 @@ if (!isguestuser()) {
 }
 
 if ($type === 'pdf') {
-    $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
-    $PAGE->requires->css('/mod/videoplayer/styles_book_controls.css');
-    $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
+    if ($displaymode === 'ebook') {
+        $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/pageflip/page-flip.css');
+        $PAGE->requires->js_call_amd('mod_videoplayer/ebookviewer', 'init');
+    } else if ($displaymode === 'book') {
+        $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
+        $PAGE->requires->css('/mod/videoplayer/styles_book_controls.css');
+        $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
+    } else {
+        $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
+    }
 } else if ($type === 'video') {
     $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
     $PAGE->requires->js_call_amd('mod_videoplayer/plyr', 'init');
@@ -160,13 +170,14 @@ $templatecontext = [
     'title' => format_string($videoplayer->name),
     'playerstyle' => $playerstyle,
     'displaymode' => $displaymode,
-    'ebookmode' => true,
+    'ebookmode' => $displaymode === 'ebook',
+    'bookmode' => $displaymode === 'book',
     'disabledownload' => !empty($videoplayer->disabledownload),
     'disablecontextmenu' => !empty($videoplayer->disablecontextmenu),
     'enablewatermark' => !empty($videoplayer->enablewatermark),
     'enablegamification' => !empty($videoplayer->enablegamification),
     'pointsperpage' => (int) ($videoplayer->pointsperpage ?? 1),
-    'initialpage' => 1,
+    'initialpage' => max(1, (int) ($progressrecord->lastpage ?? 1)),
     'totalpages' => $totalpages,
     'points' => $points,
     'completionpercent' => round($completionpercent, 2),
@@ -184,7 +195,11 @@ if (!empty($videoplayer->intro)) {
 }
 
 if ($type === 'pdf') {
-    echo $OUTPUT->render_from_template('mod_videoplayer/book', $templatecontext);
+    if ($displaymode === 'book') {
+        echo $OUTPUT->render_from_template('mod_videoplayer/book', $templatecontext);
+    } else {
+        echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
+    }
 } else if ($type === 'video') {
     echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
 } else {
