@@ -40,7 +40,10 @@ $PAGE->set_url('/mod/videoplayer/report.php', ['id' => $cm->id]);
 $PAGE->set_title(get_string('progressreport', 'mod_videoplayer'));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_context($context);
-$PAGE->navbar->add(format_string($videoplayer->name), new moodle_url('/mod/videoplayer/view.php', ['id' => $cm->id]));
+$PAGE->navbar->add(
+    format_string($videoplayer->name),
+    new moodle_url('/mod/videoplayer/view.php', ['id' => $cm->id])
+);
 $PAGE->navbar->add(get_string('progressreport', 'mod_videoplayer'));
 
 echo $OUTPUT->header();
@@ -93,9 +96,12 @@ if (!$records) {
     $table->finish_output();
 }
 
-echo html_writer::div(
-    html_writer::link(new moodle_url('/mod/videoplayer/view.php', ['id' => $cm->id]), get_string('backtoresource', 'mod_videoplayer'), ['class' => 'btn btn-secondary mt-3']),
-    'mod-videoplayer-report-actions'
+$backurl = new moodle_url('/mod/videoplayer/view.php', ['id' => $cm->id]);
+$backlink = html_writer::link(
+    $backurl,
+    get_string('backtoresource', 'mod_videoplayer'),
+    ['class' => 'btn btn-secondary mt-3']
 );
+echo html_writer::div($backlink, 'mod-videoplayer-report-actions');
 
 echo $OUTPUT->footer();
