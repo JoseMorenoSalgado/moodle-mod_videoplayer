@@ -10,14 +10,11 @@
 /* PDF.js rendering uses deliberate promise orchestration; errors remain handled by the terminal catch. */
 /* eslint-disable promise/no-nesting */
 /* eslint-disable promise/always-return */
-define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
-    const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
-    const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
+define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], function(Ajax, Notification, PdfjsLoader) {
     const PAGEFLIP_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pageflip/page-flip.browser.js';
     const SAVE_INTERVAL = 10000;
     const MAX_INITIAL_RENDER_PAGES = 80;
 
-    let pdfjsPromise = null;
     let pageFlipPromise = null;
 
     /**
@@ -25,16 +22,6 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
      *
      * @returns {Promise<Object>}
      */
-    const loadPdfJs = function() {
-        if (!pdfjsPromise) {
-            pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                return pdfjsLib;
-            });
-        }
-        return pdfjsPromise;
-    };
-
     /**
      * Load local PageFlip browser build if installed.
      *
@@ -411,7 +398,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             return;
         }
 
-        Promise.all([loadPdfJs(), loadPageFlip()]).then(function(results) {
+        Promise.all([PdfjsLoader.load(), loadPageFlip()]).then(function(results) {
             const pdfjsLib = results[0];
             const PageFlip = results[1];
             viewers.forEach(function(root) {

@@ -15,25 +15,12 @@
 /* eslint-disable promise/always-return */
 /* eslint-disable promise/no-return-wrap */
 /* eslint-disable no-nested-ternary */
-define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
-    const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
-    const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
+define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], function(Ajax, Notification, PdfjsLoader) {
     const SAVE_INTERVAL = 10000;
     const MOBILE_QUERY = '(max-width: 767.98px)';
     const MOBILE_CACHE_LIMIT = 5;
     const DESKTOP_CACHE_LIMIT = 8;
     const PREFETCH_DELAY = 80;
-    let pdfjsPromise = null;
-
-    const loadPdfJs = function() {
-        if (!pdfjsPromise) {
-            pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                return pdfjsLib;
-            });
-        }
-        return pdfjsPromise;
-    };
 
     const isMobile = function() {
         return window.matchMedia(MOBILE_QUERY).matches;
@@ -531,7 +518,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         if (!roots.length) {
             return;
         }
-        loadPdfJs().then(function(pdfjsLib) {
+        PdfjsLoader.load().then(function(pdfjsLib) {
             roots.forEach(function(root) {
                 initViewer(root, pdfjsLib);
             });

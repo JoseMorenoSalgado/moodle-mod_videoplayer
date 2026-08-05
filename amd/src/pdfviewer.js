@@ -9,25 +9,12 @@
  */
 /* PDF.js rendering uses deliberate promise orchestration; errors remain handled by the terminal catch. */
 /* eslint-disable promise/always-return */
-define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
-    const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
-    const PDFJS_WORKER_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
+define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], function(Ajax, Notification, PdfjsLoader) {
     const SAVE_INTERVAL = 10000;
     const MIN_ZOOM = 0.75;
     const MAX_ZOOM = 2.75;
     const ZOOM_STEP = 0.15;
     const MOBILE_BREAKPOINT = 768;
-    let pdfjsPromise = null;
-
-    const loadPdfJs = function() {
-        if (!pdfjsPromise) {
-            pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                return pdfjsLib;
-            });
-        }
-        return pdfjsPromise;
-    };
 
     const hide = function(node, value) {
         if (node) {
@@ -468,7 +455,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         if (!viewers.length) {
             return;
         }
-        loadPdfJs().then(function(pdfjsLib) {
+        PdfjsLoader.load().then(function(pdfjsLib) {
             viewers.forEach(function(root) {
                 initViewer(root, pdfjsLib);
             });
