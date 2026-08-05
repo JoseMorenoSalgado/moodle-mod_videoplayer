@@ -25,13 +25,13 @@ jobs:
           php-version: '8.3'
           coverage: none
 
-      - name: Install Moodle Plugin CI
+      - name: Install Moodle CodeSniffer
         run: composer create-project --no-interaction --no-dev --prefer-dist moodlehq/moodle-plugin-ci:^4 ci
 
       - name: Apply automatic Moodle CodeSniffer fixes
         run: |
           set +e
-          ci/bin/moodle-plugin-ci phpcbf .
+          ci/vendor/bin/phpcbf --standard=moodle --extensions=php .
           result=$?
           set -e
           if [ "$result" -gt 1 ]; then
