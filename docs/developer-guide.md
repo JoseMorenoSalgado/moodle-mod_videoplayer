@@ -67,6 +67,40 @@ Never return raw Google Drive IDs, direct download URLs, preview URLs or upstrea
 
 `protected_stream` owns local/cache files. `http_range_proxy` owns upstream HTTP streaming. Never send both a manual `Range` header and `CURLOPT_RANGE` for the same request.
 
+## PDF.js module loading
+
+PDF.js is shipped as local ES modules:
+
+```text
+thirdpartylibs/pdfjs/pdf.min.mjs
+thirdpartylibs/pdfjs/pdf.worker.min.mjs
+```
+
+Do not call `import(PDFJS_URL)` directly from an AMD source. Moodle's Babel build transforms dynamic imports into RequireJS requests, but `.mjs` is not an AMD module. This can pass lint and still fail at runtime on mobile browsers.
+
+All protected PDF viewers must depend on:
+
+```text
+mod_videoplayer/pdfjsloader
+```
+
+The loader must:
+
+- create a local `<script type="module">` for `pdf.min.mjs`;
+- validate `window.pdfjsLib.getDocument` and `GlobalWorkerOptions`;
+- configure only the local `pdf.worker.min.mjs`;
+- cache one loading promise per page;
+- reject through a controlled Promise error;
+- never use CDN, `eval`, arbitrary URLs or a RequireJS conversion.
+
+After modifying `amd/src/pdfjsloader.js`, rebuild with Moodle Grunt and verify:
+
+```bash
+npx grunt amd --root=mod/videoplayer
+```
+
+The generated `amd/build/pdfjsloader.min.js` must contain `createElement("script")` and `type="module"`, and must not contain `_systemImportTransformerGlobalIdentifier`.
+
 ## PDF performance
 
 - Render visible pages only.
@@ -118,6 +152,7 @@ The CI workflow must pass:
 - upgrade savepoints;
 - Mustache;
 - Grunt/AMD;
+- PDF.js native-ESM bundle contract;
 - PHPUnit.
 
 ## Commercial release gate
@@ -127,6 +162,8 @@ A Moodle 5.0 release is not approved until all CI combinations pass and staging 
 - fresh install and upgrade;
 - course navigation with Tiles/Mosaico and a standard format;
 - local and Drive PDF opening;
+- Protected Ebook page-turn effect;
+- PDF.js initialization on the affected physical Android/iOS browser without `workerSrc` errors;
 - video start/seek/resume on physical iPhone Safari;
 - valid and invalid byte ranges;
 - progress and completion;
