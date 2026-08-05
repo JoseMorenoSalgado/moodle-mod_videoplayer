@@ -31,7 +31,6 @@ require_once($CFG->dirroot . '/mod/videoplayer/backup/moodle2/backup_videoplayer
  * Defines the backup task for a Drive Resource activity.
  */
 class backup_videoplayer_activity_task extends backup_activity_task {
-
     /**
      * Define activity-specific backup settings.
      */

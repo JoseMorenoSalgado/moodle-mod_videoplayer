@@ -31,7 +31,6 @@ require_once($CFG->dirroot . '/mod/videoplayer/backup/moodle2/restore_videoplaye
  * Defines the restore task for a Drive Resource activity.
  */
 class restore_videoplayer_activity_task extends restore_activity_task {
-
     /**
      * Define activity-specific restore settings.
      */
