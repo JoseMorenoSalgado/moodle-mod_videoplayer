@@ -63,12 +63,29 @@ final class http_range_proxy {
         $responseheaders = [];
         $headerssent = false;
         $discardbody = false;
+        $invalidcontent = false;
         $ishead = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD';
 
-        $headercallback = static function ($curl, string $header) use (&$responseheaders, &$discardbody): int {
+        $headercallback = static function (
+            $curl,
+            string $header
+        ) use (
+            &$responseheaders,
+            &$discardbody,
+            &$invalidcontent,
+            $fallbacktype
+        ): int {
             $length = strlen($header);
             $trimmed = trim($header);
             if ($trimmed === '') {
+                $status = (int)($responseheaders['status'] ?? 0);
+                if (in_array($status, [200, 206], true)) {
+                    $candidate = (string)($responseheaders['content-type'] ?? '');
+                    if (!self::is_compatible_content_type($candidate, $fallbacktype)) {
+                        $invalidcontent = true;
+                        $discardbody = true;
+                    }
+                }
                 return $length;
             }
 
@@ -76,6 +93,7 @@ final class http_range_proxy {
                 $status = (int)$matches[1];
                 $responseheaders = ['status' => $status];
                 $discardbody = $status >= 400;
+                $invalidcontent = false;
                 return $length;
             }
 
@@ -101,7 +119,7 @@ final class http_range_proxy {
         $ch = curl_init($url);
         if ($ch === false) {
             debugging('Drive Resource proxy could not initialize cURL.', DEBUG_DEVELOPER);
-            self::send_bad_gateway();
+            self::send_bad_gateway('CURL_INIT_FAILED');
         }
 
         $options = [
@@ -161,6 +179,14 @@ final class http_range_proxy {
         $curlcode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
+        if ($invalidcontent && !$headerssent) {
+            debugging(
+                'Drive Resource proxy rejected an incompatible upstream content type for ' . $fallbacktype . '.',
+                DEBUG_DEVELOPER
+            );
+            self::send_bad_gateway('UPSTREAM_CONTENT_REJECTED');
+        }
+
         if ($ishead && $result !== false && in_array($curlcode, [200, 206], true)) {
             self::send_response_headers($responseheaders, $fallbacktype, $filename, $cachestatus);
             die;
@@ -173,7 +199,7 @@ final class http_range_proxy {
         if ($result === false || $curlcode >= 400 || !in_array($curlcode, [200, 206], true)) {
             debugging('Drive Resource proxy failed: HTTP ' . $curlcode . ' ' . $curlerror, DEBUG_DEVELOPER);
             if (!$headerssent) {
-                self::send_bad_gateway();
+                self::send_bad_gateway('UPSTREAM_REQUEST_FAILED');
             }
             die;
         }
@@ -183,6 +209,46 @@ final class http_range_proxy {
         }
 
         die;
+    }
+
+    /**
+     * Determine whether an upstream MIME type is compatible with the viewer.
+     *
+     * Empty and generic binary responses are accepted because Google may omit
+     * a specific media MIME type. HTML, JSON and unrelated text responses are
+     * rejected so login, permission and download-warning pages never reach a
+     * video, audio, image or PDF element.
+     *
+     * @param string $candidate Upstream Content-Type value.
+     * @param string $fallback Expected viewer MIME type.
+     * @return bool
+     */
+    public static function is_compatible_content_type(string $candidate, string $fallback): bool {
+        $candidate = strtolower(trim(explode(';', $candidate, 2)[0]));
+        $fallback = strtolower(trim(explode(';', $fallback, 2)[0]));
+
+        if ($candidate === '' || in_array($candidate, ['application/octet-stream', 'binary/octet-stream'], true)) {
+            return true;
+        }
+
+        if ($candidate === 'text/html' || $candidate === 'application/json' || strpos($candidate, 'text/') === 0) {
+            return false;
+        }
+
+        if (strpos($fallback, 'video/') === 0) {
+            return strpos($candidate, 'video/') === 0;
+        }
+        if (strpos($fallback, 'audio/') === 0) {
+            return strpos($candidate, 'audio/') === 0;
+        }
+        if (strpos($fallback, 'image/') === 0) {
+            return strpos($candidate, 'image/') === 0;
+        }
+        if ($fallback === 'application/pdf') {
+            return $candidate === 'application/pdf';
+        }
+
+        return true;
     }
 
     /**
@@ -240,6 +306,7 @@ final class http_range_proxy {
         header('Expires: ' . gmdate('D, d M Y H:i:s', time() + self::PRIVATE_CACHE_SECONDS) . ' GMT');
         header('Vary: Range, If-Range');
         header('X-Drive-Resource-Cache: ' . self::safe_cache_status($cachestatus));
+        header('X-Drive-Resource-Status: MEDIA');
 
         $acceptranges = strtolower((string)($headers['accept-ranges'] ?? ''));
         if ($status === 206 || $acceptranges === 'bytes') {
@@ -272,6 +339,7 @@ final class http_range_proxy {
         header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
         header('X-Content-Type-Options: nosniff');
         header('X-Drive-Resource-Cache: ' . self::safe_cache_status($cachestatus));
+        header('X-Drive-Resource-Status: RANGE_INVALID');
         if (!empty($headers['content-range'])) {
             header('Content-Range: ' . self::safe_header_value((string)$headers['content-range']));
         }
@@ -281,12 +349,14 @@ final class http_range_proxy {
     /**
      * Send a generic upstream failure response.
      *
+     * @param string $status Safe diagnostic status.
      * @return never
      */
-    private static function send_bad_gateway(): never {
+    private static function send_bad_gateway(string $status): never {
         http_response_code(502);
         header('Cache-Control: no-store, no-cache, must-revalidate, no-transform');
         header('X-Content-Type-Options: nosniff');
+        header('X-Drive-Resource-Status: ' . self::safe_cache_status($status));
         die;
     }
 
@@ -299,7 +369,17 @@ final class http_range_proxy {
      */
     private static function safe_content_type(string $candidate, string $fallback): string {
         $candidate = trim(str_replace(["\r", "\n"], '', $candidate));
-        if ($candidate !== '' && preg_match('/^[a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+(?:\s*;\s*[a-zA-Z0-9._=-]+)*$/', $candidate)) {
+        $basetype = strtolower(trim(explode(';', $candidate, 2)[0]));
+        if (in_array($basetype, ['', 'application/octet-stream', 'binary/octet-stream'], true)) {
+            return $fallback;
+        }
+
+        if (
+            preg_match(
+                '/^[a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+(?:\s*;\s*[a-zA-Z0-9._=-]+)*$/',
+                $candidate
+            )
+        ) {
             return $candidate;
         }
 
