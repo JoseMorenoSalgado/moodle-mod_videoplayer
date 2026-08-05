@@ -105,5 +105,17 @@ jobs:
       - name: AMD and JavaScript validation
         run: moodle-plugin-ci grunt --max-lint-warnings 0
 
+      - name: PDF.js native ESM loader contract
+        run: |
+          BUNDLE=plugin/amd/build/pdfjsloader.min.js
+          test -f "$BUNDLE"
+          grep -q 'createElement("script")' "$BUNDLE"
+          grep -q 'type="module"' "$BUNDLE"
+          grep -q 'pdf.worker.min.mjs' "$BUNDLE"
+          if grep -q '_systemImportTransformerGlobalIdentifier' "$BUNDLE"; then
+            echo 'PDF.js ESM loader was transformed into a RequireJS dynamic import.' >&2
+            exit 1
+          fi
+
       - name: PHPUnit
         run: moodle-plugin-ci phpunit --fail-on-warning
