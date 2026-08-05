@@ -83,11 +83,43 @@ fresh cache?
 
 No recompression, rasterisation or transcoding is applied.
 
+## PDF.js runtime loading
+
+PDF.js is bundled as an ES module. Moodle's AMD/Grunt pipeline transforms a direct dynamic `import()` inside an AMD module into a RequireJS request, which is incompatible with `pdf.min.mjs` on affected mobile browsers.
+
+The runtime boundary is therefore:
+
+```text
+ebookviewer.js / bookviewer.js / pdfviewer.js
+↓
+mod_videoplayer/pdfjsloader
+↓
+create local <script type="module">
+↓
+thirdpartylibs/pdfjs/pdf.min.mjs
+↓
+validate window.pdfjsLib
+↓
+configure thirdpartylibs/pdfjs/pdf.worker.min.mjs
+```
+
+`pdfjsloader` owns a single cached loading promise. It validates `getDocument` and `GlobalWorkerOptions` before assigning `workerSrc`. The viewers never configure the worker independently.
+
+This design preserves:
+
+- local assets only;
+- no CDN dependency;
+- no `eval` or arbitrary URL execution;
+- one PDF.js instance per page;
+- controlled rejection when the local module cannot load;
+- consistent behavior across Ebook, responsive book and standard PDF modes.
+
 ## Viewers
 
 - `bookviewer.js`: responsive two-page desktop / one-page mobile PDF reader.
 - `pdfviewer.js`: standard one-page PDF.js rendering.
-- `ebookviewer.js`: optional local StPageFlip with PDF.js fallback.
+- `ebookviewer.js`: local StPageFlip with PDF.js fallback.
+- `pdfjsloader.js`: shared local PDF.js ES-module loader and worker configurator.
 - `plyr.js`: local Plyr progressive enhancement over native HTML5 video.
 
 ## CSS isolation
@@ -116,3 +148,5 @@ Backup/Restore includes activity configuration, Moodle-local PDF files and optio
 ## Validation architecture
 
 `.github/workflows/moodle-50-ci.yml` is the executable compatibility gate. It runs lint, Moodle coding style, PHPDoc, plugin validation, XMLDB savepoint checks, Mustache, AMD/JavaScript and PHPUnit against Moodle 5.0.
+
+The workflow also enforces the PDF.js production-bundle contract: `pdfjsloader.min.js` must create a native module script, reference the local worker and contain no dynamic-import transformer or RequireJS conversion for `pdf.min.mjs`.
