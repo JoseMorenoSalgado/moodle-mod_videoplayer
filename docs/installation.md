@@ -8,7 +8,7 @@
 - PHP cURL and the standard extensions required by Moodle 5.0.
 - HTTPS, working Moodle cron and writable `$CFG->localcachedir`.
 
-Moodle 4.x is not supported by release `1.1.21-beta`.
+Moodle 4.x is not supported by release `1.1.22-beta`.
 
 ## Install or upgrade
 
@@ -46,6 +46,8 @@ For cPanel PHP 8.3:
 /opt/cpanel/ea-php83/root/usr/bin/php admin/cli/purge_caches.php
 /opt/cpanel/ea-php83/root/usr/bin/php admin/cli/maintenance.php --disable
 ```
+
+Release `1.1.22-beta` changes `videoplayer.videourl` to a nullable XMLDB field. This is required because local protected PDFs do not have a Google Drive URL. The upgrade step preserves every existing URL and only removes the obsolete `NOT NULL`/empty-string requirement.
 
 Clear browser caches or test in a private window after upgrading from `1.1.19-beta` or earlier.
 
@@ -89,11 +91,11 @@ Cron must process ad-hoc tasks frequently. The PHP/web user must be able to crea
 
 After installation, verify:
 
-1. Administration reports Drive Resource `1.1.21-beta`.
+1. Administration reports Drive Resource `1.1.22-beta` and version `2026080501`.
 2. A teacher can create and edit an activity.
 3. An enrolled learner can open it.
 4. Guest and unauthorised users are denied.
-5. A local protected PDF opens through PDF.js.
+5. A local protected PDF opens through PDF.js without requiring a URL.
 6. A Google Drive PDF opens with cold cache and later reports a cache hit.
 7. A protected video starts, pauses and seeks.
 8. iPhone Safari supports inline playback, rotation and resume.
