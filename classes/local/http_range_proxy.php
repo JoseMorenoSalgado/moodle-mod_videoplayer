@@ -16,8 +16,6 @@
 
 namespace mod_videoplayer\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Resilient HTTP byte-range proxy for protected Drive resources.
  *
