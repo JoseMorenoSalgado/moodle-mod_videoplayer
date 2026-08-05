@@ -1,3 +1,12 @@
+// This file is part of Moodle - http://moodle.org/
+
+/**
+ * Progressive enhancement for protected Drive Resource videos using local Plyr.
+ *
+ * @module     mod_videoplayer/plyr
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 define(['core/notification'], function(Notification) {
     var PLYR_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/plyr/plyr.min.js';
     var plyrPromise = null;
