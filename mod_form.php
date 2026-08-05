@@ -78,7 +78,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
 
         $displaymodes = [
             'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
-            'book' => get_string('displaymodebook', 'mod_videoplayer'),
             'standard' => get_string('displaymodestandard', 'mod_videoplayer'),
         ];
         $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
@@ -126,7 +125,7 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         }
 
         $displaymode = clean_param($defaultvalues['displaymode'] ?? 'ebook', PARAM_ALPHANUMEXT);
-        if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+        if (!in_array($displaymode, ['ebook', 'standard'], true)) {
             $displaymode = 'ebook';
         }
         $defaultvalues['displaymode'] = $displaymode;
@@ -163,11 +162,6 @@ class mod_videoplayer_mod_form extends moodleform_mod {
                     break;
                 }
             }
-        }
-
-        $displaymode = clean_param($data['displaymode'] ?? '', PARAM_ALPHANUMEXT);
-        if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
-            $errors['displaymode'] = get_string('invaliddisplaymode', 'mod_videoplayer');
         }
 
         if (isset($data['completionpercentage']) && ($data['completionpercentage'] < 0 || $data['completionpercentage'] > 100)) {
