@@ -58,6 +58,31 @@ class drive {
     }
 
     /**
+     * Extract an optional Google Drive resource key from a sharing URL.
+     *
+     * Resource keys are required by some link-shared files. The key remains
+     * server-side and is only forwarded to Google's download endpoint.
+     *
+     * @param string $url Google Drive sharing URL.
+     * @return string|null Resource key or null.
+     */
+    public static function extract_resource_key(string $url): ?string {
+        $query = (string)parse_url($url, PHP_URL_QUERY);
+        if ($query === '') {
+            return null;
+        }
+
+        parse_str($query, $params);
+        $resourcekey = trim((string)($params['resourcekey'] ?? ''));
+        if ($resourcekey === '') {
+            return null;
+        }
+
+        $resourcekey = preg_replace('/[^a-zA-Z0-9_-]/', '', $resourcekey);
+        return $resourcekey !== '' ? $resourcekey : null;
+    }
+
+    /**
      * Detect resource type from a Google Drive URL.
      *
      * @param string $url
@@ -116,11 +141,21 @@ class drive {
             return null;
         }
 
+        $resourcekey = self::extract_resource_key($originalurl);
         if (in_array($type, ['document', 'spreadsheet', 'presentation'], true)) {
-            return self::google_docs_export_url($fileid, $type);
+            return self::google_docs_export_url($fileid, $type, $resourcekey);
         }
 
-        return 'https://drive.google.com/uc?export=download&id=' . rawurlencode($fileid);
+        $params = [
+            'id' => $fileid,
+            'export' => 'download',
+            'confirm' => 't',
+        ];
+        if ($resourcekey !== null) {
+            $params['resourcekey'] = $resourcekey;
+        }
+
+        return 'https://drive.usercontent.google.com/download?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
     }
 
     /**
@@ -183,16 +218,27 @@ class drive {
      *
      * @param string $fileid File id.
      * @param string $type Resource type.
+     * @param string|null $resourcekey Optional resource key.
      * @return string
      */
-    private static function google_docs_export_url(string $fileid, string $type): string {
+    private static function google_docs_export_url(
+        string $fileid,
+        string $type,
+        ?string $resourcekey = null
+    ): string {
         if ($type === 'spreadsheet') {
-            return 'https://docs.google.com/spreadsheets/d/' . rawurlencode($fileid) . '/export?format=pdf';
-        }
-        if ($type === 'presentation') {
-            return 'https://docs.google.com/presentation/d/' . rawurlencode($fileid) . '/export/pdf';
+            $url = 'https://docs.google.com/spreadsheets/d/' . rawurlencode($fileid) . '/export?format=pdf';
+        } else if ($type === 'presentation') {
+            $url = 'https://docs.google.com/presentation/d/' . rawurlencode($fileid) . '/export/pdf';
+        } else {
+            $url = 'https://docs.google.com/document/d/' . rawurlencode($fileid) . '/export?format=pdf';
         }
 
-        return 'https://docs.google.com/document/d/' . rawurlencode($fileid) . '/export?format=pdf';
+        if ($resourcekey === null) {
+            return $url;
+        }
+
+        $separator = strpos($url, '?') === false ? '?' : '&';
+        return $url . $separator . 'resourcekey=' . rawurlencode($resourcekey);
     }
 }
