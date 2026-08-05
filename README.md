@@ -63,6 +63,8 @@ php admin/cli/upgrade.php --non-interactive
 php admin/cli/purge_caches.php
 ```
 
+Release `1.1.22-beta` makes `videourl` nullable in XMLDB. This is required for local protected PDFs, which legitimately do not have a Google Drive URL. Existing URLs are preserved by the idempotent upgrade step.
+
 After upgrading from `1.1.19-beta` or earlier, clear the browser cache so Moodle discards the previous global theme bundle.
 
 ## Protected delivery architecture
@@ -151,7 +153,8 @@ Any change to an AMD source must include its rebuilt production bundle.
 
 ## Release
 
-- Release: `1.1.21-beta`
+- Release: `1.1.22-beta`
+- Moodle plugin version: `2026080501`
 - Component: `mod_videoplayer`
 - Product: Drive Resource
 - Supported Moodle branches: 5.0–5.2
