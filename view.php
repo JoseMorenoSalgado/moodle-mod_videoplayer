@@ -113,7 +113,10 @@ $initialprogress = $progressrecord ? (float) $progressrecord->progress : 0;
 $completed = $progressrecord ? (bool) $progressrecord->completed : false;
 $requiredseconds = max(60, ((int) ($videoplayer->completionpercentage ?? 80)) * 6);
 $displaymode = clean_param($videoplayer->displaymode ?? 'ebook', PARAM_ALPHANUMEXT);
-if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+if ($displaymode === 'standard') {
+    $displaymode = 'ebook';
+}
+if (!in_array($displaymode, ['ebook', 'pdfjs', 'book'], true)) {
     $displaymode = 'ebook';
 }
 
