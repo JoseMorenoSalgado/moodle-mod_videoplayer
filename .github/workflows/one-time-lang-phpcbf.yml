@@ -55,7 +55,7 @@ jobs:
           MOODLE_BRANCH: MOODLE_500_STABLE
         run: moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
 
-      - name: Apply the installed Moodle ruleset
+      - name: Apply and copy the installed Moodle ruleset
         run: |
           set +e
           moodle-plugin-ci phpcbf
@@ -64,6 +64,10 @@ jobs:
           if [ "$result" -gt 1 ]; then
             exit "$result"
           fi
+
+          cp moodle/mod/videoplayer/lang/en/videoplayer.php plugin/lang/en/videoplayer.php
+          cp moodle/mod/videoplayer/lang/es/videoplayer.php plugin/lang/es/videoplayer.php
+
           if git -C plugin diff --quiet -- lang/en/videoplayer.php lang/es/videoplayer.php; then
             echo "Moodle Plugin CI did not modify the language files."
             exit 1
