@@ -23,7 +23,7 @@ The internal Moodle component remains `mod_videoplayer` for upgrade, capability,
 - Moodle-owned `protected.php` endpoint with login, course-module, context and capability checks.
 - Streaming without loading complete media into PHP memory.
 - `HEAD`, `Range`, `If-Range`, `206 Partial Content` and `416` handling.
-- Local PDF.js viewer with responsive book mode.
+- Local PDF.js rendering with selectable protected Ebook/PageFlip and standard PDF.js modes.
 - Local Plyr enhancement over native HTML5 video.
 - iPhone/iPad-oriented inline playback and seeking.
 - Fast-first-byte PDF proxying with deduplicated asynchronous cache warming.
@@ -52,6 +52,8 @@ The complete directory is required, including:
 styles_activity.css
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
+thirdpartylibs/pageflip/page-flip.browser.js
+thirdpartylibs/pageflip/page-flip.css
 thirdpartylibs/plyr/plyr.css
 thirdpartylibs/plyr/plyr.min.js
 ```
@@ -63,9 +65,9 @@ php admin/cli/upgrade.php --non-interactive
 php admin/cli/purge_caches.php
 ```
 
-Release `1.1.22-beta` makes `videourl` nullable in XMLDB. This is required for local protected PDFs, which legitimately do not have a Google Drive URL. Existing URLs are preserved by the idempotent upgrade step.
+Release `1.1.24-beta` restores the protected Ebook/PageFlip execution path. Historical `displaymode = standard` records are treated as Ebook because earlier releases stored that value in a hidden field even when the activity displayed the ebook experience. The newly selectable standard PDF.js mode is stored as `pdfjs`.
 
-After upgrading from `1.1.19-beta` or earlier, clear the browser cache so Moodle discards the previous global theme bundle.
+After upgrading, clear the browser cache so Moodle discards previous Mustache, JavaScript and theme cache entries.
 
 ## Protected delivery architecture
 
@@ -80,7 +82,7 @@ require_login + course module + context_module + capability
 ↓
 protected_stream OR http_range_proxy
 ↓
-local PDF.js / HTML5 video viewer
+local PDF.js / PageFlip / HTML5 video viewer
 ↓
 learner
 ```
@@ -112,6 +114,14 @@ Cache path:
 ```text
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
+
+### PDF display modes
+
+**Protected Ebook** is the default. PDF.js renders each page locally and the bundled PageFlip library provides the page-turn effect. The viewer includes previous/next navigation, fullscreen, reading progress and mobile touch support.
+
+**Standard PDF.js** provides a single-page canvas with zoom, fit, previous/next navigation and fullscreen controls.
+
+The display mode is selected in the activity form. Existing activities created while the mode field was hidden are automatically interpreted as Ebook activities.
 
 ## Video delivery
 
@@ -153,8 +163,8 @@ Any change to an AMD source must include its rebuilt production bundle.
 
 ## Release
 
-- Release: `1.1.22-beta`
-- Moodle plugin version: `2026080501`
+- Release: `1.1.24-beta`
+- Moodle plugin version: `2026080503`
 - Component: `mod_videoplayer`
 - Product: Drive Resource
 - Supported Moodle branches: 5.0–5.2
