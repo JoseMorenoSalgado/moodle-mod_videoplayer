@@ -117,6 +117,7 @@ $string['setting_pdfcacheenabled_desc'] = 'Guarda temporalmente PDFs protegidos 
 $string['setting_pdfcachettl'] = 'Duración de caché PDF';
 $string['setting_pdfcachettl_desc'] = 'Duración en segundos para los PDFs cacheados.';
 $string['task_cleanup_pdf_cache'] = 'Limpiar caché PDF de Drive Resource';
+$string['videoplayer:addinstance'] = 'Agregar un nuevo Drive Resource';
 $string['mod_videoplayer:addinstance'] = 'Agregar un nuevo Drive Resource';
 $string['mod_videoplayer:addinstance_help'] = 'Permite agregar una nueva actividad Drive Resource al curso.';
 $string['mod_videoplayer:view'] = 'Ver Drive Resource';
