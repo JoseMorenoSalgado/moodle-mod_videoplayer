@@ -8,7 +8,7 @@
 - PHP cURL and the standard extensions required by Moodle 5.0.
 - HTTPS, working Moodle cron and writable `$CFG->localcachedir`.
 
-Moodle 4.x is not supported by release `1.1.22-beta`.
+Moodle 4.x is not supported by release `1.1.23-beta`.
 
 ## Install or upgrade
 
@@ -47,9 +47,11 @@ For cPanel PHP 8.3:
 /opt/cpanel/ea-php83/root/usr/bin/php admin/cli/maintenance.php --disable
 ```
 
-Release `1.1.22-beta` changes `videoplayer.videourl` to a nullable XMLDB field. This is required because local protected PDFs do not have a Google Drive URL. The upgrade step preserves every existing URL and only removes the obsolete `NOT NULL`/empty-string requirement.
+Release `1.1.23-beta` updates protected Google Drive blob delivery, preserves optional sharing `resourcekey` values and rejects HTML/error responses before they reach a media viewer.
 
-Clear browser caches or test in a private window after upgrading from `1.1.19-beta` or earlier.
+Release `1.1.22-beta` changed `videoplayer.videourl` to a nullable XMLDB field. This is required because local protected PDFs do not have a Google Drive URL. The upgrade step preserves every existing URL and only removes the obsolete `NOT NULL`/empty-string requirement.
+
+Clear browser caches or test in a private window after every upgrade involving AMD, CSS or protected media delivery.
 
 ## Moodle 5.0 metadata
 
@@ -61,6 +63,19 @@ $plugin->supported = [500, 502];
 ```
 
 Moodle therefore accepts the plugin on branches 5.0 through 5.2 and rejects older branches outside the product contract.
+
+## Google Drive access requirements
+
+For link-based protected video/PDF delivery, the file must:
+
+- be accessible to anyone with the sharing link, unless a future authenticated Drive API integration is configured;
+- allow downloading by viewers;
+- remain a normal Drive blob file for video/audio/image delivery;
+- retain the complete original sharing URL when it contains `resourcekey`.
+
+Drive Resource cannot bypass an owner or organisation policy that disables downloads. A file that requires a Google account login will return an access page rather than media bytes and will be rejected by the protected proxy.
+
+Do not remove query parameters from the sharing URL before saving the activity. The plugin keeps `resourcekey` server-side and never renders it to the learner.
 
 ## Local libraries
 
@@ -91,18 +106,44 @@ Cron must process ad-hoc tasks frequently. The PHP/web user must be able to crea
 
 After installation, verify:
 
-1. Administration reports Drive Resource `1.1.22-beta` and version `2026080501`.
+1. Administration reports Drive Resource `1.1.23-beta` and version `2026080502`.
 2. A teacher can create and edit an activity.
 3. An enrolled learner can open it.
 4. Guest and unauthorised users are denied.
 5. A local protected PDF opens through PDF.js without requiring a URL.
 6. A Google Drive PDF opens with cold cache and later reports a cache hit.
-7. A protected video starts, pauses and seeks.
+7. A protected video starts, exposes a non-zero duration, pauses and seeks.
 8. iPhone Safari supports inline playback, rotation and resume.
 9. Progress and completion persist.
 10. Backup and Restore preserve configuration and local files.
 11. Privacy export/delete completes.
 12. Tiles/Mosaico and a standard course format navigate normally before and after opening Drive Resource.
+
+## Protected video troubleshooting
+
+A player showing `00:00 / 00:00` means that the browser did not receive usable media metadata. Inspect the request to:
+
+```text
+mod/videoplayer/protected.php?id=<cmid>
+```
+
+Expected response diagnostics:
+
+```text
+HTTP 200 or 206
+Content-Type: video/*
+X-Drive-Resource-Status: MEDIA
+```
+
+Possible failure diagnostics:
+
+```text
+HTTP 502
+X-Drive-Resource-Status: UPSTREAM_CONTENT_REJECTED
+X-Drive-Resource-Status: UPSTREAM_REQUEST_FAILED
+```
+
+`UPSTREAM_CONTENT_REJECTED` normally indicates that Google returned an HTML login, permission or warning page. Verify sharing and download permissions and confirm that the complete original URL was saved.
 
 ## Range validation
 
@@ -120,6 +161,7 @@ HTTP 206
 Accept-Ranges: bytes
 Content-Range: bytes start-end/total
 Content-Length: requested-length
+X-Drive-Resource-Status: MEDIA
 ```
 
 Invalid ranges should return `416`. Never test by exposing the upstream Google Drive URL.
