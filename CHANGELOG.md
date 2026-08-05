@@ -4,6 +4,29 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.21-beta - 2026-08-05
+
+### Added
+
+- Explicit Moodle supported range `[500, 502]`, covering Moodle 5.0, 5.1 and 5.2.
+- GitHub Actions compatibility workflow under `.github/workflows/moodle-50-ci.yml`.
+- Moodle 5.0 CI matrix for PHP 8.2/8.3 with MariaDB 10.11 and PostgreSQL 15.
+- PHPUnit coverage for Google Drive URL validation, type detection, protected export URLs, required Moodle APIs and plugin compatibility metadata.
+
+### Changed
+
+- Minimum Moodle version remains `2025041400`, the Moodle 5.0 branch baseline.
+- Release metadata bumped to `1.1.21-beta` with plugin version `2026080500`.
+- Backup and Restore activity task classes were normalised to current Moodle coding style and PHP type declarations.
+- Documentation now defines Moodle 5.0–5.2 as the supported contract instead of incorrectly claiming Moodle 4.x compatibility.
+- Removed the obsolete root `ci.yml` that tested Moodle 4.1 with unsupported PHP versions for the current product.
+
+### Compatibility
+
+- Reviewed External API, Completion API, Events API, Privacy API, Backup/Restore, XMLDB, File API, scheduled/ad-hoc tasks, AMD modules and protected streaming against Moodle 5.0 APIs.
+- No dependency on a Moodle 5.1- or 5.2-only PHP or AMD API was identified.
+- Production deployment still requires the automated workflow to complete successfully and a functional test on the target Moodle 5.0 site.
+
 ## v1.1.20-beta - 2026-07-24
 
 ### Fixed
@@ -105,106 +128,45 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Optional dynamic watermark deterrent.
 - Optional gamification with personal milestones and points.
 - `videoplayer_rewards` table for earned rewards.
-- Progress service layer.
-- Reward service layer.
+- Progress and reward service layers.
 - Moodle events: `progress_updated`, `resource_completed`, `reward_awarded`.
 - Backup and Restore support for local PDF files, progress and rewards.
 - Privacy API support for reading state and reward records.
-- `thirdpartylibs.xml` entries for PDF.js, Plyr and StPageFlip.
-- Documentation for architecture, installation, security, development and manual testing.
+- Local PDF.js, Plyr and optional StPageFlip declarations in `thirdpartylibs.xml`.
 - Mobile PDF viewport stabilizer for iOS/Safari rendering edge cases.
-- Dedicated visual refinement stylesheet for Drive Resource activity presentation.
 - Protected responsive book viewer with desktop two-page spread and mobile one-page reading mode.
-- In-memory rendered page cache and neighbor-page prefetch for the protected book viewer.
-- Desktop book spine, center fold shadows and directional ebook-style page turn effects.
-- Dedicated book control placement stylesheet for coherent navigation and fullscreen UI.
+- In-memory rendered page cache and neighbour-page prefetch.
 - Protected stream cache diagnostic header `X-Drive-Resource-Cache`.
-- Deterministic server-side cache warming for protected Google Drive PDFs.
-- Internal `mod_videoplayer\local\protected_stream` service for protected byte-range delivery, PDF cache warming and cache cleanup.
+- Internal `mod_videoplayer\local\protected_stream` service for protected byte-range delivery, cache warming and cleanup.
 
 ### Changed
 
-- Release metadata bumped to `1.1.16-beta` with Moodle version `2026062412`.
-- `protected.php` is now a thin authorised endpoint and delegates streaming, proxying and cache operations to the protected stream service.
-- Google Drive PDF cache warming is reused by both the protected endpoint and the ad-hoc precache task, reducing duplicated cURL/cache code.
-- Scheduled PDF cache cleanup now delegates to the shared protected stream service.
-- `save_progress.php` now delegates business logic to internal services.
-- PDF rendering context now supports both standard and ebook modes.
-- Activity form now supports Google Drive and local protected PDF sources.
-- Completion can be calculated from PDF page progress.
-- README updated for protected local PDF and ebook workflows.
-- PDF viewer mobile layout now uses larger touch targets, safer viewport units and reduced chrome spacing.
-- PDF visual presentation was refactored into focused stylesheets for maintainability.
-- PDF resources now render through the protected book viewer by default.
-- Protected range responses now use short private browser caching with `no-transform` instead of global `no-store`.
-- Protected streaming chunk size increased to reduce PHP flush overhead.
-- Book viewer pages now receive left/right page classes and turn-direction classes for realistic desktop transitions.
-- Book viewer controls now place page status at the top center, fullscreen at the top right and previous/next controls at the viewer sides.
-- Desktop book spine visuals now use a softer premium gradient to avoid dark hard lines between pages.
-- Desktop book pages now use a subtle static curvature effect with perspective, light page bending and inner paper shading.
-- Mobile book navigation now overlays previous/next controls inside the PDF area instead of placing them below the document.
-- Protected book PDFs now start from page 1 on every page load instead of resuming the last viewed page.
-- Book viewer now hides the loading overlay as soon as the first visible page is rendered instead of waiting for the full desktop spread.
-- Local Moodle PDFs are streamed directly from Moodle File API storage when possible, avoiding a full temporary copy before delivery.
-- Google Drive PDFs are now downloaded once into Moodle local cache before serving PDF.js byte-range requests.
+- `protected.php` became a thin authorised endpoint delegating to internal streaming services.
+- PDF resources render through the protected book viewer by default.
+- Local Moodle PDFs stream directly from File API storage when possible.
+- Google Drive PDFs cache outside the web root and preserve original bytes.
 
 ### Security
 
-- Removed the default `guest` archetype from `mod/videoplayer:view` so protected resources require normal authenticated/enrolled access unless an administrator explicitly overrides permissions.
-- Local PDFs are stored outside the web root in Moodle private file storage.
-- Local PDF access requires Moodle login, module context and `mod/videoplayer:view` capability.
-- Direct local PDF URLs are not exposed to learners.
-- Viewer-level copy/right-click/download controls are implemented as deterrents only, not DRM.
-- Protected resource caching is private to the authenticated browser and keeps `no-transform` to preserve byte ranges.
-- Cached Google Drive PDFs remain under Moodle `localcachedir` and are served only after Moodle login, module context and capability validation.
-
-### Notes
-
-- PageFlip files must be installed locally under `thirdpartylibs/pageflip/`.
-- StPageFlip is documented upstream as MIT licensed.
-- Production release still requires Moodle staging validation, AMD build generation and manual QA.
+- Removed the default guest archetype from `mod/videoplayer:view`.
+- Local PDF access requires Moodle login, module context and capability checks.
+- Direct local PDF and Google Drive source URLs are not exposed by plugin-owned viewers.
+- Viewer restrictions are documented as deterrents, not DRM.
 
 ## v1.0.0 - 2026-06-14
 
 ### Added
 
-- New user-facing product identity: **Drive Resource**.
-- Support for Google Drive videos, PDFs, images, documents, spreadsheets and presentations.
-- Automatic Google Drive file ID extraction from common sharing URL formats.
-- Automatic resource type detection.
-- Activity form redesigned for multi-resource usage.
-- Protected mode to hide plugin-owned direct Google Drive navigation links.
-- Protected endpoint (`protected.php`) for authenticated Moodle-based resource access.
-- Plugin-owned fullscreen viewer for mobile and desktop.
-- Presence-based progress tracking using Moodle AJAX external services.
-- Teacher progress report per activity.
-- Moodle Completion API integration.
-- Backup and Restore support.
-- Privacy API support for user progress data.
+- New user-facing identity: **Drive Resource**.
+- Google Drive videos, PDFs, images, documents, spreadsheets and presentations.
+- Google Drive file ID extraction and resource-type detection.
+- Protected endpoint with Moodle authorisation.
+- Progress tracking, Completion API, Events API, Backup/Restore and Privacy API.
 - English and Spanish language packs.
-- Admin settings for progress tracking, protected mode and defaults.
-- Multipurpose SVG activity icon.
-- Mustache template for resource rendering.
-- Output renderer class.
-- AMD modules for progress tracking and fullscreen behavior.
-
-### Changed
-
-- User-facing strings changed from video-only terminology to Drive Resource terminology.
-- Database schema optimized with defaults, indexes and unique user-progress constraints.
-- Upgrade path rebuilt to avoid obsolete legacy tables.
-- View page refactored to use the Google Drive helper service and Mustache template.
-- Backup and Restore aligned with the current database structure.
+- Mustache templates and AMD modules.
 
 ### Security
 
-- Added iframe sandbox restrictions.
-- Removed plugin-owned button that opened resources directly in Google Drive.
-- Added `referrerpolicy="no-referrer"` to embedded resource iframes.
-- Added protected endpoint authorization through Moodle course and capability checks.
-
-### Known limitations
-
-- Google Drive embedded viewers may still display internal controls controlled by Google.
-- Exact playback time cannot be read from Google Drive iframes because of browser cross-origin restrictions.
-- Progress tracking for Google Drive resources is presence-based, not exact playback-percentage-based.
+- Removed plugin-owned open-in-Drive controls.
+- Added iframe restrictions and no-referrer policy where legacy embeds remain.
+- Added Moodle course and capability checks to protected delivery.
