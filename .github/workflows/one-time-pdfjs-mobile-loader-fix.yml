@@ -37,6 +37,8 @@ jobs:
       - name: Apply guarded PDF.js loader refactor
         run: |
           python3 <<'PY'
+          import re
+          import textwrap
           from pathlib import Path
 
           root = Path('plugin')
@@ -48,57 +50,15 @@ jobs:
                   raise RuntimeError(f'{path}: expected one match, found {count}')
               path.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          common_loader_block = """    /**
-           * Load local PDF.js.
-           *
-           * @returns {Promise<Object>}
-           */
-          const loadPdfJs = function() {
-              if (!pdfjsPromise) {
-                  pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
-                      pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                      return pdfjsLib;
-                  });
-              }
-              return pdfjsPromise;
-          };
+          def replace_regex_once(path, pattern, replacement):
+              text = path.read_text(encoding='utf-8')
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE | re.DOTALL)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected one regex match, found {count}')
+              path.write_text(updated, encoding='utf-8')
 
-          """
-
-          ebook = root / 'amd/src/ebookviewer.js'
-          replace_once(
-              ebook,
-              "define(['core/ajax', 'core/notification'], function(Ajax, Notification) {",
-              "define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], "
-              "function(Ajax, Notification, PdfjsLoader) {"
-          )
-          replace_once(
-              ebook,
-              "    const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';\n"
-              "    const PDFJS_WORKER_URL = M.cfg.wwwroot + "
-              "'/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';\n",
-              ""
-          )
-          replace_once(ebook, "    let pdfjsPromise = null;\n", "")
-          replace_once(ebook, common_loader_block, "")
-          text = ebook.read_text(encoding='utf-8')
-          if text.count('loadPdfJs()') != 1:
-              raise RuntimeError('ebookviewer.js: unexpected loadPdfJs() call count')
-          ebook.write_text(text.replace('loadPdfJs()', 'PdfjsLoader.load()'), encoding='utf-8')
-
-          compact_loader_block = """    const loadPdfJs = function() {
-              if (!pdfjsPromise) {
-                  pdfjsPromise = import(PDFJS_URL).then(function(pdfjsLib) {
-                      pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                      return pdfjsLib;
-                  });
-              }
-              return pdfjsPromise;
-          };
-
-          """
-
-          for filename in ('bookviewer.js', 'pdfviewer.js'):
+          viewer_files = ('ebookviewer.js', 'bookviewer.js', 'pdfviewer.js')
+          for filename in viewer_files:
               path = root / 'amd/src' / filename
               replace_once(
                   path,
@@ -114,7 +74,11 @@ jobs:
                   ""
               )
               replace_once(path, "    let pdfjsPromise = null;\n", "")
-              replace_once(path, compact_loader_block, "")
+              replace_regex_once(
+                  path,
+                  r"    const loadPdfJs = function\(\) \{\n.*?^    \};\n\n",
+                  ""
+              )
               text = path.read_text(encoding='utf-8')
               if text.count('loadPdfJs()') != 1:
                   raise RuntimeError(f'{filename}: unexpected loadPdfJs() call count')
@@ -123,97 +87,98 @@ jobs:
           loader = root / 'amd/src/pdfjsloader.js'
           if loader.exists():
               raise RuntimeError('pdfjsloader.js already exists')
-          loader.write_text("""// This file is part of Moodle - http://moodle.org/
-          //
-          // Moodle is free software: you can redistribute it and/or modify
-          // it under the terms of the GNU General Public License as published by
-          // the Free Software Foundation, either version 3 of the License, or
-          // (at your option) any later version.
-          //
-          // Moodle is distributed in the hope that it will be useful,
-          // but WITHOUT ANY WARRANTY; without even the implied warranty of
-          // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-          // GNU General Public License for more details.
-          //
-          // You should have received a copy of the GNU General Public License
-          // along with Moodle. If not, see <http://www.gnu.org/licenses/>.
-
-          /**
-           * Normalised local PDF.js loader for Drive Resource.
-           *
-           * Dynamic import implementations can expose PDF.js as a direct ESM
-           * namespace, a default wrapper, or the global namespace installed by
-           * the bundle. This adapter validates those shapes before configuring
-           * the locally bundled worker.
-           *
-           * @module     mod_videoplayer/pdfjsloader
-           * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
-           * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-           */
-          define([], function() {
-              const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
-              const PDFJS_WORKER_URL = M.cfg.wwwroot +
-                  '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
-
-              let loadPromise = null;
+          loader.write_text(textwrap.dedent("""\
+              // This file is part of Moodle - http://moodle.org/
+              //
+              // Moodle is free software: you can redistribute it and/or modify
+              // it under the terms of the GNU General Public License as published by
+              // the Free Software Foundation, either version 3 of the License, or
+              // (at your option) any later version.
+              //
+              // Moodle is distributed in the hope that it will be useful,
+              // but WITHOUT ANY WARRANTY; without even the implied warranty of
+              // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+              // GNU General Public License for more details.
+              //
+              // You should have received a copy of the GNU General Public License
+              // along with Moodle. If not, see <http://www.gnu.org/licenses/>.
 
               /**
-               * Determine whether a value exposes the PDF.js viewer contract.
+               * Normalised local PDF.js loader for Drive Resource.
                *
-               * @param {*} candidate
-               * @returns {boolean}
-               */
-              const isLibrary = function(candidate) {
-                  return Boolean(
-                      candidate &&
-                      typeof candidate.getDocument === 'function' &&
-                      candidate.GlobalWorkerOptions
-                  );
-              };
-
-              /**
-               * Resolve PDF.js from known browser module namespace shapes.
+               * Dynamic import implementations can expose PDF.js as a direct ESM
+               * namespace, a default wrapper, or the global namespace installed by
+               * the bundle. This adapter validates those shapes before configuring
+               * the locally bundled worker.
                *
-               * @param {Object} moduleNamespace
-               * @returns {Object}
-               * @throws {TypeError}
+               * @module     mod_videoplayer/pdfjsloader
+               * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+               * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
                */
-              const resolveLibrary = function(moduleNamespace) {
-                  const candidates = [
-                      moduleNamespace,
-                      moduleNamespace && moduleNamespace.default,
-                      moduleNamespace && moduleNamespace.pdfjsLib,
-                      window.pdfjsLib || null
-                  ];
+              define([], function() {
+                  const PDFJS_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs';
+                  const PDFJS_WORKER_URL = M.cfg.wwwroot +
+                      '/mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs';
 
-                  for (let index = 0; index < candidates.length; index++) {
-                      if (isLibrary(candidates[index])) {
-                          return candidates[index];
+                  let loadPromise = null;
+
+                  /**
+                   * Determine whether a value exposes the PDF.js viewer contract.
+                   *
+                   * @param {*} candidate
+                   * @returns {boolean}
+                   */
+                  const isLibrary = function(candidate) {
+                      return Boolean(
+                          candidate &&
+                          typeof candidate.getDocument === 'function' &&
+                          candidate.GlobalWorkerOptions
+                      );
+                  };
+
+                  /**
+                   * Resolve PDF.js from known browser module namespace shapes.
+                   *
+                   * @param {Object} moduleNamespace
+                   * @returns {Object}
+                   * @throws {TypeError}
+                   */
+                  const resolveLibrary = function(moduleNamespace) {
+                      const candidates = [
+                          moduleNamespace,
+                          moduleNamespace && moduleNamespace.default,
+                          moduleNamespace && moduleNamespace.pdfjsLib,
+                          window.pdfjsLib || null
+                      ];
+
+                      for (let index = 0; index < candidates.length; index++) {
+                          if (isLibrary(candidates[index])) {
+                              return candidates[index];
+                          }
                       }
-                  }
 
-                  throw new TypeError('Drive Resource could not initialise the local PDF.js API.');
-              };
+                      throw new TypeError('Drive Resource could not initialise the local PDF.js API.');
+                  };
 
-              /**
-               * Load and configure the bundled PDF.js API once per page.
-               *
-               * @returns {Promise<Object>}
-               */
-              const load = function() {
-                  if (!loadPromise) {
-                      loadPromise = import(PDFJS_URL).then(function(moduleNamespace) {
-                          const pdfjsLib = resolveLibrary(moduleNamespace);
-                          pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-                          return pdfjsLib;
-                      });
-                  }
-                  return loadPromise;
-              };
+                  /**
+                   * Load and configure the bundled PDF.js API once per page.
+                   *
+                   * @returns {Promise<Object>}
+                   */
+                  const load = function() {
+                      if (!loadPromise) {
+                          loadPromise = import(PDFJS_URL).then(function(moduleNamespace) {
+                              const pdfjsLib = resolveLibrary(moduleNamespace);
+                              pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+                              return pdfjsLib;
+                          });
+                      }
+                      return loadPromise;
+                  };
 
-              return {load: load};
-          });
-          """, encoding='utf-8')
+                  return {load: load};
+              });
+              """), encoding='utf-8')
 
           version = root / 'version.php'
           replace_once(version, "$plugin->version = 2026080503;", "$plugin->version = 2026080504;")
