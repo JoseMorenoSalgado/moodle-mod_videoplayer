@@ -4,6 +4,33 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.25-beta - 2026-08-05
+
+### Fixed
+
+- Fixed the mobile runtime error `Cannot set properties of undefined (setting 'workerSrc')` when opening protected PDF and Ebook activities.
+- Replaced duplicated direct PDF.js imports in the Ebook, responsive book and standard PDF viewers with the shared `mod_videoplayer/pdfjsloader` AMD adapter.
+- Prevented Moodle's AMD/Babel build from transforming the local PDF.js ES-module import into an incompatible RequireJS request.
+- PDF.js now loads from the bundled `pdf.min.mjs` through a native local `<script type="module">` element and configures the bundled `pdf.worker.min.mjs` only after the API is validated.
+- Failed PDF.js module loads now reject through the existing controlled viewer error path instead of attempting to write `workerSrc` on an undefined object.
+
+### Changed
+
+- Release metadata bumped to `1.1.25-beta` with plugin version `2026080504`.
+- The three protected PDF viewers now share one cached PDF.js loading promise and one worker configuration path.
+
+### Validation
+
+- Rebuilt all affected AMD production bundles with Moodle 5.0 Grunt.
+- Added a permanent CI contract that rejects generated PDF.js loader bundles containing Moodle's dynamic-import transformer.
+- The generated loader must contain a native module script, the local worker path and no RequireJS conversion for `pdf.min.mjs`.
+
+### Upgrade notes
+
+- Deploy the complete plugin directory, including `amd/build/pdfjsloader.min.js` and its source map.
+- Run Moodle upgrade and purge caches, then clear the browser/site cache on mobile devices before retesting.
+- A physical-device test is still required on the affected Android/iOS browser because CI validates the bundle contract but does not emulate every mobile JavaScript engine.
+
 ## v1.1.24-beta - 2026-08-05
 
 ### Fixed
