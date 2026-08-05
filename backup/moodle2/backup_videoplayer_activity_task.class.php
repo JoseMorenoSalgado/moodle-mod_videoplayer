@@ -15,37 +15,52 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Backup task for the videoplayer activity.
+ * Backup task for the Drive Resource activity.
  *
- * @package   mod_videoplayer
- * @category  backup
- * @copyright 2025 Jose Erasmo Moreno Salgado
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package    mod_videoplayer
+ * @category   backup
+ * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/mod/videoplayer/backup/moodle2/backup_videoplayer_stepslib.php');
 
+/**
+ * Defines the backup task for a Drive Resource activity.
+ */
 class backup_videoplayer_activity_task extends backup_activity_task {
 
-    protected function define_my_settings() {
-        // No specific settings for this module.
+    /**
+     * Define activity-specific backup settings.
+     */
+    protected function define_my_settings(): void {
+        // No activity-specific settings are required.
     }
 
-    protected function define_my_steps() {
-        $this->add_step(new backup_videoplayer_activity_structure_step('videoplayer_structure', 'videoplayer.xml'));
+    /**
+     * Define activity-specific backup steps.
+     */
+    protected function define_my_steps(): void {
+        $this->add_step(new backup_videoplayer_activity_structure_step(
+            'videoplayer_structure',
+            'videoplayer.xml'
+        ));
     }
 
-    static public function encode_content_links($content) {
+    /**
+     * Encode links to Drive Resource view pages in backed-up content.
+     *
+     * @param string $content Content containing Moodle URLs.
+     * @return string Content with portable backup links.
+     */
+    public static function encode_content_links($content): string {
         global $CFG;
 
-        $base = preg_quote($CFG->wwwroot, "/");
+        $base = preg_quote($CFG->wwwroot, '/');
+        $search = '/(' . $base . '\/mod\/videoplayer\/view\.php\?id\=)([0-9]+)/';
 
-        // Link to view page.
-        $search = "/(" . $base . "\/mod\/videoplayer\/view\.php\?id\=)([0-9]+)/";
-        $content = preg_replace($search, '$@VIDEOPLAYERVIEWBYID*$2@$', $content);
-
-        return $content;
+        return preg_replace($search, '$@VIDEOPLAYERVIEWBYID*$2@$', $content);
     }
 }
