@@ -17,13 +17,28 @@ jobs:
   rebuild:
     runs-on: ubuntu-22.04
 
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 'yes'
+          MARIADB_CHARACTER_SET_SERVER: utf8mb4
+          MARIADB_COLLATION_SERVER: utf8mb4_unicode_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - name: Check out plugin
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Apply guarded release and documentation updates
+      - name: Apply guarded release updates
         run: |
           python <<'PY'
           from pathlib import Path
@@ -44,42 +59,43 @@ jobs:
               "        $PAGE->requires->css('/mod/videoplayer/styles_pageflip_fix.css');\n"
               "        $PAGE->requires->js_call_amd('mod_videoplayer/ebookviewer', 'init');"
           )
-
           replace_once('version.php', '$plugin->version = 2026080504;', '$plugin->version = 2026080505;')
           replace_once('version.php', "$plugin->release = '1.1.25-beta';", "$plugin->release = '1.1.26-beta';")
 
           changelog = Path('CHANGELOG.md')
           marker = 'The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.\n\n'
-          section = '''## v1.1.26-beta - 2026-08-05
-
-### Fixed
-
-- Restored the dedicated PageFlip responsive stylesheet on Ebook activity pages.
-- Phones now remain in a single-page layout in portrait and landscape orientations.
-- Desktop-sized viewers force a two-page spread instead of depending on an incidental PageFlip orientation decision.
-- Replaced eager rendering of up to 80 PDF pages with lightweight placeholders and lazy visible-page rendering.
-- Page navigation now prefetches only adjacent pages during browser idle time.
-- Ebook completion percentage is monotonic and no longer decreases when a learner turns back.
-
-### Experience
-
-- Added realistic paper texture, centre-gutter shading, page shadows, corner interaction and page-settle effects.
-- Added responsive fullscreen sizing and reduced-motion support.
-- Page status shows a single page on phones and the visible page range on desktop spreads.
-
-### Validation
-
-- Added an executable responsive Ebook contract to Moodle 5.0 CI.
-- Rebuilt production AMD bundles with Moodle 5.0 Grunt.
-- Release metadata bumped to `1.1.26-beta` with plugin version `2026080505`.
-
-### Upgrade notes
-
-- Deploy the complete plugin directory, including `styles_pageflip_fix.css` and the rebuilt `amd/build/ebookviewer.min.js` files.
-- Run the Moodle upgrade and purge Moodle plus browser caches.
-- Existing PDF activities do not need to be recreated.
-
-'''
+          section = '\n'.join([
+              '## v1.1.26-beta - 2026-08-05',
+              '',
+              '### Fixed',
+              '',
+              '- Restored the dedicated PageFlip responsive stylesheet on Ebook activity pages.',
+              '- Phones remain in a single-page layout in portrait and landscape.',
+              '- Desktop-sized viewers force a two-page spread.',
+              '- Replaced eager rendering of up to 80 pages with lazy visible-page rendering.',
+              '- Adjacent pages are prefetched only during browser idle time.',
+              '- Ebook completion percentage remains monotonic when learners turn back.',
+              '',
+              '### Experience',
+              '',
+              '- Added paper texture, centre-gutter shading, page shadows, corner interaction and settle effects.',
+              '- Added responsive fullscreen sizing and reduced-motion support.',
+              '- Page status shows one page on phones and the visible range on desktop spreads.',
+              '',
+              '### Validation',
+              '',
+              '- Added a responsive Ebook contract to Moodle 5.0 CI.',
+              '- Rebuilt production AMD bundles with Moodle 5.0 Grunt.',
+              '- Release metadata bumped to `1.1.26-beta` with plugin version `2026080505`.',
+              '',
+              '### Upgrade notes',
+              '',
+              '- Deploy the complete plugin directory, including `styles_pageflip_fix.css` and `amd/build/ebookviewer.min.js`.',
+              '- Run the Moodle upgrade and purge Moodle plus browser caches.',
+              '- Existing PDF activities do not need to be recreated.',
+              '',
+              ''
+          ])
           content = changelog.read_text()
           if section not in content:
               if marker not in content:
@@ -88,138 +104,47 @@ jobs:
 
           readme = Path('README.md')
           content = readme.read_text()
-          content = content.replace('styles_activity.css\n', 'styles_activity.css\nstyles_pageflip_fix.css\n', 1)
-          marker = 'Release `1.1.25-beta` fixes mobile PDF.js initialization'
-          paragraph = ('Release `1.1.26-beta` makes Ebook rendering adaptive and incremental: phones display one page, '
-                       'desktop-sized viewers display two facing pages, and only visible plus adjacent pages are rendered. '
-                       'The PageFlip stylesheet adds the paper, gutter, shadow and page-turn effects.\n\n')
-          if paragraph not in content:
-              if marker not in content:
+          if 'styles_pageflip_fix.css\n' not in content:
+              content = content.replace('styles_activity.css\n', 'styles_activity.css\nstyles_pageflip_fix.css\n', 1)
+          release_marker = 'Release `1.1.25-beta` fixes mobile PDF.js initialization'
+          release_note = ('Release `1.1.26-beta` makes Ebook rendering adaptive and incremental: phones display one page, '
+                          'desktop-sized viewers display two facing pages, and only visible plus adjacent pages are rendered. '
+                          'The PageFlip stylesheet adds paper, gutter, shadow and page-turn effects.\n\n')
+          if release_note not in content:
+              if release_marker not in content:
                   raise SystemExit('README release marker not found')
-              content = content.replace(marker, paragraph + marker, 1)
+              content = content.replace(release_marker, release_note + release_marker, 1)
           content = content.replace(
               '**Protected Ebook** is the default. PDF.js renders each page locally and the bundled PageFlip library provides the page-turn effect. The viewer includes previous/next navigation, fullscreen, reading progress and mobile touch support.',
-              '**Protected Ebook** is the default. Phones display one protected page at a time, while desktop-sized viewers display two facing pages. PDF.js renders only the visible pages and a small adjacent prefetch set; the bundled PageFlip library provides touch, corner, shadow and page-turn effects.'
-          )
-          content = content.replace(
-              'the PDF.js native-ESM bundle contract and PHPUnit tests.',
-              'the PDF.js native-ESM contract, the responsive Ebook/lazy-render contract and PHPUnit tests.'
+              '**Protected Ebook** is the default. Phones display one protected page at a time, while desktop-sized viewers display two facing pages. PDF.js renders only visible pages plus a small adjacent prefetch set; PageFlip provides touch, corner, shadow and page-turn effects.'
           )
           content = content.replace('- Release: `1.1.25-beta`', '- Release: `1.1.26-beta`')
           content = content.replace('- Moodle plugin version: `2026080504`', '- Moodle plugin version: `2026080505`')
           readme.write_text(content)
 
-          installation = Path('docs/installation.md')
-          content = installation.read_text()
-          content = content.replace('Moodle 4.x is not supported by release `1.1.25-beta`.',
-                                    'Moodle 4.x is not supported by release `1.1.26-beta`.')
-          content = content.replace('mod/videoplayer/styles_activity.css\n',
-                                    'mod/videoplayer/styles_activity.css\nmod/videoplayer/styles_pageflip_fix.css\n', 1)
-          marker = 'Release `1.1.25-beta`'
-          paragraph = ('Release `1.1.26-beta` enforces one-page Ebook reading on phones and two facing pages on '
-                       'desktop-sized viewers. It renders visible pages lazily and prefetches only adjacent pages.\n\n')
-          if paragraph not in content:
-              if marker not in content:
-                  raise SystemExit('installation release marker not found')
-              content = content.replace(marker, paragraph + marker, 1)
-          content = content.replace('Drive Resource `1.1.25-beta` and version `2026080504`.',
-                                    'Drive Resource `1.1.26-beta` and version `2026080505`.')
-          installation.write_text(content)
-
-          architecture = Path('docs/architecture.md')
-          content = architecture.read_text()
-          content = content.replace(
-              '- `ebookviewer.js`: optional local StPageFlip with PDF.js fallback.',
-              '- `ebookviewer.js`: lazy PDF.js page rendering with forced phone single-page and desktop two-page StPageFlip layouts.'
-          )
-          marker = '## Progress and completion\n'
-          section = '''## Responsive Ebook pipeline
-
-```text
-PDF metadata
-↓
-lightweight page placeholders
-↓
-phone: current page | desktop: current two-page spread
-↓
-idle prefetch of adjacent pages only
-↓
-local PageFlip transition and protected progress save
-```
-
-The viewer does not render the complete document before first paint. Phone detection includes the physical short screen side so rotating a phone does not unexpectedly switch to a desktop spread.
-
-'''
-          if section not in content:
-              if marker not in content:
-                  raise SystemExit('architecture marker not found')
-              content = content.replace(marker, section + marker, 1)
-          architecture.write_text(content)
-
-          developer = Path('docs/developer-guide.md')
-          content = developer.read_text()
-          content = content.replace(
-              '- Render visible pages only.\n- Bound canvas cache size.\n- Prefetch a small neighbouring set.',
-              '- Render only the active phone page or active desktop spread.\n- Create lightweight PageFlip placeholders instead of eagerly rendering the document.\n- Prefetch only adjacent pages during browser idle time.\n- Keep phones in single-page mode after orientation changes.\n- Force two-page spreads only when the container can support them.'
-          )
-          developer.write_text(content)
-
-          security = Path('docs/security.md')
-          content = security.read_text()
-          marker = '## Personal data\n'
-          section = '''## Ebook rendering boundary
-
-Lazy rendering creates only local canvas elements from protected Moodle responses. Placeholders and PageFlip effects must never contain source URLs, Drive IDs or upstream metadata. Responsive layout changes re-use the authorised PDF.js document session and do not create a direct resource endpoint.
-
-'''
-          if section not in content:
-              if marker not in content:
-                  raise SystemExit('security marker not found')
-              content = content.replace(marker, section + marker, 1)
-          security.write_text(content)
-
-          checklist = Path('docs/manual-test-checklist.md')
-          content = checklist.read_text()
-          marker = '## Protected video desktop\n'
-          section = '''## Responsive Ebook regression
-
-- Open a PDF on a physical phone in portrait: exactly one page is visible.
-- Rotate the same phone to landscape: it remains a one-page reader.
-- Swipe and use previous/next controls: page-turn effects remain smooth.
-- Confirm the first view renders only the active page and adjacent prefetch, not the complete document.
-- Open the same PDF on a desktop-width browser: two facing pages are visible.
-- Resize across the responsive boundary and confirm the current page is preserved.
-- Confirm shadows, centre gutter, page corners and fullscreen remain correctly scoped.
-- Confirm `prefers-reduced-motion` disables decorative animation without disabling navigation.
-
-'''
-          if section not in content:
-              if marker not in content:
-                  raise SystemExit('manual test marker not found')
-              content = content.replace(marker, section + marker, 1)
-          checklist.write_text(content)
-
           workflow = Path('.github/workflows/moodle-50-ci.yml')
           content = workflow.read_text()
           marker = '      - name: PHPUnit\n        run: moodle-plugin-ci phpunit --fail-on-warning\n'
-          contract = '''      - name: Responsive Ebook contract
-        run: |
-          SOURCE=plugin/amd/src/ebookviewer.js
-          BUNDLE=plugin/amd/build/ebookviewer.min.js
-          VIEW=plugin/view.php
-          test -f "$SOURCE"
-          test -f "$BUNDLE"
-          grep -q 'is-phone-single-page' "$SOURCE"
-          grep -q 'is-desktop-double-page' "$SOURCE"
-          grep -q 'requestIdleCallback' "$SOURCE"
-          grep -q 'usePortrait: phoneLayout' "$SOURCE"
-          grep -q 'styles_pageflip_fix.css' "$VIEW"
-          if grep -q 'MAX_INITIAL_RENDER_PAGES' "$SOURCE"; then
-            echo 'Ebook viewer returned to eager multi-page rendering.' >&2
-            exit 1
-          fi
-
-'''
+          contract = '\n'.join([
+              '      - name: Responsive Ebook contract',
+              '        run: |',
+              '          SOURCE=plugin/amd/src/ebookviewer.js',
+              '          BUNDLE=plugin/amd/build/ebookviewer.min.js',
+              '          VIEW=plugin/view.php',
+              '          test -f "$SOURCE"',
+              '          test -f "$BUNDLE"',
+              "          grep -q 'is-phone-single-page' \"$SOURCE\"",
+              "          grep -q 'is-desktop-double-page' \"$SOURCE\"",
+              "          grep -q 'requestIdleCallback' \"$SOURCE\"",
+              "          grep -q 'usePortrait: phoneLayout' \"$SOURCE\"",
+              "          grep -q 'styles_pageflip_fix.css' \"$VIEW\"",
+              "          if grep -q 'MAX_INITIAL_RENDER_PAGES' \"$SOURCE\"; then",
+              "            echo 'Ebook viewer returned to eager multi-page rendering.' >&2",
+              '            exit 1',
+              '          fi',
+              '',
+              ''
+          ])
           if contract not in content:
               if marker not in content:
                   raise SystemExit('CI PHPUnit marker not found')
@@ -231,7 +156,7 @@ Lazy rendering creates only local canvas elements from protected Moodle response
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: curl, dom, fileinfo, gd, intl, mbstring, mysqli, pgsql, simplexml, soap, sodium, xml, xmlreader, zip
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, mysqli, simplexml, soap, sodium, xml, xmlreader, zip
           ini-values: max_input_vars=5000, memory_limit=512M
           coverage: none
 
@@ -266,7 +191,7 @@ Lazy rendering creates only local canvas elements from protected Moodle response
           fi
           git diff --check
 
-      - name: Commit generated bundle and release metadata
+      - name: Commit generated bundle and metadata
         run: |
           git config user.name 'Elearning Cloud'
           git config user.email '94720805+JoseMorenoSalgado@users.noreply.github.com'
@@ -278,11 +203,6 @@ Lazy rendering creates only local canvas elements from protected Moodle response
             version.php \
             CHANGELOG.md \
             README.md \
-            docs/architecture.md \
-            docs/developer-guide.md \
-            docs/installation.md \
-            docs/manual-test-checklist.md \
-            docs/security.md \
             .github/workflows/moodle-50-ci.yml
           git commit -m 'feat(ebook): responsive lazy single and spread reader'
           git push
