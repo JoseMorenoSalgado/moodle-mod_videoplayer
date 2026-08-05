@@ -106,6 +106,12 @@ jobs:
               "            const maxWidth = Math.min(Math.max(availableWidth, 320), 680);",
           )
           replace(
+              'plugin/amd/src/ebookviewer.js',
+              "        const viewers = Array.prototype.slice.call(document.querySelectorAll('.mod-videoplayer-pdfjs-viewer[data-display-mode=\"ebook\"]'));",
+              "        const viewerSelector = '.mod-videoplayer-pdfjs-viewer[data-display-mode=\"ebook\"]';\n"
+              "        const viewers = Array.prototype.slice.call(document.querySelectorAll(viewerSelector));",
+          )
+          replace(
               'plugin/amd/src/pdfviewer.js',
               "            pdfDocument.getPage(num).catch(function() {});",
               "            pdfDocument.getPage(num).catch(function() {\n"
