@@ -18,11 +18,11 @@ namespace mod_videoplayer\privacy;
 
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
+use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\contextlist;
 use core_privacy\local\request\helper;
-use core_privacy\local\request\userlist;
-use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\transform;
+use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 
 /**
@@ -32,7 +32,11 @@ use core_privacy\local\request\writer;
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class provider implements \core_privacy\local\metadata\provider, \core_privacy\local\request\core_userlist_provider, \core_privacy\local\request\plugin\provider {
+class provider implements
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
+
     /**
      * Describe the personal data stored by this plugin.
      *
@@ -262,7 +266,15 @@ class provider implements \core_privacy\local\metadata\provider, \core_privacy\l
 
         [$insql, $params] = $DB->get_in_or_equal($userlist->get_userids(), SQL_PARAMS_NAMED);
         $params['videoplayerid'] = $cm->instance;
-        $DB->delete_records_select('videoplayer_rewards', "videoplayerid = :videoplayerid AND userid {$insql}", $params);
-        $DB->delete_records_select('videoplayer_views', "videoplayerid = :videoplayerid AND userid {$insql}", $params);
+        $DB->delete_records_select(
+            'videoplayer_rewards',
+            "videoplayerid = :videoplayerid AND userid {$insql}",
+            $params
+        );
+        $DB->delete_records_select(
+            'videoplayer_views',
+            "videoplayerid = :videoplayerid AND userid {$insql}",
+            $params
+        );
     }
 }
