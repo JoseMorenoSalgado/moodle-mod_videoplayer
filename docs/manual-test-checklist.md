@@ -1,6 +1,6 @@
 # Drive Resource manual test checklist
 
-Run these tests on a staging Moodle site with developer debugging enabled before merging to `main`.
+Run these tests on a staging Moodle site with developer debugging enabled before a commercial release.
 
 ## Environment
 
@@ -9,8 +9,9 @@ Run these tests on a staging Moodle site with developer debugging enabled before
 - PHP cURL enabled.
 - Moodle cron and ad-hoc tasks running.
 - PDF.js files installed locally.
+- `amd/build/pdfjsloader.min.js` installed.
 - Plyr `plyr.min.js` and `plyr.css` installed locally.
-- PageFlip files installed locally when testing optional ebook behavior.
+- PageFlip files installed locally when testing ebook behavior.
 - Browser cache and Moodle caches purged before cold-cache tests.
 
 ## Fresh install
@@ -23,12 +24,13 @@ Run these tests on a staging Moodle site with developer debugging enabled before
 
 ## Upgrade from previous version
 
-- Install current `main` version first.
-- Create existing Google Drive PDF and video activities.
-- Upgrade to the feature branch.
+- Install the previous released version.
+- Create Google Drive PDF, local PDF and video activities.
+- Upgrade to the current release.
 - Confirm Moodle upgrade completes.
 - Confirm existing activities still open.
-- Confirm no database migration is unexpectedly required for `1.1.17-beta`.
+- Confirm administration reports `1.1.25-beta` and `2026080504`.
+- Purge Moodle caches and clear browser site data before JavaScript regression tests.
 
 ## Authentication and authorization
 
@@ -80,6 +82,44 @@ Verify:
 - Confirm the PDF content and visual quality are identical before and after cache warming.
 - Confirm no PDF rasterization or recompression artifacts are introduced.
 
+## PDF.js native ESM loading
+
+Test Protected Ebook, responsive book and Standard PDF.js modes.
+
+Verify in the browser Network and Sources panels:
+
+```text
+amd/build/pdfjsloader.min.js
+thirdpartylibs/pdfjs/pdf.min.mjs
+thirdpartylibs/pdfjs/pdf.worker.min.mjs
+```
+
+Confirm:
+
+- `pdf.min.mjs` loads as a JavaScript module from the same Moodle origin;
+- `pdf.worker.min.mjs` loads from the plugin;
+- `pdf.min.mjs` is not requested by RequireJS;
+- only one PDF.js module script exists after repeated viewer initialization;
+- page rendering begins after PDF.js is loaded;
+- no `Cannot set properties of undefined (setting 'workerSrc')` error appears;
+- a deliberately missing `pdf.min.mjs` produces the controlled viewer error;
+- restoring the file and purging caches recovers without recreating the activity.
+
+### Physical mobile regression
+
+On the Android device/browser that previously displayed the `workerSrc` TypeError:
+
+- clear the site's stored data or use a private tab;
+- open an Ebook PDF;
+- confirm the first page renders;
+- turn pages forward and backward;
+- enter and exit fullscreen;
+- rotate portrait/landscape;
+- background and restore the browser;
+- reopen the PDF and confirm the error does not return.
+
+Repeat the core PDF.js tests on iPhone/iPad Safari where supported. CI validates generated code but does not replace physical-device testing.
+
 ## PDF viewer behavior
 
 - Test a small PDF under 10 pages.
@@ -91,6 +131,14 @@ Verify:
 - Rotate a mobile device while a page is open.
 - Confirm no JavaScript console errors.
 - Confirm memory remains stable during repeated navigation.
+
+## Protected Ebook/PageFlip
+
+- Confirm existing historical `displaymode = standard` activities open as Ebook.
+- Confirm new Ebook activities contain `data-display-mode="ebook"` and `data-region="ebook-stage"`.
+- Confirm the page-turn effect works on desktop and mobile.
+- Confirm PageFlip fallback remains usable when the library is intentionally blocked.
+- Confirm last-page resume and page-based completion.
 
 ## Protected video desktop
 
@@ -143,7 +191,8 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 ## Android and Moodle app
 
 - Repeat play, pause, seek and fullscreen tests in Android Chrome.
-- Repeat core playback tests in Moodle app WebView when the plugin is intended for app use.
+- Repeat PDF.js module, worker and Ebook tests in Android Chrome.
+- Repeat core playback and PDF tests in Moodle app WebView when the plugin is intended for app use.
 
 ## Gamification
 
@@ -178,12 +227,21 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 - Delete user data for the activity context.
 - Confirm `videoplayer_views` and `videoplayer_rewards` records are removed.
 
+## Course-format isolation
+
+- Open a Tiles/Mosaico course before opening Drive Resource.
+- Confirm animated navigation works.
+- Open video and PDF Drive Resource activities.
+- Return to the course.
+- Confirm animated navigation, cards, course index and modals remain clickable.
+
 ## Final performance and security checks
 
 - Confirm no full-file PHP buffering for large protected resources.
-- Confirm cold PDF first-open latency is lower than the previous synchronous warm path.
+- Confirm cold PDF first-open latency is lower than the synchronous warm path.
 - Confirm repeated PDF requests use local cache after warming.
 - Confirm local/cache suffix ranges are correct.
+- Confirm PDF.js and its worker load only from same-origin plugin paths.
 - Confirm no direct source URLs are leaked.
 - Confirm Moodle developer debug log has no new warnings/errors.
-- Confirm browser console is clean.
+- Confirm browser console is clean on desktop and the tested physical mobile devices.
