@@ -4,6 +4,7 @@
 namespace mod_videoplayer;
 
 use mod_videoplayer\local\drive;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Tests for the Google Drive URL helper.
@@ -18,10 +19,10 @@ final class drive_test extends \advanced_testcase {
     /**
      * Supported sharing URL formats must resolve to the same file identifier.
      *
-     * @dataProvider supported_url_provider
      * @param string $url Sharing URL.
      * @param string $expectedid Expected Drive identifier.
      */
+    #[DataProvider('supported_url_provider')]
     public function test_extract_file_id(string $url, string $expectedid): void {
         $this->assertSame($expectedid, drive::extract_file_id($url));
         $this->assertTrue(drive::is_supported_url($url));
