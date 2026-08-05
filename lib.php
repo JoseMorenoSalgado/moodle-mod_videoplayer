@@ -77,7 +77,10 @@ function videoplayer_normalise_instance_data(stdClass $data): stdClass {
     $data->source = clean_param($data->source ?? 'googledrive', PARAM_ALPHANUMEXT);
 
     $displaymode = clean_param($data->displaymode ?? 'ebook', PARAM_ALPHANUMEXT);
-    if (!in_array($displaymode, ['ebook', 'book', 'standard'], true)) {
+    if ($displaymode === 'standard') {
+        $displaymode = 'ebook';
+    }
+    if (!in_array($displaymode, ['ebook', 'pdfjs', 'book'], true)) {
         $displaymode = 'ebook';
     }
     $data->displaymode = $displaymode;
