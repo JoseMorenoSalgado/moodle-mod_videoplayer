@@ -123,12 +123,30 @@ jobs:
           FORM=plugin/mod_form.php
           LOCALLIB=plugin/locallib.php
           INSTALL=plugin/db/install.xml
+          RESTORE=plugin/backup/moodle2/restore_videoplayer_stepslib.php
+          SOURCE=plugin/amd/src/pdfviewer.js
+          BUNDLE=plugin/amd/build/pdfviewer.min.js
+          TEMPLATE=plugin/templates/pdfjs.mustache
+
           grep -q "mod_videoplayer/pdfviewer" "$VIEW"
           grep -q "render_from_template('mod_videoplayer/pdfjs'" "$VIEW"
           grep -q "videoplayer_get_safe_pdf_displaymode" "$VIEW"
           grep -q "videoplayer_get_safe_pdf_displaymode" "$FORM"
           grep -q "\['pdfjs'\]" "$LOCALLIB"
           grep -q 'DEFAULT="pdfjs"' "$INSTALL"
+          grep -q "\$data->displaymode = 'pdfjs';" "$RESTORE"
+          grep -q 'pdfjs-progress' "$SOURCE"
+          grep -q 'pdfjs-points' "$SOURCE"
+          grep -q 'pdfjs-achievements' "$SOURCE"
+          grep -q 'pdfjs-progress' "$BUNDLE"
+          grep -q 'pdfjs-points' "$BUNDLE"
+          grep -q 'pdfjs-achievements' "$BUNDLE"
+          grep -q 'data-display-mode="pdfjs"' "$TEMPLATE"
+          grep -q 'data-region="pdfjs-progress"' "$TEMPLATE"
+          grep -q 'data-region="pdfjs-points"' "$TEMPLATE"
+          grep -q 'data-region="pdfjs-achievements"' "$TEMPLATE"
+          test ! -e plugin/amd/build/pdfviewer.min.js.map
+
           if grep -q "mod_videoplayer/ebookviewer" "$VIEW"; then
             echo 'The learner entry point must not load the PageFlip ebook viewer.' >&2
             exit 1
@@ -139,6 +157,10 @@ jobs:
           fi
           if grep -q "thirdpartylibs/pageflip" "$VIEW"; then
             echo 'The learner entry point must not load PageFlip assets.' >&2
+            exit 1
+          fi
+          if grep -q 'ebook-' "$SOURCE" || grep -q 'ebook-' "$BUNDLE"; then
+            echo 'The stable PDF.js viewer contains obsolete ebook regions.' >&2
             exit 1
           fi
 
