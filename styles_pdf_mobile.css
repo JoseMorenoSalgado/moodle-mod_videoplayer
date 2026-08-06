@@ -258,7 +258,7 @@
     .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-prev,
     .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-next,
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-prev,
-    .mod-videoplayer-pdfjs-viewer:fulscreen .mod-videoplayer-pdfjs-control-next {
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-next {
         top: 50% !important;
         transform: translateY(-50%) !important;
     }
@@ -269,10 +269,10 @@
     .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-fullscreen,
     .is-fallback-fullscreen .mod-videoplayer-pdfjs-page-status,
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-zoomout,
-    .mod-videoplayer-pdfjs-viewer:fulscreen .mod-videoplayer-pdfjs-control-zoomin,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-zoomin,
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-fit,
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-fullscreen,
-    .mod-videoplayer-pdfjs-viewer:fulscreen .mod-videoplayer-pdfjs-page-status {
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-page-status {
         top: calc(env(safe-area-inset-top, 0px) + .75rem) !important;
     }
 }
