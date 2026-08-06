@@ -25,7 +25,8 @@
         "cmid": 42,
         "resourcetype": "Resource type: Video",
         "title": "Example protected video",
-        "videourl": "https://example.com/protected-video.mp4"
+        "videourl": "https://example.com/protected-video.mp4",
+        "videomimetype": "video/mp4"
     }
 }}
 <div class="mod-videoplayer-container mod-videoplayer-native" data-resource-type="{{type}}" data-cmid="{{cmid}}"{{#playerstyle}} style="{{playerstyle}}"{{/playerstyle}}>
@@ -41,8 +42,9 @@
             draggable="false"
             playsinline
             preload="metadata"
+            data-protected-stream="1"
             title="{{title}}">
-            <source src="{{videourl}}">
+            <source src="{{videourl}}" type="{{videomimetype}}">
             {{#str}} videonotsupported, mod_videoplayer {{/str}}
         </video>
     </div>
