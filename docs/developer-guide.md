@@ -2,27 +2,29 @@
 
 ## Component identity
 
-The Moodle component remains `mod_videoplayer`. Do not rename it: installations depend on this identifier for upgrades, capabilities, tables, files, privacy and backup mappings.
+The Moodle component remains `mod_videoplayer`. Do not rename it: installed sites depend on this identifier for upgrades, capabilities, database tables, files, Privacy API and Backup/Restore mappings.
 
 ## Supported development target
 
-- Moodle: 5.0–5.2.
-- Baseline branch: `MOODLE_500_STABLE`.
-- Minimum Moodle version: `2025041400`.
-- PHP: 8.2 and 8.3.
-- CI databases: MariaDB 10.11 and PostgreSQL 15.
+- Moodle 5.0–5.2.
+- Baseline branch `MOODLE_500_STABLE`.
+- Minimum Moodle version `2025041400`.
+- PHP 8.2 and 8.3.
+- CI databases MariaDB 10.11 and PostgreSQL 15.
 
-Moodle 4.x compatibility must not be claimed unless a separate branch, metadata range and full CI matrix are provided.
+Moodle 4.x compatibility must not be claimed without a separate maintained branch and complete CI matrix.
 
 ## Engineering rules
 
 - Moodle Coding Style takes precedence.
-- Use Moodle APIs instead of direct filesystem/database shortcuts.
+- Use Moodle APIs rather than direct filesystem or database shortcuts.
 - Keep public endpoints thin and delegate business logic.
-- Bundle browser libraries locally; no runtime CDN.
-- Keep methods cohesive and streaming memory-bounded.
-- Update source and compiled AMD files together.
-- Review File API, Privacy API, Backup/Restore, Events and Completion for every data-model change.
+- Bundle browser libraries locally; runtime CDN dependencies are prohibited.
+- Keep streaming memory-bounded.
+- Keep functions cohesive and small.
+- Update AMD source and compiled production bundles together.
+- Review File API, Privacy API, Backup/Restore, Events and Completion for each data-model change.
+- Do not patch themes or course-format plugins to fix Drive Resource defects.
 
 ## Main paths
 
@@ -32,28 +34,23 @@ amd/build/                production AMD bundles
 backup/moodle2/           Backup and Restore
 classes/event/            Moodle events
 classes/external/         AJAX/External API
-classes/local/            application services
+classes/local/            streaming and application services
 classes/privacy/          Privacy API
 db/                       XMLDB, capabilities, services and tasks
 tests/                    Moodle PHPUnit tests
-thirdpartylibs/           local third-party libraries
-styles.css                intentionally empty global stylesheet
+thirdpartylibs/pdfjs/      local PDF.js module and worker
+thirdpartylibs/plyr/       local media-player enhancement
+styles.css                intentionally presentation-free global stylesheet
 styles_activity.css       activity-only base presentation
-styles_pageflip_fix.css   protected Ebook presentation and effects
+styles_pdf_mobile.css     mobile PDF presentation
 ```
 
-## Moodle 5.0 API contract
-
-The plugin may use APIs verified in Moodle 5.0, including `core_external`, `core\task`, `core_privacy`, `completion_info`, File API, XMLDB, Backup/Restore and `core/ajax`/`core/notification`.
-
-Before adopting a newer API, verify it exists in `MOODLE_500_STABLE`. Do not introduce a Moodle 5.1/5.2-only class or AMD module while `500` remains in `$plugin->supported`.
-
-## Protected delivery
+## Protected delivery contract
 
 `protected.php` must execute this order:
 
 ```text
-required id
+required activity id
 → course module
 → course
 → activity instance
@@ -66,20 +63,48 @@ required id
 
 Never return raw Google Drive IDs, direct download URLs, preview URLs or upstream error bodies.
 
-`protected_stream` owns local/cache files. `http_range_proxy` owns upstream HTTP streaming. Never send both a manual `Range` header and `CURLOPT_RANGE` for the same request.
+`protected_stream` owns Moodle-private/cache files. `http_range_proxy` owns upstream HTTP streaming. Do not send both a manually constructed `Range` header and `CURLOPT_RANGE` for the same upstream request.
+
+## PDF renderer contract
+
+Every production PDF must use:
+
+```text
+mod_videoplayer/pdfviewer
+```
+
+`view.php` must not load:
+
+```text
+mod_videoplayer/ebookviewer
+mod_videoplayer/bookviewer
+thirdpartylibs/pageflip/*
+```
+
+`videoplayer_get_safe_pdf_displaymode()` is the single runtime normalisation point. It currently returns only `pdfjs`. Historical values such as `standard`, `ebook` and `book` must remain safely migratable to `pdfjs`.
+
+Do not reintroduce an animated page-turn renderer directly into the learner path. A future experimental renderer would require all of the following before consideration:
+
+- an explicit disabled-by-default feature flag;
+- complete isolation from the stable PDF.js path;
+- deterministic PDF.js fallback;
+- physical iPhone and Android regression testing;
+- range, memory and accessibility validation;
+- CI coverage proving that JavaScript asset URLs cannot become document URLs;
+- product approval before enabling it on existing activities.
 
 ## PDF.js module loading
 
-PDF.js is shipped as local ES modules:
+PDF.js is shipped locally as ES modules:
 
 ```text
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
 ```
 
-Do not call `import(PDFJS_URL)` directly from an AMD source. Moodle's Babel build transforms dynamic imports into RequireJS requests, but `.mjs` is not an AMD module. This can pass lint and still fail at runtime on mobile browsers.
+Do not call `import(PDFJS_URL)` directly from AMD source. Moodle's Babel build can transform dynamic imports into RequireJS requests, but `.mjs` is not an AMD module.
 
-All protected PDF viewers must depend on:
+All protected PDF rendering must depend on:
 
 ```text
 mod_videoplayer/pdfjsloader
@@ -87,117 +112,119 @@ mod_videoplayer/pdfjsloader
 
 The loader must:
 
-- create a local `<script type="module">` for `pdf.min.mjs`;
+- create a same-origin `<script type="module">` for `pdf.min.mjs`;
 - validate `window.pdfjsLib.getDocument` and `GlobalWorkerOptions`;
-- configure only the local `pdf.worker.min.mjs`;
+- configure only the bundled `pdf.worker.min.mjs`;
 - cache one loading promise per page;
+- remove/recover from a failed module element before retrying;
 - reject through a controlled Promise error;
-- never use CDN, `eval`, arbitrary URLs or a RequireJS conversion.
+- never accept URLs from request data or activity configuration;
+- never use CDN, `eval`, arbitrary imports or unsafe runtime code generation.
 
-After modifying `amd/src/pdfjsloader.js`, rebuild with Moodle Grunt and verify:
+After changing `amd/src/pdfjsloader.js`, rebuild the production bundle with Moodle Grunt:
 
 ```bash
 npx grunt amd --root=mod/videoplayer
 ```
 
-The generated `amd/build/pdfjsloader.min.js` must contain `createElement("script")` and `type="module"`, and must not contain `_systemImportTransformerGlobalIdentifier`.
+The generated `amd/build/pdfjsloader.min.js` must contain native module-script creation and must not contain `_systemImportTransformerGlobalIdentifier`.
 
-## Responsive Ebook contract
+## PDF viewer behavior
 
-`amd/src/ebookviewer.js` owns the commercial Ebook experience. The required behavior is:
+`amd/src/pdfviewer.js` must preserve:
 
-- physical phones show exactly one page in portrait and landscape;
-- desktop-sized viewer containers show two facing pages;
-- layout changes preserve the current page;
-- the current phone page or current desktop spread renders first;
-- only adjacent pages are prefetched during browser idle time;
-- the document is represented initially by lightweight PageFlip placeholders;
-- completion uses the furthest visible page and never decreases when turning back;
-- PageFlip effects remain local and scoped through `styles_pageflip_fix.css`;
-- standard PDF.js remains the controlled fallback when PageFlip cannot initialize.
+- idempotent initialization;
+- previous and next page controls;
+- current and total page display;
+- zoom boundaries and fit-to-screen;
+- fullscreen with a controlled CSS fallback;
+- touch-swipe navigation without blocking vertical scrolling;
+- responsive rendering on resize/orientation change;
+- bounded device-pixel-ratio scaling;
+- progress persistence;
+- adjacent-page prefetch only;
+- controlled error UI.
 
-Phone detection must not depend solely on viewport width. It combines container width, coarse-pointer capability and the physical short screen side so a phone rotated to landscape does not become a desktop spread.
-
-Do not reintroduce a loop that renders dozens of pages before PageFlip initialization. The former eager-render constant `MAX_INITIAL_RENDER_PAGES` is prohibited by CI.
+Do not render all pages into canvases. Render the active page and allow PDF.js to fetch only what is needed through the protected range endpoint.
 
 ## PDF performance
 
-- Render only the active phone page or active desktop spread.
-- Create lightweight PageFlip placeholders instead of eagerly rendering the document.
-- Prefetch only adjacent pages during browser idle time.
-- Keep phones in single-page mode after orientation changes.
-- Use a two-page spread only when the viewer container can support it.
-- Bound the device-pixel-ratio multiplier used by canvases.
-- Ignore or replace undersized renders after meaningful resize/fullscreen changes.
-- Proxy cold ranges immediately and warm complete cache through a deduplicated ad-hoc task.
+- Keep the first visible page on the critical path.
+- Use `rangeChunkSize` suitable for progressive PDF loading.
+- Prefetch only adjacent pages.
 - Preserve original PDF bytes.
+- Proxy cold ranges immediately.
+- Warm verified complete PDFs asynchronously through a deduplicated ad-hoc task.
+- Do not buffer complete PDFs in PHP memory.
+- Bound canvas backing dimensions through a device-pixel-ratio ceiling.
+- Re-render only after meaningful resize, zoom or fullscreen changes.
 
 ## Video development
 
 - Keep native HTML5 controls as fallback.
 - Preserve `playsinline` and `webkit-playsinline`.
-- Use metadata preload unless measured evidence requires otherwise.
+- Use metadata preload unless profiling demonstrates a better safe option.
 - Preserve valid `206 Partial Content` metadata for Safari/iOS seeking.
 - Do not force a MIME type that conflicts with the protected response.
+- Avoid loading the complete video into PHP memory.
 
 ## CSS isolation
 
-Root `styles.css` is global in Moodle and must contain no viewer presentation. Shared viewer CSS belongs in `styles_activity.css`, loaded explicitly by `view.php`.
+Root `styles.css` is global in Moodle and must not contain viewer presentation.
 
-Protected Ebook-specific rules belong in `styles_pageflip_fix.css` and must be requested only when `displaymode === 'ebook'`. All selectors, keyframes and variables must use a `mod-videoplayer` or `drive-resource` prefix. Never use unscoped generic classes for fullscreen, overlays, loading or active state.
+Viewer rules must be loaded explicitly from activity-scoped CSS and use `mod-videoplayer` or `drive-resource` prefixes. Generic fullscreen, overlay, loading and active-state selectors are prohibited.
 
 ## Database upgrades
 
-For schema changes:
+For schema or persisted-default changes:
 
 1. update `db/install.xml`;
 2. add an idempotent `db/upgrade.php` step;
-3. handle dependent indexes before changing indexed fields;
-4. update Backup/Restore and Privacy API;
-5. bump `version.php`;
-6. run savepoint validation on Moodle 5.0.
+3. migrate existing values safely;
+4. handle dependent indexes before changing indexed fields;
+5. update Backup/Restore and Privacy API when data shape changes;
+6. bump `version.php`;
+7. run Moodle savepoint validation.
 
-Code-only releases may bump the version without adding an empty upgrade step.
+The `2026080600` upgrade changes `displaymode` to `pdfjs` for all existing records. Do not remove that compatibility step.
 
 ## Automated tests
 
-`tests/drive_test.php` validates supported URLs, file IDs, resource detection and protected export endpoints.
+Current contracts include:
 
-`tests/moodle50_compatibility_test.php` validates minimum core metadata, the supported branch range, PHP baseline and required Moodle APIs.
+- `tests/drive_test.php` for supported URLs, file IDs, resource detection and protected endpoints;
+- `tests/http_range_proxy_test.php` for byte-range behavior;
+- `tests/moodle50_compatibility_test.php` for platform metadata and required APIs;
+- `tests/pdf_displaymode_test.php` for legacy display-mode normalisation and PDF.js-only routing.
 
 The CI workflow must pass:
 
 - PHP lint;
-- PHPCS;
+- Moodle Coding Style;
 - PHPDoc;
 - plugin validation;
-- upgrade savepoints;
-- Mustache;
-- Grunt/AMD;
-- PDF.js native-ESM bundle contract;
-- responsive Ebook source/build contract;
-- PHPUnit.
+- XMLDB upgrade savepoints;
+- Mustache validation;
+- Grunt/AMD validation;
+- PDF.js native-ESM loader contract;
+- PDF.js-only production-path contract;
+- PHPUnit on the supported matrix.
 
 ## Commercial release gate
 
-A Moodle 5.0 release is not approved until all CI combinations pass and staging verifies:
+A release is not approved until CI passes and staging verifies:
 
-- fresh install and upgrade;
-- course navigation with Tiles/Mosaico and a standard format;
-- local and Drive PDF opening;
-- one-page Ebook on a physical phone in portrait and landscape;
-- two facing Ebook pages on a desktop-width browser;
-- smooth swipe, button and corner page-turn effects;
-- lazy first render without processing the complete document;
-- PDF.js initialization on the affected physical Android/iOS browser without `workerSrc` errors;
-- video start/seek/resume on physical iPhone Safari;
-- valid and invalid byte ranges;
-- progress and completion;
-- backup/restore;
+- fresh installation and upgrade from the previous release;
+- local and Google Drive PDF opening;
+- no PageFlip request in the browser network panel;
+- no JavaScript source displayed as PDF content;
+- PDF.js initialization on physical Android and iPhone browsers;
+- previous/next, zoom, fit, fullscreen and swipe navigation;
+- correct valid and invalid byte ranges;
+- video start, seek and resume on physical iPhone Safari;
+- progress and completion persistence;
+- Backup/Restore;
 - Privacy API export/delete;
 - no leaked Google Drive URLs;
-- no developer-debug warnings.
-
-## PDF renderer contract
-
-All production PDF changes must preserve `videoplayer_get_safe_pdf_displaymode()` and the single PDF.js rendering path. Do not reintroduce PageFlip from `view.php`. Any future animated reader must be isolated behind an explicit experimental feature flag, include a mobile PDF.js fallback, remain idempotent, and pass physical-device regression tests before release.
+- normal operation with standard and third-party course formats;
+- no developer-debug warnings or browser console errors.
