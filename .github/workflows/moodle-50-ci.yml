@@ -168,6 +168,8 @@ jobs:
       - name: Mobile PDF and video seek contract
         run: |
           grep -Fq "'initialpage' => \$initialpage" plugin/view.php
+          grep -q 'styles_pdf_overlay.css' plugin/view.php
+          grep -q 'styles_pdf_mobile.css' plugin/view.php
           grep -q 'videomimetype' plugin/templates/video.mustache
           grep -q 'registerSeekRecovery' plugin/amd/src/plyr.js
           grep -q 'slow-2g' plugin/amd/build/plyr.min.js
