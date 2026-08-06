@@ -21,7 +21,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * Tests for protected upstream MIME validation.
+ * Tests for protected upstream MIME and byte-range validation.
  *
  * @package    mod_videoplayer
  * @category   test
@@ -82,5 +82,22 @@ final class http_range_proxy_test extends \advanced_testcase {
             'image sent to video' => ['image/jpeg', 'video/mp4'],
             'video sent to pdf' => ['video/mp4', 'application/pdf'],
         ];
+    }
+
+    /**
+     * Range requests require a valid HTTP 206 response and Content-Range.
+     */
+    public function test_range_requests_require_valid_partial_content(): void {
+        $this->assertTrue(http_range_proxy::is_range_response_usable('', 200, ''));
+        $this->assertTrue(http_range_proxy::is_range_response_usable('', 206, 'bytes 0-1023/4096'));
+        $this->assertTrue(
+            http_range_proxy::is_range_response_usable('bytes=1024-', 206, 'bytes 1024-4095/4096')
+        );
+
+        $this->assertFalse(http_range_proxy::is_range_response_usable('bytes=1024-', 200, ''));
+        $this->assertFalse(http_range_proxy::is_range_response_usable('bytes=1024-', 206, ''));
+        $this->assertFalse(
+            http_range_proxy::is_range_response_usable('bytes=1024-', 206, 'bytes */4096')
+        );
     }
 }

@@ -220,3 +220,7 @@ GNU GPL v3 or later. Third-party libraries and licences are declared in `thirdpa
 
 Elearning Cloud  
 https://elearningcloud.io
+
+## Release 1.1.28-beta
+
+This release improves physical-device playback and reading. PDFs always open on page 1, mobile zoom uses the real canvas dimensions without an oversized empty viewport, and protected videos require valid `206 Partial Content` responses for seeks. The proxy retries Range negotiation across Google redirects, uses a stable Moodle-facing ETag, disables reverse-proxy buffering and never exposes the upstream URL.

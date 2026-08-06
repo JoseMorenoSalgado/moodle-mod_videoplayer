@@ -25,7 +25,7 @@
         "cmid": 42,
         "resourcetype": "Resource type: PDF",
         "completionpercent": 25,
-        "initialpage": 2,
+        "initialpage": 1,
         "totalpages": 10,
         "points": 5,
         "pdfurl": "https://example.com/protected.php?id=42",
@@ -53,15 +53,6 @@
             </span>
         {{/enablegamification}}
     </div>
-
-    {{#initialpage}}
-        <div class="mod-videoplayer-resume alert alert-info"
-             data-region="pdfjs-resume"
-             {{^totalpages}}hidden{{/totalpages}}>
-            {{#str}} resumereading, mod_videoplayer {{/str}}
-            <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
-        </div>
-    {{/initialpage}}
 
     <div class="mod-videoplayer-pdfjs-viewer"
          data-pdf-url="{{pdfurl}}"

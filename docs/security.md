@@ -145,3 +145,7 @@ Production validation additionally requires:
 - normal navigation in standard and third-party course formats;
 - Backup/Restore and Privacy API tests;
 - review of current Moodle security advisories before commercial release.
+
+## Range and validator hardening
+
+Drive Resource does not forward browser `If-Range` validators to Google. The proxy emits a stable, URL-derived private ETag, validates `Content-Type`, requires `206` plus `Content-Range` for byte requests and sends `X-Accel-Buffering: no`. These headers improve streaming without exposing file IDs, redirect URLs or Google validators.

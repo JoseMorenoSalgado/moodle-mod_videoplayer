@@ -85,9 +85,7 @@
     }
 
     .mod-videoplayer-resume {
-        margin-bottom: .45rem;
-        padding: .5rem .65rem;
-        font-size: .85rem;
+        display: none !important;
     }
 
     .mod-videoplayer-pdfjs-viewer {
@@ -99,22 +97,22 @@
     }
 
     .mod-videoplayer-pdfjs-canvas-wrap {
-        min-height: 80svh !important;
-        height: 80svh !important;
-        padding: .25rem !important;
-        align-items: flex-start !important;
-        justify-content: center !important;
+        display: block !important;
+        min-height: 22rem !important;
+        height: auto !important;
+        max-height: none !important;
+        padding: .35rem !important;
         overflow: auto !important;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-x pan-y;
-        background: #f1f5f9 !important;
+        background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%) !important;
         scrollbar-width: thin;
     }
 
     .mod-videoplayer-pdfjs-canvas {
         display: block !important;
-        max-width: 100% !important;
+        max-width: none !important;
         width: auto !important;
         height: auto !important;
         margin: 0 auto !important;
@@ -139,9 +137,10 @@
         min-width: 46px !important;
         min-height: 46px !important;
         padding: 0 !important;
+        border: 1px solid rgba(15, 23, 42, .08) !important;
         border-radius: 999px !important;
         font-size: 1.25rem !important;
-        background: rgba(255, 255, 255, .94) !important;
+        background: rgba(255, 255, 255, .95) !important;
         color: #0f172a !important;
         box-shadow: 0 10px 26px rgba(15, 23, 42, .18) !important;
         backdrop-filter: blur(12px);
@@ -190,6 +189,7 @@
         left: 50% !important;
         min-width: 64px !important;
         padding: .45rem .65rem !important;
+        border: 1px solid rgba(15, 23, 42, .08);
         font-size: .9rem !important;
         line-height: 1.1;
         background: rgba(255, 255, 255, .96) !important;
@@ -216,8 +216,12 @@
 
     .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
     .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
         min-height: 100svh !important;
         height: 100svh !important;
+        max-height: 100svh !important;
         padding: calc(env(safe-area-inset-top, 0px) + .45rem) .25rem calc(env(safe-area-inset-bottom, 0px) + .45rem) !important;
     }
 }

@@ -203,3 +203,7 @@ The workflow also enforces:
 - the PDF.js-only learner production path;
 - absence of PageFlip and legacy book viewer references from `view.php`;
 - `pdfjs` as the XMLDB display-mode default.
+
+## Mobile media reliability in 1.1.28-beta
+
+The protected stream boundary now treats browser Range requests as strict contracts. A seek request is emitted to the learner only when Google returns a valid `206` response with `Content-Range`; an upstream `200` is discarded and retried with an explicit Range header. Browser-facing validators are owned by Moodle so redirect-specific Google ETags cannot downgrade later seeks to complete responses. PDF rendering remains local PDF.js and starts from page 1.

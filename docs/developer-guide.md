@@ -228,3 +228,7 @@ A release is not approved until CI passes and staging verifies:
 - no leaked Google Drive URLs;
 - normal operation with standard and third-party course formats;
 - no developer-debug warnings or browser console errors.
+
+## Mobile media regression rules
+
+Keep `amd/src/plyr.js` and `amd/build/plyr.min.js` synchronized through Moodle Grunt. Do not reload the video source to recover a seek. The client may retry the requested `currentTime` a bounded number of times, while `http_range_proxy` remains the authoritative fix. PDF templates must receive `initialpage = 1`; reading progress may still store `lastpage` for reporting.

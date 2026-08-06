@@ -271,3 +271,7 @@ A green workflow is required before commercial release, but staging and physical
 ## Recovery after a failed upgrade
 
 Do not delete courses, activities or database tables. Keep maintenance mode enabled, restore the previous complete `mod/videoplayer` directory, purge caches and inspect the first PHP/XMLDB error. Drive Resource does not require editing themes or course-format plugins.
+
+## Upgrade verification for 1.1.28-beta
+
+After upgrade and cache purge, test a protected MP4 on Android Chrome and iPhone Safari. Seeking to the middle must return `206 Partial Content`, preserve the selected timestamp and avoid a restart at zero. Test a PDF at 100% and above 100%; it must open at page 1, avoid a large empty area below the page and allow horizontal scrolling when zoomed.
