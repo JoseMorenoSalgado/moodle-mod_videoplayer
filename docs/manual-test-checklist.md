@@ -10,6 +10,8 @@ Run these tests on a staging Moodle site with developer debugging enabled before
 - Moodle cron and ad-hoc tasks running.
 - PDF.js files installed locally.
 - `amd/build/pdfjsloader.min.js` installed.
+- `amd/build/ebookviewer.min.js` installed.
+- `styles_pageflip_fix.css` installed.
 - Plyr `plyr.min.js` and `plyr.css` installed locally.
 - PageFlip files installed locally when testing ebook behavior.
 - Browser cache and Moodle caches purged before cold-cache tests.
@@ -29,8 +31,8 @@ Run these tests on a staging Moodle site with developer debugging enabled before
 - Upgrade to the current release.
 - Confirm Moodle upgrade completes.
 - Confirm existing activities still open.
-- Confirm administration reports `1.1.25-beta` and `2026080504`.
-- Purge Moodle caches and clear browser site data before JavaScript regression tests.
+- Confirm administration reports `1.1.26-beta` and `2026080505`.
+- Purge Moodle caches and clear browser site data before JavaScript/CSS regression tests.
 
 ## Authentication and authorization
 
@@ -105,7 +107,7 @@ Confirm:
 - a deliberately missing `pdf.min.mjs` produces the controlled viewer error;
 - restoring the file and purging caches recovers without recreating the activity.
 
-### Physical mobile regression
+### Physical mobile PDF.js regression
 
 On the Android device/browser that previously displayed the `workerSrc` TypeError:
 
@@ -119,6 +121,51 @@ On the Android device/browser that previously displayed the `workerSrc` TypeErro
 - reopen the PDF and confirm the error does not return.
 
 Repeat the core PDF.js tests on iPhone/iPad Safari where supported. CI validates generated code but does not replace physical-device testing.
+
+## Responsive Ebook regression
+
+### Phone portrait
+
+- Open a PDF on a physical phone in portrait.
+- Confirm exactly one page is visible.
+- Confirm the root/stage uses `is-phone-single-page`.
+- Confirm the page fills the available viewer without horizontal clipping.
+- Swipe and use previous/next controls.
+- Confirm the page number advances one page at a time.
+
+### Phone landscape
+
+- Rotate the same physical phone to landscape.
+- Confirm it remains a one-page reader; it must not switch to a desktop spread.
+- Confirm the current page is preserved during the rebuild.
+- Confirm swipe, corners, previous/next and fullscreen still work.
+- Rotate back to portrait and confirm the same page remains active.
+
+### Desktop spread
+
+- Open the same PDF in a desktop-width browser.
+- Confirm two facing pages are visible.
+- Confirm the root/stage uses `is-desktop-double-page`.
+- Confirm the page indicator shows the visible range, for example `2–3`.
+- Confirm the centre gutter, left/right inner shadows and page corners are visible.
+- Confirm previous/next advances the spread correctly and stops at document boundaries.
+
+### Lazy rendering and memory
+
+- Open a PDF over 100 pages with the Network and Performance panels open.
+- Confirm the first view renders only the active phone page or active desktop spread.
+- Confirm only adjacent pages are prefetched after the active view is ready.
+- Confirm the complete document is not converted into canvases before first interaction.
+- Turn forward and backward repeatedly and confirm memory remains stable.
+- Resize across the phone/desktop boundary and confirm the current page is preserved.
+- Confirm completion percentage never decreases after turning backwards.
+
+### Effects and accessibility
+
+- Confirm paper texture, page shadows, centre gutter and page-settle effects remain scoped to the Ebook.
+- Confirm no overlay blocks Moodle navigation, Tiles/Mosaico cards or theme controls.
+- Enable `prefers-reduced-motion` and confirm decorative animation is disabled without disabling navigation.
+- Intentionally block PageFlip and confirm standard PDF.js fallback remains usable.
 
 ## PDF viewer behavior
 
@@ -136,7 +183,7 @@ Repeat the core PDF.js tests on iPhone/iPad Safari where supported. CI validates
 
 - Confirm existing historical `displaymode = standard` activities open as Ebook.
 - Confirm new Ebook activities contain `data-display-mode="ebook"` and `data-region="ebook-stage"`.
-- Confirm the page-turn effect works on desktop and mobile.
+- Confirm `styles_pageflip_fix.css` is loaded only for Ebook mode.
 - Confirm PageFlip fallback remains usable when the library is intentionally blocked.
 - Confirm last-page resume and page-based completion.
 
@@ -191,7 +238,7 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 ## Android and Moodle app
 
 - Repeat play, pause, seek and fullscreen tests in Android Chrome.
-- Repeat PDF.js module, worker and Ebook tests in Android Chrome.
+- Repeat PDF.js module, worker and Ebook single-page tests in Android Chrome.
 - Repeat core playback and PDF tests in Moodle app WebView when the plugin is intended for app use.
 
 ## Gamification
@@ -206,6 +253,7 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 
 - Configure completion percentage.
 - Read/view past the threshold.
+- Turn backwards and confirm completion percentage does not decrease.
 - Confirm Moodle completion is marked.
 - Confirm `resource_completed` fires only once per user completion transition.
 
@@ -242,6 +290,7 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 - Confirm repeated PDF requests use local cache after warming.
 - Confirm local/cache suffix ranges are correct.
 - Confirm PDF.js and its worker load only from same-origin plugin paths.
+- Confirm Ebook placeholders/canvases contain no direct source URLs or Drive IDs.
 - Confirm no direct source URLs are leaked.
 - Confirm Moodle developer debug log has no new warnings/errors.
 - Confirm browser console is clean on desktop and the tested physical mobile devices.
