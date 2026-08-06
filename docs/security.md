@@ -75,6 +75,16 @@ The Moodle site's Content Security Policy must allow same-origin module scripts 
 
 The generated AMD bundle is checked to ensure Moodle has not converted the ES-module load into an incompatible RequireJS request. This check protects availability and prevents future build changes from silently bypassing the intended loader boundary.
 
+## Ebook rendering boundary
+
+Lazy rendering creates only local canvas elements from protected Moodle responses. Placeholder nodes and PageFlip effects must never contain source URLs, Google Drive IDs or upstream metadata.
+
+Responsive layout changes reuse the authorised PDF.js document session and do not create a direct resource endpoint. One-page phone mode and two-page desktop mode affect only presentation and the set of pages rendered locally; authorisation remains enforced by `protected.php` for every byte-range request.
+
+The viewer may prefetch only neighbouring pages through the same protected Moodle URL. It must not preload the complete document into JavaScript memory or create alternative direct links.
+
+`styles_pageflip_fix.css` is loaded only for protected Ebook mode and all selectors/keyframes are scoped to Drive Resource roots. Paper, gutter, shadow, corner, fullscreen and loading effects must not modify or overlay unrelated Moodle, theme or course-format UI.
+
 ## Task and cache safety
 
 PDF cache warming uses Moodle ad-hoc tasks with duplicate suppression. Full files are written to temporary paths, verified as PDFs and atomically renamed. Lock, cookie and temporary files are cleaned up.
@@ -91,9 +101,11 @@ The plugin must never modify third-party course formats or themes to solve a loc
 
 Progress, active time, completion, page position, points and rewards are personal data. Privacy API must cover metadata, context discovery, export and deletion for users and approved user lists.
 
+For desktop Ebook spreads, the furthest visible page may be the second page in the spread. The plugin stores page/progress values but does not store rendered canvases, page images, gestures or viewport dimensions as personal data.
+
 ## Moodle 5.0 security validation
 
-The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints, Mustache, AMD, the PDF.js native-ESM bundle contract and PHPUnit against Moodle 5.0. Production validation additionally requires:
+The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints, Mustache, AMD, the PDF.js native-ESM contract, the responsive Ebook contract and PHPUnit against Moodle 5.0. Production validation additionally requires:
 
 - current supported Moodle 5.0 maintenance release;
 - guest and unenrolled access denial;
@@ -104,6 +116,7 @@ The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints
 - correct valid/invalid range behaviour;
 - no direct web access to local/cache files;
 - PDF.js and worker loaded only from the plugin's same-origin paths;
+- one-page mobile and two-page desktop rendering without exposing direct URLs;
 - physical mobile validation without unhandled `workerSrc` errors;
 - normal navigation in Tiles/Mosaico and standard formats;
 - Backup/Restore and Privacy API tests;
