@@ -32,12 +32,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: moodle/.nvmrc
-          cache: npm
-          cache-dependency-path: moodle/package-lock.json
 
       - name: Install Moodle JavaScript dependencies
         working-directory: moodle
-        run: npm ci
+        run: npm install --no-progress
 
       - name: Build the PDF viewer AMD bundle
         run: |
