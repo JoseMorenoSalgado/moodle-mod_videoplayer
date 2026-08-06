@@ -24,6 +24,8 @@ The internal Moodle component remains `mod_videoplayer` for upgrade, capability,
 - Streaming without loading complete media into PHP memory.
 - `HEAD`, `Range`, `If-Range`, `206 Partial Content` and `416` handling.
 - Local PDF.js rendering with selectable protected Ebook/PageFlip and standard PDF.js modes.
+- Responsive Ebook with one page on phones and two facing pages on desktop-sized viewers.
+- Lazy PDF rendering of the current page or spread with adjacent-page prefetch.
 - Local Plyr enhancement over native HTML5 video.
 - iPhone/iPad-oriented inline playback and seeking.
 - Fast-first-byte PDF proxying with deduplicated asynchronous cache warming.
@@ -50,7 +52,9 @@ The complete directory is required, including:
 
 ```text
 styles_activity.css
+styles_pageflip_fix.css
 amd/build/pdfjsloader.min.js
+amd/build/ebookviewer.min.js
 thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
 thirdpartylibs/pageflip/page-flip.browser.js
@@ -65,6 +69,8 @@ Run:
 php admin/cli/upgrade.php --non-interactive
 php admin/cli/purge_caches.php
 ```
+
+Release `1.1.26-beta` makes the protected Ebook adaptive and incremental. Phones show one page in portrait or landscape; desktop-sized viewers show two facing pages. PDF.js renders only the visible page or spread and prefetches adjacent pages during idle time. PageFlip provides the local paper, gutter, shadow, corner and page-turn effects.
 
 Release `1.1.25-beta` fixes mobile PDF.js initialization by loading the bundled ES module through a native local `<script type="module">` element. Moodle's AMD build must not transform `pdf.min.mjs` into a RequireJS request. The shared `pdfjsloader` validates the API before assigning the bundled worker URL.
 
@@ -138,7 +144,7 @@ The loader is cached once per page and reports a controlled viewer error when th
 
 ### PDF display modes
 
-**Protected Ebook** is the default. PDF.js renders each page locally and the bundled PageFlip library provides the page-turn effect. The viewer includes previous/next navigation, fullscreen, reading progress and mobile touch support.
+**Protected Ebook** is the default. Phones display one protected page at a time, including after rotation, while desktop-sized viewers display two facing pages. PDF.js renders only the visible page or spread and a small adjacent prefetch set. PageFlip provides touch navigation, page corners, paper texture, centre gutter, shadows and page-turn effects.
 
 **Standard PDF.js** provides a single-page canvas with zoom, fit, previous/next navigation and fullscreen controls.
 
@@ -152,7 +158,7 @@ Protected video uses an HTML5 `<video>` element and local Plyr enhancement. It p
 
 Moodle compiles a module's root `styles.css` into the global theme bundle. Drive Resource intentionally keeps that file free of viewer rules.
 
-Viewer presentation lives in `styles_activity.css`, loaded only by `mod/videoplayer/view.php`. This prevents Drive Resource from affecting course cards, navigation, modals, themes or third-party course formats.
+Shared viewer presentation lives in `styles_activity.css`. Ebook-specific PageFlip presentation lives in `styles_pageflip_fix.css`. Both are loaded only by `mod/videoplayer/view.php`, preventing Drive Resource from affecting course cards, navigation, modals, themes or third-party course formats.
 
 ## Automated compatibility validation
 
@@ -162,7 +168,7 @@ GitHub Actions runs `.github/workflows/moodle-50-ci.yml` against:
 - PHP 8.2 and 8.3;
 - MariaDB 10.11 and PostgreSQL 15.
 
-The workflow performs PHP lint, Moodle coding style, PHPDoc validation, plugin validation, upgrade-savepoint checks, Mustache validation, AMD/JavaScript validation, the PDF.js native-ESM bundle contract and PHPUnit tests.
+The workflow performs PHP lint, Moodle coding style, PHPDoc validation, plugin validation, upgrade-savepoint checks, Mustache validation, AMD/JavaScript validation, the PDF.js native-ESM bundle contract, the responsive Ebook contract and PHPUnit tests.
 
 ## Development
 
@@ -172,7 +178,7 @@ AMD sources are under `amd/src/` and production bundles under `amd/build/`.
 npx grunt amd
 ```
 
-Any change to an AMD source must include its rebuilt production bundle. The generated `pdfjsloader.min.js` must contain native module-script creation and must not contain Moodle's dynamic-import transformer.
+Any change to an AMD source must include its rebuilt production bundle. The generated `pdfjsloader.min.js` must contain native module-script creation and must not contain Moodle's dynamic-import transformer. The Ebook viewer must retain phone single-page mode, desktop two-page mode and lazy visible-page rendering.
 
 ## Documentation
 
@@ -184,8 +190,8 @@ Any change to an AMD source must include its rebuilt production bundle. The gene
 
 ## Release
 
-- Release: `1.1.25-beta`
-- Moodle plugin version: `2026080504`
+- Release: `1.1.26-beta`
+- Moodle plugin version: `2026080505`
 - Component: `mod_videoplayer`
 - Product: Drive Resource
 - Supported Moodle branches: 5.0–5.2
