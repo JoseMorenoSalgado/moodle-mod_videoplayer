@@ -4,6 +4,36 @@ All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.
 
+## v1.1.26-beta - 2026-08-05
+
+### Fixed
+
+- Restored the dedicated PageFlip responsive stylesheet on protected Ebook activity pages.
+- Phones now remain in a single-page layout in portrait and landscape orientations.
+- Desktop-sized viewers explicitly use a two-page facing spread.
+- Replaced eager rendering of up to 80 PDF pages with lightweight placeholders and lazy visible-page rendering.
+- Adjacent pages are prefetched only during browser idle time.
+- Ebook completion percentage remains monotonic when a learner turns back.
+
+### Experience
+
+- Added paper texture, centre-gutter shading, page shadows, corner interaction and page-settle effects.
+- Added responsive fullscreen sizing and reduced-motion support.
+- The page indicator shows one page on phones and the visible page range on desktop spreads.
+
+### Validation
+
+- Rebuilt `amd/build/ebookviewer.min.js` and its source map with Moodle 5.0 Grunt.
+- Added a permanent responsive Ebook contract to Moodle 5.0 CI.
+- Release metadata bumped to `1.1.26-beta` with plugin version `2026080505`.
+
+### Upgrade notes
+
+- Deploy the complete plugin directory, including `styles_pageflip_fix.css`, `amd/src/ebookviewer.js` and its rebuilt `amd/build` files.
+- Run Moodle upgrade and purge Moodle plus browser caches.
+- Existing PDF activities do not need to be recreated.
+- Physical mobile and desktop functional checks remain required because automated CI validates the implementation contract, not visual rendering on every device.
+
 ## v1.1.25-beta - 2026-08-05
 
 ### Fixed
@@ -107,7 +137,7 @@ The internal Moodle component is `mod_videoplayer` for compatibility with previo
 - Explicit Moodle supported range `[500, 502]`, covering Moodle 5.0, 5.1 and 5.2.
 - GitHub Actions compatibility workflow under `.github/workflows/moodle-50-ci.yml`.
 - Moodle 5.0 CI matrix for PHP 8.2/8.3 with MariaDB 10.11 and PostgreSQL 15.
-- PHPUnit coverage for Google Drive URL validation, type detection, protected export URLs, required Moodle APIs and plugin compatibility metadata.
+- PHPUnit coverage for Google Drive URL validation, file IDs, resource detection and protected export endpoints.
 
 ### Changed
 
