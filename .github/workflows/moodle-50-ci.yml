@@ -117,24 +117,28 @@ jobs:
             exit 1
           fi
 
-      - name: Responsive Ebook contract
+      - name: Stable PDF.js production contract
         run: |
-          SOURCE=plugin/amd/src/ebookviewer.js
-          BUNDLE=plugin/amd/build/ebookviewer.min.js
           VIEW=plugin/view.php
-          STYLES=plugin/styles_pageflip_fix.css
-          test -s "$SOURCE"
-          test -s "$BUNDLE"
-          test -s "$STYLES"
-          grep -q 'is-phone-single-page' "$SOURCE"
-          grep -q 'is-desktop-double-page' "$SOURCE"
-          grep -q 'requestIdleCallback' "$SOURCE"
-          grep -q 'usePortrait: phoneLayout' "$SOURCE"
-          grep -q 'styles_pageflip_fix.css' "$VIEW"
-          grep -q 'mod_videoplayer/ebookviewer' "$BUNDLE"
-          grep -q 'mod-videoplayer-page-settle' "$STYLES"
-          if grep -q 'MAX_INITIAL_RENDER_PAGES' "$SOURCE"; then
-            echo 'Ebook viewer returned to eager multi-page rendering.' >&2
+          FORM=plugin/mod_form.php
+          LOCALLIB=plugin/locallib.php
+          INSTALL=plugin/db/install.xml
+          grep -q "mod_videoplayer/pdfviewer" "$VIEW"
+          grep -q "render_from_template('mod_videoplayer/pdfjs'" "$VIEW"
+          grep -q "videoplayer_get_safe_pdf_displaymode" "$VIEW"
+          grep -q "videoplayer_get_safe_pdf_displaymode" "$FORM"
+          grep -q "\['pdfjs'\]" "$LOCALLIB"
+          grep -q 'DEFAULT="pdfjs"' "$INSTALL"
+          if grep -q "mod_videoplayer/ebookviewer" "$VIEW"; then
+            echo 'The learner entry point must not load the PageFlip ebook viewer.' >&2
+            exit 1
+          fi
+          if grep -q "mod_videoplayer/bookviewer" "$VIEW"; then
+            echo 'The learner entry point must not load the legacy book viewer.' >&2
+            exit 1
+          fi
+          if grep -q "thirdpartylibs/pageflip" "$VIEW"; then
+            echo 'The learner entry point must not load PageFlip assets.' >&2
             exit 1
           fi
 
