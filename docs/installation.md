@@ -8,7 +8,7 @@
 - PHP cURL and the standard extensions required by Moodle 5.0.
 - HTTPS, working Moodle cron and writable `$CFG->localcachedir`.
 
-Moodle 4.x is not supported by release `1.1.25-beta`.
+Moodle 4.x is not supported by release `1.1.26-beta`.
 
 ## Install or upgrade
 
@@ -23,8 +23,10 @@ Verify these required files exist:
 ```text
 mod/videoplayer/version.php
 mod/videoplayer/styles_activity.css
+mod/videoplayer/styles_pageflip_fix.css
 mod/videoplayer/templates/pdfjs.mustache
 mod/videoplayer/amd/build/pdfjsloader.min.js
+mod/videoplayer/amd/build/ebookviewer.min.js
 mod/videoplayer/thirdpartylibs/pdfjs/pdf.min.mjs
 mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs
 mod/videoplayer/thirdpartylibs/pageflip/page-flip.browser.js
@@ -51,7 +53,9 @@ For cPanel PHP 8.3:
 /opt/cpanel/ea-php83/root/usr/bin/php admin/cli/maintenance.php --disable
 ```
 
-Release `1.1.25-beta` fixes mobile PDF.js initialization. All PDF viewers now use `mod_videoplayer/pdfjsloader`, which loads the local ES module using a native `<script type="module">` element and configures the local worker only after validating the PDF.js API.
+Release `1.1.26-beta` enforces one-page protected Ebook reading on phones and two facing pages on desktop-sized viewers. It renders the visible page or spread lazily and prefetches only adjacent pages during idle time.
+
+Release `1.1.25-beta` fixes mobile PDF.js initialization. All PDF viewers use `mod_videoplayer/pdfjsloader`, which loads the local ES module using a native `<script type="module">` element and configures the local worker only after validating the PDF.js API.
 
 Release `1.1.24-beta` restored the protected Ebook/PageFlip viewer and exposed a real PDF display-mode selector. Historical activities that stored the hidden value `standard` are interpreted as Ebook activities. The explicit standard PDF.js mode stores `pdfjs`.
 
@@ -128,7 +132,15 @@ A valid production bundle contains native module-script creation and does not co
 
 ### Protected Ebook
 
-This is the default mode. PDF.js renders the protected document locally and PageFlip provides the page-turn effect. The viewer supports previous/next page, fullscreen, mobile touch navigation, saved reading position, page-based completion, optional watermark and gamification.
+This is the default mode.
+
+- Phones show exactly one page at a time in portrait and landscape.
+- Desktop-sized viewer containers show two facing pages.
+- PDF.js renders the active page or spread first.
+- Only adjacent pages are prefetched during browser idle time.
+- PageFlip provides swipe, corner, shadow, paper, centre-gutter and page-turn effects.
+- Resize or orientation changes preserve the current page.
+- Reading progress, completion, optional watermark and gamification remain available.
 
 ### Standard PDF.js
 
@@ -150,21 +162,26 @@ Cron must process ad-hoc tasks frequently. The PHP/web user must be able to crea
 
 After installation, verify:
 
-1. Administration reports Drive Resource `1.1.25-beta` and version `2026080504`.
+1. Administration reports Drive Resource `1.1.26-beta` and version `2026080505`.
 2. A teacher can create and edit an activity.
 3. The PDF display-mode selector offers Protected Ebook and Standard PDF.js.
 4. An enrolled learner can open the activity.
 5. Guest and unauthorised users are denied.
 6. A local protected PDF opens with the Ebook page-turn effect.
-7. A Google Drive PDF opens with cold cache and later reports a cache hit.
-8. Standard PDF.js mode provides working zoom and fit controls.
-9. The affected Android/iOS browser no longer displays a `workerSrc` TypeError.
-10. The Network panel loads `pdf.min.mjs` as a JavaScript module and `pdf.worker.min.mjs` from the plugin.
-11. A protected video starts, exposes a non-zero duration, pauses and seeks.
-12. Progress and completion persist.
-13. Backup and Restore preserve configuration and local files.
-14. Privacy export/delete completes.
-15. Tiles/Mosaico and a standard course format navigate normally before and after opening Drive Resource.
+7. A physical phone shows one page in portrait.
+8. Rotating the same phone to landscape keeps one page.
+9. A desktop-width browser shows two facing pages.
+10. The first Ebook paint does not render the complete PDF; visible and adjacent pages render progressively.
+11. Swipe, previous/next, page corners and fullscreen work.
+12. A Google Drive PDF opens with cold cache and later reports a cache hit.
+13. Standard PDF.js mode provides working zoom and fit controls.
+14. The affected Android/iOS browser no longer displays a `workerSrc` TypeError.
+15. The Network panel loads `pdf.min.mjs` as a JavaScript module and `pdf.worker.min.mjs` from the plugin.
+16. A protected video starts, exposes a non-zero duration, pauses and seeks.
+17. Progress and completion persist.
+18. Backup and Restore preserve configuration and local files.
+19. Privacy export/delete completes.
+20. Tiles/Mosaico and a standard course format navigate normally before and after opening Drive Resource.
 
 ## Mobile PDF.js troubleshooting
 
@@ -174,7 +191,7 @@ The error below indicates an obsolete AMD bundle or browser cache:
 Cannot set properties of undefined (setting 'workerSrc')
 ```
 
-Confirm the installed release is `1.1.25-beta`, confirm `amd/build/pdfjsloader.min.js` exists, purge Moodle caches and clear the site's stored data in the mobile browser.
+Confirm the installed release is `1.1.26-beta`, confirm `amd/build/pdfjsloader.min.js` exists, purge Moodle caches and clear the site's stored data in the mobile browser.
 
 The browser Network panel should load:
 
@@ -188,14 +205,16 @@ mod/videoplayer/thirdpartylibs/pdfjs/pdf.worker.min.mjs
 
 ## Ebook troubleshooting
 
-When a PDF opens without the page-turn effect, verify:
+When a PDF opens without the page-turn effect or uses the wrong number of pages, verify:
 
 ```text
+styles_pageflip_fix.css
+amd/build/ebookviewer.min.js
 thirdpartylibs/pageflip/page-flip.browser.js
 thirdpartylibs/pageflip/page-flip.css
 ```
 
-Confirm the activity display mode is **Protected Ebook**. Purge Moodle caches after replacing the plugin because Mustache templates are cached.
+Confirm the activity display mode is **Protected Ebook**. Purge Moodle caches and clear the browser site cache after replacing the plugin.
 
 The Ebook page should contain:
 
@@ -203,6 +222,15 @@ The Ebook page should contain:
 data-display-mode="ebook"
 data-region="ebook-stage"
 ```
+
+At runtime the Ebook root/stage receives one of these layout classes:
+
+```text
+is-phone-single-page
+is-desktop-double-page
+```
+
+A phone must retain `is-phone-single-page` after rotation. A desktop-width container should receive `is-desktop-double-page`.
 
 ## Protected video troubleshooting
 
@@ -256,9 +284,10 @@ The repository workflow `.github/workflows/moodle-50-ci.yml` tests Moodle `MOODL
 - PHP 8.2 and 8.3;
 - MariaDB 10.11 and PostgreSQL 15;
 - PHP lint, PHPCS, PHPDoc, plugin validation, savepoints, Mustache, Grunt and PHPUnit;
-- a permanent PDF.js native-ESM bundle contract.
+- a permanent PDF.js native-ESM bundle contract;
+- a permanent responsive Ebook/lazy-rendering contract.
 
-A green workflow is required before commercial release, but it does not replace staging tests on the actual Moodle server, theme, course format and physical mobile devices.
+A green workflow is required before commercial release, but it does not replace staging tests on the actual Moodle server, theme, course format and physical mobile/desktop devices.
 
 ## Recovery after a failed upgrade
 
