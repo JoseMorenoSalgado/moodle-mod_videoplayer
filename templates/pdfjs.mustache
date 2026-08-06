@@ -27,11 +27,13 @@
         "completionpercent": 25,
         "initialpage": 2,
         "totalpages": 10,
+        "points": 5,
         "pdfurl": "https://example.com/protected.php?id=42",
         "title": "Example protected PDF",
         "displaymode": "pdfjs",
         "disablecontextmenu": true,
         "enablewatermark": true,
+        "enablegamification": true,
         "watermark": "Example learner"
     }
 }}
@@ -44,6 +46,12 @@
         {{#completionpercent}}
             <span class="mod-videoplayer-meta-item" data-region="pdfjs-progress">{{completionpercent}}%</span>
         {{/completionpercent}}
+        {{#enablegamification}}
+            <span class="mod-videoplayer-meta-item">
+                {{#str}} points, mod_videoplayer {{/str}}:
+                <strong data-region="pdfjs-points">{{points}}</strong>
+            </span>
+        {{/enablegamification}}
     </div>
 
     {{#initialpage}}
@@ -133,6 +141,12 @@
                 <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
             {{/enablewatermark}}
         </div>
+
+        {{#enablegamification}}
+            <div class="mod-videoplayer-achievements"
+                 data-region="pdfjs-achievements"
+                 aria-live="polite"></div>
+        {{/enablegamification}}
 
         <div class="mod-videoplayer-pdfjs-error alert alert-danger"
              data-region="pdfjs-error"
