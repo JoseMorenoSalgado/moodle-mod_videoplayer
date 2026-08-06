@@ -1,0 +1,47 @@
+name: Normalise PDF.js viewer regions
+
+'on':
+  push:
+    branches:
+      - fix/pdfjs-stable-viewer
+    paths:
+      - .github/workflows/normalise-pdfviewer-regions.yml
+
+permissions:
+  contents: write
+
+jobs:
+  normalise:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out correction branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/pdfjs-stable-viewer
+          fetch-depth: 0
+
+      - name: Normalise source and production bundle
+        run: python3 tools/normalise_pdfviewer_regions.py
+
+      - name: Remove one-time automation files
+        run: rm .github/workflows/normalise-pdfviewer-regions.yml tools/normalise_pdfviewer_regions.py
+
+      - name: Validate JavaScript contracts
+        run: |
+          node --check amd/src/pdfviewer.js
+          node --check amd/build/pdfviewer.min.js
+          grep -q 'pdfjs-achievements' amd/src/pdfviewer.js
+          grep -q 'pdfjs-points' amd/src/pdfviewer.js
+          grep -q 'pdfjs-progress' amd/src/pdfviewer.js
+          grep -q 'String(response.points)' amd/src/pdfviewer.js
+          test "$(grep -c 'ebook-' amd/src/pdfviewer.js)" -eq 0
+          test "$(grep -c 'ebook-' amd/build/pdfviewer.min.js)" -eq 0
+          test ! -e amd/build/pdfviewer.min.js.map
+
+      - name: Commit normalised viewer
+        run: |
+          git config user.name "Elearning Cloud"
+          git config user.email "94720805+JoseMorenoSalgado@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor(pdf): normalise PDF.js progress regions"
+          git push origin HEAD:fix/pdfjs-stable-viewer
