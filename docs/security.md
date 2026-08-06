@@ -4,17 +4,17 @@ Drive Resource is a protected Moodle delivery layer. Browser restrictions are de
 
 ## Supported security baseline
 
-The current release supports Moodle 5.0–5.2 and PHP 8.2/8.3. Security validation is anchored to `MOODLE_500_STABLE`. Running the plugin on an undeclared Moodle or PHP branch is unsupported because API behaviour and security fixes may differ.
+The current release supports Moodle 5.0–5.2 and PHP 8.2/8.3. Security validation is anchored to `MOODLE_500_STABLE`. Running the plugin on an undeclared Moodle or PHP branch is unsupported because API behavior and security fixes may differ.
 
 ## Authorisation
 
 Every protected request must validate:
 
-- course module belongs to `mod_videoplayer`;
-- course and activity instance exist;
+- the course module belongs to `mod_videoplayer`;
+- course and activity instance records exist;
 - `require_login($course, true, $cm)` succeeds;
 - `context_module::instance($cm->id)` is used;
-- user has `mod/videoplayer:view`.
+- the user has `mod/videoplayer:view`.
 
 Guest access is not granted by the default capability archetypes.
 
@@ -26,9 +26,10 @@ Plugin-owned viewers must never expose:
 - direct Google Drive download URLs;
 - Google preview URLs;
 - open-in-Drive controls;
-- upstream error bodies.
+- upstream authentication/error bodies;
+- PageFlip or other JavaScript assets as document content.
 
-Protected browser URLs point to Moodle `protected.php`.
+Learner-facing protected URLs point to Moodle `protected.php`.
 
 ## Storage
 
@@ -38,21 +39,31 @@ Local PDFs use Moodle File API outside the web root. Google Drive PDF cache file
 $CFG->localcachedir/mod_videoplayer/pdf/
 ```
 
-Every browser request is re-authorised before bytes are returned.
+Every browser request is reauthorised before bytes are returned. A cache hit does not bypass login, enrolment or capability checks.
 
 ## Streaming boundaries
 
 `protected_stream` handles trusted local/cache files, PDF signature verification, local ranges and cache lifecycle.
 
-`http_range_proxy` handles upstream HTTP delivery, accepts one validated range, relays allowlisted headers, sanitises values and streams without buffering the entire resource.
+`http_range_proxy` handles upstream HTTP delivery, accepts one validated range, relays allowlisted headers, sanitises values and streams without buffering the complete resource.
 
-The endpoint must never become a generic URL proxy. Upstream destinations must come from validated activity data and explicit Google host patterns.
+The endpoint must never become a generic URL proxy. Upstream destinations must originate from validated activity data and explicit Google host rules.
 
 ## Response hardening
 
-Protected responses use validated MIME types, inline disposition with sanitised filenames, `nosniff`, no-index directives, private caching and `no-transform`. Valid ranges preserve `206`, `Content-Range` and `Content-Length`; invalid ranges return `416` without leaking upstream details.
+Protected responses use:
 
-## PDF.js browser-code boundary
+- validated MIME types;
+- inline disposition with sanitised filenames;
+- `X-Content-Type-Options: nosniff`;
+- private/no-store or controlled private caching as appropriate;
+- no-index directives;
+- `no-transform` where needed;
+- correct `Content-Length`, `Content-Range` and `Accept-Ranges` metadata.
+
+Valid ranges preserve `206`. Unsatisfiable ranges return `416` without leaking upstream details. HTML login/error responses must never be returned as successful PDF or media bytes.
+
+## Stable PDF asset boundary
 
 PDF.js and its worker are local, same-origin ES modules:
 
@@ -61,69 +72,76 @@ thirdpartylibs/pdfjs/pdf.min.mjs
 thirdpartylibs/pdfjs/pdf.worker.min.mjs
 ```
 
-`mod_videoplayer/pdfjsloader` may load only the constant plugin-owned PDF.js URL. It must never accept a URL from activity data, request parameters or user input.
+`mod_videoplayer/pdfjsloader` may load only constant plugin-owned paths. It must never accept a URL from activity data, request parameters or user input.
 
 The loader must:
 
 - create a same-origin `<script type="module">`;
-- reject when the expected PDF.js API is absent;
+- validate the expected PDF.js API;
 - configure only the bundled worker path;
 - avoid CDN, `eval`, inline executable source and arbitrary dynamic imports;
 - expose failures through the controlled viewer error path.
 
-The Moodle site's Content Security Policy must allow same-origin module scripts and workers. The plugin does not require external script origins or `unsafe-eval`.
+The production learner path loads only `mod_videoplayer/pdfviewer`. It does not load StPageFlip or the legacy book renderer. This reduces the attack surface and prevents third-party library source from being interpreted as learner-visible PDF content.
 
-The generated AMD bundle is checked to ensure Moodle has not converted the ES-module load into an incompatible RequireJS request. This check protects availability and prevents future build changes from silently bypassing the intended loader boundary.
+The Moodle Content Security Policy must allow same-origin module scripts and workers. Drive Resource does not require external script origins or `unsafe-eval`.
 
-## Ebook rendering boundary
+## Document-response validation
 
-Lazy rendering creates only local canvas elements from protected Moodle responses. Placeholder nodes and PageFlip effects must never contain source URLs, Google Drive IDs or upstream metadata.
+Before a response is treated as a PDF, server-side delivery must reject content that does not satisfy the expected PDF contract. A successful PDF response should:
 
-Responsive layout changes reuse the authorised PDF.js document session and do not create a direct resource endpoint. One-page phone mode and two-page desktop mode affect only presentation and the set of pages rendered locally; authorisation remains enforced by `protected.php` for every byte-range request.
+- use `Content-Type: application/pdf` after validation;
+- begin with the `%PDF-` signature when the start of the file is available;
+- reject HTML, JSON and upstream error documents;
+- preserve byte-range semantics;
+- never substitute a script or stylesheet URL as the document URL.
 
-The viewer may prefetch only neighbouring pages through the same protected Moodle URL. It must not preload the complete document into JavaScript memory or create alternative direct links.
-
-`styles_pageflip_fix.css` is loaded only for protected Ebook mode and all selectors/keyframes are scoped to Drive Resource roots. Paper, gutter, shadow, corner, fullscreen and loading effects must not modify or overlay unrelated Moodle, theme or course-format UI.
+Only the Moodle-owned protected resource URL may be supplied to PDF.js.
 
 ## Task and cache safety
 
-PDF cache warming uses Moodle ad-hoc tasks with duplicate suppression. Full files are written to temporary paths, verified as PDFs and atomically renamed. Lock, cookie and temporary files are cleaned up.
+PDF cache warming uses Moodle ad-hoc tasks with duplicate suppression. Complete files are written to temporary paths, verified as PDFs and atomically renamed. Lock, cookie and temporary files must be cleaned up.
+
+Cache keys must not expose raw Drive identifiers to the browser. Cache contents remain outside the web root and are always served through authorised endpoints.
 
 ## UI isolation
 
-Moodle compiles root module CSS globally. Drive Resource keeps `styles.css` free of viewer rules and loads `styles_activity.css` only on its activity page.
+Moodle compiles root module CSS globally. Drive Resource keeps `styles.css` free of viewer rules and loads activity-scoped CSS only on its activity page.
 
-Fullscreen and overlay rules must remain scoped to Drive Resource roots. This prevents invisible overlays, click interception and UI denial of service in course formats such as Tiles/Mosaico.
+Fullscreen and overlay rules must remain beneath Drive Resource roots. This prevents invisible overlays, click interception and UI denial of service in themes or course formats such as Tiles/Mosaico.
 
-The plugin must never modify third-party course formats or themes to solve a local compatibility defect.
+Drive Resource must never modify third-party course formats or themes to solve a local compatibility defect.
+
+## Browser deterrents
+
+Disabling context menus, copy shortcuts or visible download controls reduces accidental extraction but is not DRM. It cannot prevent screen capture, developer-tool inspection or an authorised user from receiving bytes required for rendering.
+
+Product documentation and commercial claims must describe these controls accurately.
 
 ## Personal data
 
-Progress, active time, completion, page position, points and rewards are personal data. Privacy API must cover metadata, context discovery, export and deletion for users and approved user lists.
+Progress, active time, completion, page position, points and rewards are personal data. Privacy API coverage must include metadata declaration, context discovery, export and deletion for users and approved user lists.
 
-For desktop Ebook spreads, the furthest visible page may be the second page in the spread. The plugin stores page/progress values but does not store rendered canvases, page images, gestures or viewport dimensions as personal data.
+Drive Resource stores page/progress values but does not store rendered canvases, page images, gestures or viewport dimensions.
 
-## Moodle 5.0 security validation
+## Moodle security validation
 
-The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints, Mustache, AMD, the PDF.js native-ESM contract, the responsive Ebook contract and PHPUnit against Moodle 5.0. Production validation additionally requires:
+Automated validation covers PHP syntax, Moodle Coding Style, metadata, XMLDB savepoints, Mustache, AMD, the PDF.js native-ESM contract, the PDF.js-only production path and PHPUnit.
 
-- current supported Moodle 5.0 maintenance release;
+Production validation additionally requires:
+
+- current supported Moodle maintenance release;
 - guest and unenrolled access denial;
 - direct protected endpoint denial without login/capability;
 - no raw Drive data in HTML;
 - safe handling of CR/LF in filenames and headers;
-- upstream failures not returned as HTTP 200;
-- correct valid/invalid range behaviour;
+- upstream failures not returned as HTTP 200 media;
+- correct valid/invalid range behavior;
 - no direct web access to local/cache files;
-- PDF.js and worker loaded only from the plugin's same-origin paths;
-- one-page mobile and two-page desktop rendering without exposing direct URLs;
-- physical mobile validation without unhandled `workerSrc` errors;
-- normal navigation in Tiles/Mosaico and standard formats;
+- PDF.js and worker loaded only from same-origin plugin paths;
+- no PageFlip request in learner sessions;
+- no JavaScript source displayed as PDF content;
+- physical Android and iPhone validation;
+- normal navigation in standard and third-party course formats;
 - Backup/Restore and Privacy API tests;
-- review of current Moodle security advisories before release.
-
-Screen capture and browser endpoint inspection cannot be prevented absolutely. Product claims must not describe viewer controls as DRM.
-
-## PDF asset isolation
-
-Only the protected resource URL may be supplied to PDF.js. Third-party JavaScript paths must never be accepted as document URLs or rendered inside content containers. The stable viewer does not execute StPageFlip, reducing the attack surface and preventing library source from being exposed as learner-visible content. Server-side login, enrolment and capability checks remain mandatory in `protected.php`.
+- review of current Moodle security advisories before commercial release.
