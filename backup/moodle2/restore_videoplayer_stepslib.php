@@ -66,9 +66,11 @@ class restore_videoplayer_activity_structure_step extends restore_activity_struc
         if (empty($data->type)) {
             $data->type = $data->source === 'localpdf' ? 'pdf' : 'auto';
         }
-        if (empty($data->displaymode)) {
-            $data->displaymode = $data->source === 'localpdf' ? 'ebook' : 'standard';
-        }
+
+        // Legacy backups may contain standard, ebook or book. The stable
+        // production renderer accepts only the local PDF.js mode.
+        $data->displaymode = 'pdfjs';
+
         if (!isset($data->disabledownload)) {
             $data->disabledownload = 1;
         }
