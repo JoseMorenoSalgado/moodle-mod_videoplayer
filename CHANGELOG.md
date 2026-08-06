@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.28-beta - 2026-08-06
+
+### Fixed
+
+- Forced protected PDFs to open on page 1 while continuing to record reading progress.
+- Removed the oversized empty mobile PDF viewport and restored real scrollable zoom.
+- Hardened protected video byte-range delivery so seek requests cannot silently fall back to HTTP 200 and restart playback.
+- Added adaptive video preload, stable proxy validators, NGINX buffering bypass and bounded client-side seek recovery.
 
 ## 1.1.27-beta - 2026-08-06
 
