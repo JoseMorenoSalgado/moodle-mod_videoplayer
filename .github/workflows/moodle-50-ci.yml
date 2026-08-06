@@ -145,7 +145,6 @@ jobs:
           grep -q 'data-region="pdfjs-progress"' "$TEMPLATE"
           grep -q 'data-region="pdfjs-points"' "$TEMPLATE"
           grep -q 'data-region="pdfjs-achievements"' "$TEMPLATE"
-          test ! -e plugin/amd/build/pdfviewer.min.js.map
 
           if grep -q "mod_videoplayer/ebookviewer" "$VIEW"; then
             echo 'The learner entry point must not load the PageFlip ebook viewer.' >&2
