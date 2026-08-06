@@ -96,6 +96,8 @@ jobs:
         run: |
           cd moodle
           npx grunt amd --root=mod/videoplayer
+          cp mod/videoplayer/amd/build/ebookviewer.min.js ../plugin/amd/build/ebookviewer.min.js
+          cp mod/videoplayer/amd/build/ebookviewer.min.js.map ../plugin/amd/build/ebookviewer.min.js.map
 
       - name: Validate source and production bundle
         run: |
