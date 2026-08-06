@@ -1,0 +1,331 @@
+name: Finalize PDF fullscreen centering
+
+on:
+  push:
+    branches:
+      - fix/pdf-fullscreen-centering
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-pdf-fullscreen-centering
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/pdf-fullscreen-centering
+          fetch-depth: 0
+
+      - name: Apply production fullscreen layout
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f'Missing expected block: {label}')
+              return text.replace(old, new, 1)
+
+          def append_once(path: Path, marker: str, content: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              if marker not in text:
+                  path.write_text(text.rstrip() + '\n\n' + content.strip() + '\n', encoding='utf-8')
+
+          template = Path('templates/pdfjs.mustache')
+          text = template.read_text(encoding='utf-8')
+          wrap_start = text.index('        <div class="mod-videoplayer-pdfjs-canvas-wrap"')
+          overlay_start = text.index('            <div class="mod-videoplayer-pdfjs-overlay"', wrap_start)
+          canvas_start = text.index('            <canvas class="mod-videoplayer-pdfjs-canvas"', overlay_start)
+          overlay_block = text[overlay_start:canvas_start]
+          overlay_sibling = ''.join(
+              line[4:] if line.startswith('    ') else line
+              for line in overlay_block.splitlines(keepends=True)
+          )
+          text = text[:wrap_start] + overlay_sibling + text[wrap_start:overlay_start] + text[canvas_start:]
+
+          canvas_start = text.index('            <canvas class="mod-videoplayer-pdfjs-canvas"', wrap_start)
+          watermark_end_marker = '            {{/enablewatermark}}\n'
+          watermark_end = text.index(watermark_end_marker, canvas_start) + len(watermark_end_marker)
+          media_block = text[canvas_start:watermark_end]
+          indented_media = ''.join('    ' + line if line.strip() else line for line in media_block.splitlines(keepends=True))
+          stage_block = (
+              '            <div class="mod-videoplayer-pdfjs-canvas-stage" data-region="pdfjs-stage">\n'
+              + indented_media
+              + '            </div>\n'
+          )
+          text = text[:canvas_start] + stage_block + text[watermark_end:]
+          template.write_text(text, encoding='utf-8')
+
+          overlay = Path('styles_pdf_overlay.css')
+          text = overlay.read_text(encoding='utf-8')
+          text = replace_once(
+              text,
+              '    align-items: center !important;\n    justify-content: center !important;',
+              '    align-items: flex-start !important;\n    justify-content: flex-start !important;',
+              'PDF canvas flex alignment'
+          )
+          stage_css = '''
+.mod-videoplayer-pdfjs-canvas-stage {
+    position: relative;
+    flex: 0 0 auto;
+    display: block;
+    width: max-content;
+    max-width: none;
+    height: max-content;
+    margin: auto;
+}
+
+'''
+          text = replace_once(
+              text,
+              '.mod-videoplayer-pdfjs-canvas {\n',
+              stage_css + '.mod-videoplayer-pdfjs-canvas {\n',
+              'PDF canvas stage insertion'
+          )
+          text = replace_once(
+              text,
+              '    margin: auto !important;',
+              '    margin: 0 !important;',
+              'Canvas margin delegated to stage'
+          )
+          overlay.write_text(text, encoding='utf-8')
+
+          mobile = Path('styles_pdf_mobile.css')
+          text = mobile.read_text(encoding='utf-8')
+          text = replace_once(
+              text,
+              '''.mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    padding: .75rem !important;
+    background: #0f172a !important;
+}''',
+              '''.mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: max(.75rem, env(safe-area-inset-top, 0px))
+        max(.75rem, env(safe-area-inset-right, 0px))
+        max(.75rem, env(safe-area-inset-bottom, 0px))
+        max(.75rem, env(safe-area-inset-left, 0px)) !important;
+    overflow: auto !important;
+    background: #0f172a !important;
+}''',
+              'Global fullscreen canvas viewport'
+          )
+          text = replace_once(
+              text,
+              '''    .mod-videoplayer-pdfjs-canvas-wrap {
+        display: block !important;
+        min-height: 22rem !important;''',
+              '''    .mod-videoplayer-pdfjs-canvas-wrap {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        min-height: 22rem !important;''',
+              'Mobile canvas viewport layout'
+          )
+          text = replace_once(
+              text,
+              '''    .mod-videoplayer-pdfjs-canvas {
+        display: block !important;
+        max-width: none !important;
+        width: auto !important;
+        height: auto !important;
+        margin: 0 auto !important;''',
+              '''    .mod-videoplayer-pdfjs-canvas-stage {
+        position: relative;
+        flex: 0 0 auto;
+        width: max-content;
+        max-width: none;
+        height: max-content;
+        margin: auto !important;
+    }
+
+    .mod-videoplayer-pdfjs-canvas {
+        display: block !important;
+        max-width: none !important;
+        width: auto !important;
+        height: auto !important;
+        margin: 0 !important;''',
+              'Mobile PDF stage'
+          )
+          text = replace_once(
+              text,
+              '''    .mod-videoplayer-pdfjs-overlay {
+        position: sticky !important;
+        top: .25rem !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 0 !important;
+        z-index: 25 !important;
+        pointer-events: none;
+    }''',
+              '''    .mod-videoplayer-pdfjs-overlay {
+        position: absolute !important;
+        inset: 0 !important;
+        height: auto !important;
+        z-index: 25 !important;
+        pointer-events: none;
+    }''',
+              'Fixed PDF control overlay'
+          )
+          text = replace_once(
+              text,
+              '''    .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: center !important;
+        min-height: 100svh !important;
+        height: 100svh !important;
+        max-height: 100svh !important;
+        padding: calc(env(safe-area-inset-top, 0px) + .45rem) .25rem calc(env(safe-area-inset-bottom, 0px) + .45rem) !important;
+    }''',
+              '''    .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-wrap,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-wrap {
+        display: flex !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        min-height: 100svh !important;
+        height: 100svh !important;
+        max-height: 100svh !important;
+        padding: calc(env(safe-area-inset-top, 0px) + .75rem)
+            calc(env(safe-area-inset-right, 0px) + .5rem)
+            calc(env(safe-area-inset-bottom, 0px) + .75rem)
+            calc(env(safe-area-inset-left, 0px) + .5rem) !important;
+        overflow: auto !important;
+        scroll-padding: 4.5rem 3.75rem !important;
+        background: #0f172a !important;
+    }
+
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-canvas-stage,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-canvas-stage {
+        margin: auto !important;
+    }
+
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-prev,
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-next,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-prev,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-next {
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+    }
+
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-zoomout,
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-zoomin,
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-fit,
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-control-fullscreen,
+    .is-fallback-fullscreen .mod-videoplayer-pdfjs-page-status,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-zoomout,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-zoomin,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-fit,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-control-fullscreen,
+    .mod-videoplayer-pdfjs-viewer:fullscreen .mod-videoplayer-pdfjs-page-status {
+        top: calc(env(safe-area-inset-top, 0px) + .75rem) !important;
+    }''',
+              'Mobile fullscreen centering'
+          )
+          mobile.write_text(text, encoding='utf-8')
+
+          version = Path('version.php')
+          text = version.read_text(encoding='utf-8')
+          text = replace_once(text, '$plugin->version = 2026080601;', '$plugin->version = 2026080602;', 'Plugin version')
+          text = replace_once(text, "$plugin->release = '1.1.28-beta';", "$plugin->release = '1.1.29-beta';", 'Plugin release')
+          version.write_text(text, encoding='utf-8')
+
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          release = '''## 1.1.29-beta - 2026-08-06
+
+### Fixed
+
+- Centred PDF pages horizontally and vertically in native and fallback fullscreen when the rendered page fits the viewport.
+- Added a dedicated canvas stage so enlarged pages switch naturally to bidirectional scrolling without inaccessible negative offsets.
+- Kept navigation and fullscreen controls fixed above the scrollable document and aligned mobile controls with device safe areas.
+- Scoped the watermark to the rendered page instead of the complete fullscreen viewport.
+
+'''
+          if '## 1.1.29-beta' not in text:
+              text = replace_once(text, '# Changelog\n\n', '# Changelog\n\n' + release, 'Changelog heading')
+          changelog.write_text(text, encoding='utf-8')
+
+          append_once(
+              Path('README.md'),
+              '## Release 1.1.29-beta',
+              '''## Release 1.1.29-beta
+
+The protected PDF.js viewer now uses a dedicated page stage. Pages that fit the screen are centred horizontally and vertically in fullscreen; pages enlarged beyond the viewport remain anchored to an accessible scroll origin and support smooth horizontal and vertical navigation. Overlay controls remain fixed, respect mobile safe areas and no longer move with the document.'''
+          )
+          append_once(
+              Path('docs/architecture.md'),
+              '## PDF fullscreen stage (1.1.29-beta)',
+              '''## PDF fullscreen stage (1.1.29-beta)
+
+The PDF template separates three layers: a fixed control overlay, a scrollable viewport and a `mod-videoplayer-pdfjs-canvas-stage` containing the canvas and watermark. Auto margins centre a page only while positive free space exists. When zoom creates overflow, those margins collapse to zero, preserving a reachable top-left scroll origin without JavaScript layout heuristics.'''
+          )
+          append_once(
+              Path('docs/developer-guide.md'),
+              '## Fullscreen PDF layout contract',
+              '''## Fullscreen PDF layout contract
+
+Keep PDF controls outside `.mod-videoplayer-pdfjs-canvas-wrap`. The canvas and watermark must remain inside `.mod-videoplayer-pdfjs-canvas-stage`. Do not centre an oversized canvas with `align-items: center` or transforms: doing so can create negative, unreachable scroll regions on mobile browsers. The stage owns centring through auto margins and the viewport owns scrolling.'''
+          )
+          append_once(
+              Path('docs/security.md'),
+              '## Fullscreen presentation boundary',
+              '''## Fullscreen presentation boundary
+
+Fullscreen centring is presentation-only. The protected Moodle endpoint remains the sole document URL, context-menu restrictions remain attached to the viewer and canvas, and the watermark is now bounded to the rendered page. No Google Drive identifier, redirect URL or upstream validator is introduced into the DOM.'''
+          )
+          append_once(
+              Path('docs/installation.md'),
+              '## Verification for 1.1.29-beta',
+              '''## Verification for 1.1.29-beta
+
+After upgrading and purging caches, open a portrait and landscape PDF on Android Chrome and iPhone Safari. At fit-to-screen, confirm the page is centred vertically and horizontally. Increase zoom until both axes overflow and confirm the top-left document origin remains reachable, scrolling works in both directions, controls stay fixed and exiting fullscreen preserves the current page.'''
+          )
+
+          workflow = Path('.github/workflows/moodle-50-ci.yml')
+          text = workflow.read_text(encoding='utf-8')
+          needle = "          grep -q 'max-width: none !important' plugin/styles_pdf_mobile.css\n"
+          addition = needle + (
+              "          grep -q 'mod-videoplayer-pdfjs-canvas-stage' plugin/templates/pdfjs.mustache\n"
+              "          grep -q 'mod-videoplayer-pdfjs-canvas-stage' plugin/styles_pdf_overlay.css\n"
+              "          grep -q 'margin: auto !important' plugin/styles_pdf_mobile.css\n"
+              "          grep -q 'justify-content: flex-start !important' plugin/styles_pdf_mobile.css\n"
+          )
+          if "grep -q 'mod-videoplayer-pdfjs-canvas-stage' plugin/templates/pdfjs.mustache" not in text:
+              text = replace_once(text, needle, addition, 'CI fullscreen contract')
+          workflow.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate generated patch
+        run: |
+          test "$(grep -c 'mod-videoplayer-pdfjs-canvas-stage' templates/pdfjs.mustache)" -eq 1
+          grep -q 'data-region="pdfjs-stage"' templates/pdfjs.mustache
+          grep -q 'margin: auto !important' styles_pdf_mobile.css
+          grep -q 'justify-content: flex-start !important' styles_pdf_mobile.css
+          grep -q "release = '1.1.29-beta'" version.php
+          grep -q '## 1.1.29-beta' CHANGELOG.md
+          git diff --check
+
+      - name: Commit production changes
+        run: |
+          git rm .github/workflows/finalize-pdf-fullscreen-centering.yml
+          git config user.name "Elearning Cloud"
+          git config user.email "94720805+JoseMorenoSalgado@users.noreply.github.com"
+          git add templates/pdfjs.mustache styles_pdf_overlay.css styles_pdf_mobile.css version.php CHANGELOG.md README.md docs .github/workflows/moodle-50-ci.yml
+          git commit -m "fix(pdf): center fullscreen pages without breaking zoom scroll"
+          git push origin HEAD:fix/pdf-fullscreen-centering
