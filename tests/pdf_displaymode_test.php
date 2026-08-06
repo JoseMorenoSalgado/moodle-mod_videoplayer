@@ -57,9 +57,39 @@ final class pdf_displaymode_test extends \advanced_testcase {
         $viewsource = file_get_contents(__DIR__ . '/../view.php');
 
         $this->assertIsString($viewsource);
-        $this->assertStringContainsString("mod_videoplayer/pdfviewer", $viewsource);
-        $this->assertStringNotContainsString("mod_videoplayer/ebookviewer", $viewsource);
-        $this->assertStringNotContainsString("mod_videoplayer/bookviewer", $viewsource);
-        $this->assertStringNotContainsString("thirdpartylibs/pageflip", $viewsource);
+        $this->assertStringContainsString('mod_videoplayer/pdfviewer', $viewsource);
+        $this->assertStringNotContainsString('mod_videoplayer/ebookviewer', $viewsource);
+        $this->assertStringNotContainsString('mod_videoplayer/bookviewer', $viewsource);
+        $this->assertStringNotContainsString('thirdpartylibs/pageflip', $viewsource);
+    }
+
+    /**
+     * Legacy backups must be normalised during restore.
+     */
+    public function test_restore_normalises_displaymode_to_pdfjs(): void {
+        $restoresource = file_get_contents(
+            __DIR__ . '/../backup/moodle2/restore_videoplayer_stepslib.php'
+        );
+
+        $this->assertIsString($restoresource);
+        $this->assertStringContainsString("\$data->displaymode = 'pdfjs';", $restoresource);
+        $this->assertStringNotContainsString("\$data->displaymode = 'ebook';", $restoresource);
+    }
+
+    /**
+     * Obsolete renderer source and third-party assets must not ship.
+     */
+    public function test_obsolete_pdf_renderers_are_not_packaged(): void {
+        $obsoletepaths = [
+            'amd/src/ebookviewer.js',
+            'amd/src/bookviewer.js',
+            'templates/book.mustache',
+            'styles_pageflip_fix.css',
+            'thirdpartylibs/pageflip/page-flip.browser.js',
+        ];
+
+        foreach ($obsoletepaths as $path) {
+            $this->assertFileDoesNotExist(__DIR__ . '/../' . $path);
+        }
     }
 }
