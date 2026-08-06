@@ -117,5 +117,26 @@ jobs:
             exit 1
           fi
 
+      - name: Responsive Ebook contract
+        run: |
+          SOURCE=plugin/amd/src/ebookviewer.js
+          BUNDLE=plugin/amd/build/ebookviewer.min.js
+          VIEW=plugin/view.php
+          STYLES=plugin/styles_pageflip_fix.css
+          test -s "$SOURCE"
+          test -s "$BUNDLE"
+          test -s "$STYLES"
+          grep -q 'is-phone-single-page' "$SOURCE"
+          grep -q 'is-desktop-double-page' "$SOURCE"
+          grep -q 'requestIdleCallback' "$SOURCE"
+          grep -q 'usePortrait: phoneLayout' "$SOURCE"
+          grep -q 'styles_pageflip_fix.css' "$VIEW"
+          grep -q 'mod_videoplayer/ebookviewer' "$BUNDLE"
+          grep -q 'mod-videoplayer-page-settle' "$STYLES"
+          if grep -q 'MAX_INITIAL_RENDER_PAGES' "$SOURCE"; then
+            echo 'Ebook viewer returned to eager multi-page rendering.' >&2
+            exit 1
+          fi
+
       - name: PHPUnit
         run: moodle-plugin-ci phpunit --fail-on-warning
