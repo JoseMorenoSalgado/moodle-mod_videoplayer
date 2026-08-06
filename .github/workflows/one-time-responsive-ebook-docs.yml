@@ -1,0 +1,218 @@
+name: One-time responsive ebook documentation finalization
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: one-time-responsive-ebook-docs
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  document:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out plugin
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update release documentation and CI contract
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def insert_after(path, marker, section):
+              file = Path(path)
+              content = file.read_text()
+              if section in content:
+                  return
+              if marker not in content:
+                  raise SystemExit(f'{path}: marker not found: {marker!r}')
+              file.write_text(content.replace(marker, marker + section, 1))
+
+          def insert_before(path, marker, section):
+              file = Path(path)
+              content = file.read_text()
+              if section in content:
+                  return
+              if marker not in content:
+                  raise SystemExit(f'{path}: marker not found: {marker!r}')
+              file.write_text(content.replace(marker, section + marker, 1))
+
+          def replace_all(path, replacements):
+              file = Path(path)
+              content = file.read_text()
+              for old, new in replacements:
+                  content = content.replace(old, new)
+              file.write_text(content)
+
+          changelog_section = '''## v1.1.26-beta - 2026-08-05
+
+### Fixed
+
+- Restored the dedicated PageFlip responsive stylesheet on protected Ebook activity pages.
+- Phones now remain in a single-page layout in portrait and landscape orientations.
+- Desktop-sized viewers explicitly use a two-page facing spread.
+- Replaced eager rendering of up to 80 PDF pages with lightweight placeholders and lazy visible-page rendering.
+- Adjacent pages are prefetched only during browser idle time.
+- Ebook completion percentage remains monotonic when a learner turns back.
+
+### Experience
+
+- Added paper texture, centre-gutter shading, page shadows, corner interaction and page-settle effects.
+- Added responsive fullscreen sizing and reduced-motion support.
+- The page indicator shows one page on phones and the visible page range on desktop spreads.
+
+### Validation
+
+- Rebuilt `amd/build/ebookviewer.min.js` with Moodle 5.0 Grunt.
+- Added a permanent responsive Ebook contract to Moodle 5.0 CI.
+- Release metadata bumped to `1.1.26-beta` with plugin version `2026080505`.
+
+### Upgrade notes
+
+- Deploy the complete plugin directory, including `styles_pageflip_fix.css`, `amd/src/ebookviewer.js` and its rebuilt `amd/build` files.
+- Run Moodle upgrade and purge Moodle plus browser caches.
+- Existing PDF activities do not need to be recreated.
+
+'''
+          insert_after(
+              'CHANGELOG.md',
+              'The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.\n\n',
+              changelog_section
+          )
+
+          readme_note = '''Release `1.1.26-beta` makes the protected Ebook adaptive and incremental. Phones show one page in portrait or landscape; desktop-sized viewers show two facing pages. PDF.js renders only the visible page or spread and prefetches adjacent pages during idle time. PageFlip provides the local paper, gutter, shadow, corner and page-turn effects.
+
+'''
+          insert_before('README.md', 'Release `1.1.25-beta`', readme_note)
+          replace_all('README.md', [
+              ('styles_activity.css\n', 'styles_activity.css\nstyles_pageflip_fix.css\n'),
+              ('- Release: `1.1.25-beta`', '- Release: `1.1.26-beta`'),
+              ('- Moodle plugin version: `2026080504`', '- Moodle plugin version: `2026080505`'),
+              ('**Protected Ebook** is the default. PDF.js renders each page locally and the bundled PageFlip library provides the page-turn effect. The viewer includes previous/next navigation, fullscreen, reading progress and mobile touch support.',
+               '**Protected Ebook** is the default. Phones display one protected page at a time, including after rotation, while desktop-sized viewers display two facing pages. PDF.js renders only the visible page or spread and a small adjacent prefetch set; PageFlip provides touch, corner, paper, gutter, shadow and page-turn effects.')
+          ])
+
+          installation_note = '''Release `1.1.26-beta` enforces one-page protected Ebook reading on phones and two facing pages on desktop-sized viewers. It renders visible pages lazily and prefetches only adjacent pages.
+
+'''
+          insert_before('docs/installation.md', 'Release `1.1.25-beta`', installation_note)
+          replace_all('docs/installation.md', [
+              ('Moodle 4.x is not supported by release `1.1.25-beta`.',
+               'Moodle 4.x is not supported by release `1.1.26-beta`.'),
+              ('mod/videoplayer/styles_activity.css\n',
+               'mod/videoplayer/styles_activity.css\nmod/videoplayer/styles_pageflip_fix.css\n'),
+              ('Drive Resource `1.1.25-beta` and version `2026080504`.',
+               'Drive Resource `1.1.26-beta` and version `2026080505`.')
+          ])
+
+          architecture_section = '''## Responsive Ebook pipeline
+
+```text
+protected PDF metadata
+↓
+lightweight PageFlip placeholders
+↓
+phone: current page | desktop: current two-page spread
+↓
+idle prefetch of adjacent pages only
+↓
+local PageFlip transition
+↓
+protected progress and completion save
+```
+
+The viewer does not render the complete document before first paint. Phone detection includes the physical short screen side, so rotating a phone does not unexpectedly switch it to a desktop spread. Desktop mode is selected only when the available container can support two readable facing pages.
+
+'''
+          insert_before('docs/architecture.md', '## Progress and completion\n', architecture_section)
+          replace_all('docs/architecture.md', [
+              ('- `ebookviewer.js`: optional local StPageFlip with PDF.js fallback.',
+               '- `ebookviewer.js`: lazy PDF.js page rendering with forced phone single-page and desktop two-page StPageFlip layouts.')
+          ])
+
+          replace_all('docs/developer-guide.md', [
+              ('- Render visible pages only.\n- Bound canvas cache size.\n- Prefetch a small neighbouring set.',
+               '- Render only the active phone page or active desktop spread.\n- Create lightweight PageFlip placeholders instead of eagerly rendering the document.\n- Prefetch only adjacent pages during browser idle time.\n- Keep phones in single-page mode after orientation changes.\n- Use a two-page spread only when the viewer container can support it.')
+          ])
+
+          security_section = '''## Ebook rendering boundary
+
+Lazy rendering creates only local canvas elements from protected Moodle responses. Placeholder nodes and PageFlip effects must never contain source URLs, Google Drive IDs or upstream metadata. Responsive layout changes reuse the authorised PDF.js document session and do not create a direct resource endpoint.
+
+'''
+          insert_before('docs/security.md', '## Personal data\n', security_section)
+
+          checklist_section = '''## Responsive Ebook regression
+
+- Open a PDF on a physical phone in portrait: exactly one page is visible.
+- Rotate the same phone to landscape: it remains a one-page reader.
+- Swipe and use previous/next controls: page-turn effects remain smooth.
+- Confirm the first view renders only the active page and adjacent prefetch, not the complete document.
+- Open the same PDF on a desktop-width browser: two facing pages are visible.
+- Resize across the responsive boundary and confirm the current page is preserved.
+- Confirm paper texture, shadows, centre gutter, page corners and fullscreen remain correctly scoped.
+- Confirm `prefers-reduced-motion` disables decorative animation without disabling navigation.
+
+'''
+          insert_before('docs/manual-test-checklist.md', '## Protected video desktop\n', checklist_section)
+
+          ci_contract = '''      - name: Responsive Ebook contract
+        run: |
+          SOURCE=plugin/amd/src/ebookviewer.js
+          BUNDLE=plugin/amd/build/ebookviewer.min.js
+          VIEW=plugin/view.php
+          test -s "$SOURCE"
+          test -s "$BUNDLE"
+          grep -q 'is-phone-single-page' "$SOURCE"
+          grep -q 'is-desktop-double-page' "$SOURCE"
+          grep -q 'requestIdleCallback' "$SOURCE"
+          grep -q 'usePortrait: phoneLayout' "$SOURCE"
+          grep -q 'styles_pageflip_fix.css' "$VIEW"
+          grep -q 'mod_videoplayer/ebookviewer' "$BUNDLE"
+          if grep -q 'MAX_INITIAL_RENDER_PAGES' "$SOURCE"; then
+            echo 'Ebook viewer returned to eager multi-page rendering.' >&2
+            exit 1
+          fi
+
+'''
+          insert_before(
+              '.github/workflows/moodle-50-ci.yml',
+              '      - name: PHPUnit\n        run: moodle-plugin-ci phpunit --fail-on-warning\n',
+              ci_contract
+          )
+          PY
+
+      - name: Validate documentation changes
+        run: |
+          grep -q 'v1.1.26-beta' CHANGELOG.md
+          grep -q 'one page' README.md
+          grep -q 'Responsive Ebook pipeline' docs/architecture.md
+          grep -q 'Responsive Ebook regression' docs/manual-test-checklist.md
+          grep -q 'Responsive Ebook contract' .github/workflows/moodle-50-ci.yml
+          git diff --check
+
+      - name: Commit documentation and permanent CI contract
+        run: |
+          git config user.name 'Elearning Cloud'
+          git config user.email '94720805+JoseMorenoSalgado@users.noreply.github.com'
+          git rm .github/workflows/one-time-responsive-ebook-docs.yml
+          git add \
+            CHANGELOG.md \
+            README.md \
+            docs/architecture.md \
+            docs/developer-guide.md \
+            docs/installation.md \
+            docs/manual-test-checklist.md \
+            docs/security.md \
+            .github/workflows/moodle-50-ci.yml
+          git commit -m 'docs(ebook): document responsive lazy reader contract'
+          git push
