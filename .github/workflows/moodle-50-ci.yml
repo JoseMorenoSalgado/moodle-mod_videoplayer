@@ -126,6 +126,7 @@ jobs:
           RESTORE=plugin/backup/moodle2/restore_videoplayer_stepslib.php
           SOURCE=plugin/amd/src/pdfviewer.js
           BUNDLE=plugin/amd/build/pdfviewer.min.js
+          MAP=plugin/amd/build/pdfviewer.min.js.map
           TEMPLATE=plugin/templates/pdfjs.mustache
 
           grep -q "mod_videoplayer/pdfviewer" "$VIEW"
@@ -141,6 +142,7 @@ jobs:
           grep -q 'pdfjs-progress' "$BUNDLE"
           grep -q 'pdfjs-points' "$BUNDLE"
           grep -q 'pdfjs-achievements' "$BUNDLE"
+          test -f "$MAP"
           grep -q 'data-display-mode="pdfjs"' "$TEMPLATE"
           grep -q 'data-region="pdfjs-progress"' "$TEMPLATE"
           grep -q 'data-region="pdfjs-points"' "$TEMPLATE"
