@@ -39,4 +39,3 @@ function videoplayer_get_safe_pdf_displaymode(?string $requestedmode): string {
 
     return in_array($requestedmode, $supportedmodes, true) ? $requestedmode : 'pdfjs';
 }
-
