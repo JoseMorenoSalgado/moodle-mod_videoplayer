@@ -24,6 +24,7 @@
 
 require(__DIR__ . '/../../config.php');
 require_once(__DIR__ . '/lib.php');
+require_once(__DIR__ . '/locallib.php');
 
 use mod_videoplayer\local\drive;
 
@@ -112,13 +113,7 @@ if (!isguestuser()) {
 $initialprogress = $progressrecord ? (float) $progressrecord->progress : 0;
 $completed = $progressrecord ? (bool) $progressrecord->completed : false;
 $requiredseconds = max(60, ((int) ($videoplayer->completionpercentage ?? 80)) * 6);
-$displaymode = clean_param($videoplayer->displaymode ?? 'ebook', PARAM_ALPHANUMEXT);
-if ($displaymode === 'standard') {
-    $displaymode = 'ebook';
-}
-if (!in_array($displaymode, ['ebook', 'pdfjs', 'book'], true)) {
-    $displaymode = 'ebook';
-}
+$displaymode = videoplayer_get_safe_pdf_displaymode($videoplayer->displaymode ?? null);
 
 if (!isguestuser()) {
     $PAGE->requires->js_call_amd('mod_videoplayer/progress', 'init', [[
@@ -131,17 +126,7 @@ if (!isguestuser()) {
 }
 
 if ($type === 'pdf') {
-    if ($displaymode === 'ebook') {
-        $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/pageflip/page-flip.css');
-        $PAGE->requires->css('/mod/videoplayer/styles_pageflip_fix.css');
-        $PAGE->requires->js_call_amd('mod_videoplayer/ebookviewer', 'init');
-    } else if ($displaymode === 'book') {
-        $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
-        $PAGE->requires->css('/mod/videoplayer/styles_book_controls.css');
-        $PAGE->requires->js_call_amd('mod_videoplayer/bookviewer', 'init');
-    } else {
-        $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
-    }
+    $PAGE->requires->js_call_amd('mod_videoplayer/pdfviewer', 'init');
 } else if ($type === 'video') {
     $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/plyr/plyr.css');
     $PAGE->requires->js_call_amd('mod_videoplayer/plyr', 'init');
@@ -174,8 +159,8 @@ $templatecontext = [
     'title' => format_string($videoplayer->name),
     'playerstyle' => $playerstyle,
     'displaymode' => $displaymode,
-    'ebookmode' => $displaymode === 'ebook',
-    'bookmode' => $displaymode === 'book',
+    'ebookmode' => false,
+    'bookmode' => false,
     'disabledownload' => !empty($videoplayer->disabledownload),
     'disablecontextmenu' => !empty($videoplayer->disablecontextmenu),
     'enablewatermark' => !empty($videoplayer->enablewatermark),
@@ -199,11 +184,7 @@ if (!empty($videoplayer->intro)) {
 }
 
 if ($type === 'pdf') {
-    if ($displaymode === 'book') {
-        echo $OUTPUT->render_from_template('mod_videoplayer/book', $templatecontext);
-    } else {
-        echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
-    }
+    echo $OUTPUT->render_from_template('mod_videoplayer/pdfjs', $templatecontext);
 } else if ($type === 'video') {
     echo $OUTPUT->render_from_template('mod_videoplayer/video', $templatecontext);
 } else {

@@ -68,7 +68,7 @@ define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], functi
     };
 
     const notifyRewards = function(root, rewards) {
-        const region = root.querySelector('[data-region="ebook-achievements"]');
+        const region = root.querySelector('[data-region="pdfjs-achievements"]');
         if (!region || !rewards || !rewards.length) {
             return;
         }
@@ -99,8 +99,8 @@ define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], functi
         const loading = root.querySelector('[data-region="pdfjs-loading"]');
         const wrap = root.querySelector('.mod-videoplayer-pdfjs-canvas-wrap');
         const container = root.closest('.mod-videoplayer-container') || document;
-        const pointsNode = container.querySelector('[data-region="ebook-points"]');
-        const progressNode = container.querySelector('[data-region="ebook-progress"]');
+        const pointsNode = container.querySelector('[data-region="pdfjs-points"]');
+        const progressNode = container.querySelector('[data-region="pdfjs-progress"]');
 
         if (!pdfUrl || !canvas) {
             showError(root);
@@ -173,7 +173,7 @@ define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], functi
                 if (response) {
                     completed = Boolean(response.completed);
                     if (pointsNode) {
-                        pointsNode.textContent = 'Points: ' + response.points;
+                        pointsNode.textContent = String(response.points);
                     }
                     if (progressNode) {
                         progressNode.textContent = response.completionpercentage + '%';

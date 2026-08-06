@@ -25,6 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/course/moodleform_mod.php');
+require_once(__DIR__ . '/locallib.php');
 
 use mod_videoplayer\local\drive;
 
@@ -76,13 +77,8 @@ class mod_videoplayer_mod_form extends moodleform_mod {
         $mform->setDefault('type', 'auto');
         $mform->disabledIf('type', 'source', 'eq', 'localpdf');
 
-        $displaymodes = [
-            'ebook' => get_string('displaymodeebook', 'mod_videoplayer'),
-            'pdfjs' => get_string('displaymodestandard', 'mod_videoplayer'),
-        ];
-        $mform->addElement('select', 'displaymode', get_string('displaymode', 'mod_videoplayer'), $displaymodes);
-        $mform->setDefault('displaymode', 'ebook');
-        $mform->addHelpButton('displaymode', 'displaymode', 'mod_videoplayer');
+        $mform->addElement('hidden', 'displaymode', 'pdfjs');
+        $mform->setType('displaymode', PARAM_ALPHANUMEXT);
 
         $mform->addElement('advcheckbox', 'disabledownload', get_string('disabledownload', 'mod_videoplayer'));
         $mform->setDefault('disabledownload', 1);
@@ -124,14 +120,9 @@ class mod_videoplayer_mod_form extends moodleform_mod {
             $defaultvalues['localpdffile'] = $draftitemid;
         }
 
-        $displaymode = clean_param($defaultvalues['displaymode'] ?? 'ebook', PARAM_ALPHANUMEXT);
-        if ($displaymode === 'standard') {
-            $displaymode = 'ebook';
-        }
-        if (!in_array($displaymode, ['ebook', 'pdfjs'], true)) {
-            $displaymode = 'ebook';
-        }
-        $defaultvalues['displaymode'] = $displaymode;
+        $defaultvalues['displaymode'] = videoplayer_get_safe_pdf_displaymode(
+            $defaultvalues['displaymode'] ?? null
+        );
     }
 
     /**

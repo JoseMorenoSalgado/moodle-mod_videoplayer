@@ -5,51 +5,53 @@ Run these tests on a staging Moodle site with developer debugging enabled before
 ## Environment
 
 - Moodle target staging version installed.
-- PHP 8.2+.
+- PHP 8.2 or 8.3.
 - PHP cURL enabled.
 - Moodle cron and ad-hoc tasks running.
-- PDF.js files installed locally.
+- `thirdpartylibs/pdfjs/pdf.min.mjs` installed.
+- `thirdpartylibs/pdfjs/pdf.worker.min.mjs` installed.
 - `amd/build/pdfjsloader.min.js` installed.
-- `amd/build/ebookviewer.min.js` installed.
-- `styles_pageflip_fix.css` installed.
-- Plyr `plyr.min.js` and `plyr.css` installed locally.
-- PageFlip files installed locally when testing ebook behavior.
-- Browser cache and Moodle caches purged before cold-cache tests.
+- `amd/build/pdfviewer.min.js` installed.
+- Plyr installed locally.
+- Browser, Moodle, PHP OPcache and reverse-proxy caches purged before cold-cache tests.
 
-## Fresh install
+## Fresh installation
 
 - Install the plugin from a clean database state.
 - Confirm no XMLDB errors.
 - Confirm `thirdpartylibs.xml` is accepted.
 - Confirm capabilities are available in role definitions.
 - Confirm the activity appears as Drive Resource.
+- Confirm `videoplayer.displaymode` defaults to `pdfjs`.
 
-## Upgrade from previous version
+## Upgrade from 1.1.26-beta
 
-- Install the previous released version.
+- Install the previous release.
 - Create Google Drive PDF, local PDF and video activities.
-- Upgrade to the current release.
-- Confirm Moodle upgrade completes.
-- Confirm existing activities still open.
-- Confirm administration reports `1.1.26-beta` and `2026080505`.
-- Purge Moodle caches and clear browser site data before JavaScript/CSS regression tests.
+- Ensure test PDF activities include legacy `ebook`, `book` and `standard` display-mode values.
+- Upgrade to `1.1.27-beta`.
+- Confirm the Moodle upgrade completes without warnings.
+- Confirm administration reports `1.1.27-beta` and `2026080600`.
+- Confirm all existing PDF activities now store or resolve to `pdfjs`.
+- Confirm activities, files, progress, completion and rewards remain present.
 
-## Authentication and authorization
+## Authentication and authorisation
 
-- Access `protected.php?id=<cmid>` while logged out: access must be denied.
+- Access `protected.php?id=<cmid>` while logged out: denied.
 - Access as guest: denied by default.
-- Access as unenrolled user without capability: denied.
-- Access as enrolled learner: allowed according to role.
-- Access as teacher: allowed according to role.
+- Access as an unenrolled user without capability: denied.
+- Access as an enrolled learner: allowed according to role.
+- Access as a teacher: allowed according to role.
 - Confirm protected viewer HTML contains no raw Google Drive file ID, download URL or preview URL.
 
 ## Local protected PDF
 
-- Create a Drive Resource activity using Local protected PDF.
+- Create a Drive Resource using Local protected PDF.
 - Confirm the PDF is stored outside the web root.
-- Open as a learner.
-- Confirm the PDF renders through `protected.php`.
-- Confirm progress is saved.
+- Open it as a learner.
+- Confirm the source URL points to `protected.php`.
+- Confirm the first visible page renders through PDF.js.
+- Confirm progress and the last page are saved.
 
 ### Local byte-range protocol
 
@@ -67,28 +69,27 @@ Verify:
 - valid ranges return HTTP `206`;
 - `Content-Range` start/end values are correct;
 - `Content-Length` equals the returned segment length;
-- `bytes=-500` returns the final 500 bytes, not the first 500 bytes;
+- `bytes=-500` returns the final 500 bytes;
 - an unsatisfiable range returns HTTP `416` and `Content-Range: bytes */<size>`;
-- `HEAD` returns headers without a response body.
+- `HEAD` returns headers without a body;
+- a request for the beginning of the file returns bytes beginning with `%PDF-`.
 
 ## Google Drive PDF cold-cache performance
 
 - Clear the plugin PDF cache for the test resource.
 - Open the PDF as a learner.
-- Confirm the first protected response reports `MISS_QUEUED` or `MISS`.
-- Confirm the first visible page begins loading without waiting for the complete PDF cache download.
-- Confirm a `precache_pdf` ad-hoc task is queued when cron is available.
+- Confirm the first protected response reports `MISS_QUEUED` or `MISS` when diagnostic headers are enabled.
+- Confirm the first page begins loading without waiting for the complete cache download.
+- Confirm a deduplicated `precache_pdf` ad-hoc task is queued.
 - Run cron/ad-hoc tasks.
 - Reopen the PDF.
-- Confirm the protected response reports `HIT`.
-- Confirm the PDF content and visual quality are identical before and after cache warming.
-- Confirm no PDF rasterization or recompression artifacts are introduced.
+- Confirm the protected response reports `HIT` when diagnostic headers are enabled.
+- Confirm visual quality and bytes are unchanged before and after warming.
+- Confirm no rasterisation, recompression or transcoding artifacts.
 
-## PDF.js native ESM loading
+## PDF.js native ES-module loading
 
-Test Protected Ebook, responsive book and Standard PDF.js modes.
-
-Verify in the browser Network and Sources panels:
+Verify in browser Network and Sources panels:
 
 ```text
 amd/build/pdfjsloader.min.js
@@ -98,94 +99,65 @@ thirdpartylibs/pdfjs/pdf.worker.min.mjs
 
 Confirm:
 
-- `pdf.min.mjs` loads as a JavaScript module from the same Moodle origin;
+- `pdf.min.mjs` loads as a same-origin JavaScript module;
 - `pdf.worker.min.mjs` loads from the plugin;
 - `pdf.min.mjs` is not requested by RequireJS;
 - only one PDF.js module script exists after repeated viewer initialization;
-- page rendering begins after PDF.js is loaded;
-- no `Cannot set properties of undefined (setting 'workerSrc')` error appears;
+- page rendering begins after PDF.js is validated;
+- no `workerSrc` TypeError appears;
 - a deliberately missing `pdf.min.mjs` produces the controlled viewer error;
 - restoring the file and purging caches recovers without recreating the activity.
 
-### Physical mobile PDF.js regression
+## PageFlip incident regression
 
-On the Android device/browser that previously displayed the `workerSrc` TypeError:
+For activities that previously displayed PageFlip source code:
 
-- clear the site's stored data or use a private tab;
-- open an Ebook PDF;
-- confirm the first page renders;
-- turn pages forward and backward;
-- enter and exit fullscreen;
-- rotate portrait/landscape;
+- clear Moodle, PHP OPcache, CDN/reverse-proxy and browser site caches;
+- open the activity on the affected physical Android device;
+- confirm the first page renders as a PDF canvas;
+- confirm text such as `flipController`, `flipPrev`, `flipToPage` or `getPageCollection` is not visible;
+- confirm no request is made to `thirdpartylibs/pageflip/`;
+- confirm `view.php` loads `mod_videoplayer/pdfviewer` only;
+- confirm the protected document response starts with `%PDF-` and is not JavaScript;
+- repeat on a physical iPhone or iPad Safari browser.
+
+## PDF viewer controls
+
+Test small, medium and large PDFs, including portrait and landscape pages.
+
+Verify:
+
+- previous and next page;
+- current and total page number;
+- zoom in and out within configured limits;
+- fit to screen;
+- fullscreen enter and exit;
+- current page preserved after resize/orientation change;
+- no horizontal clipping at default fit on a phone;
+- page rendering remains sharp at supported device pixel ratios;
+- browser console remains clean.
+
+## Mobile swipe and scrolling
+
+On physical Android and iPhone devices:
+
+- swipe horizontally to move forward and backward;
+- scroll vertically without accidental page changes;
+- rotate portrait to landscape and back;
 - background and restore the browser;
-- reopen the PDF and confirm the error does not return.
+- enter and exit fullscreen;
+- reload the activity and confirm resume from the saved page;
+- confirm repeated navigation does not cause continuous memory growth.
 
-Repeat the core PDF.js tests on iPhone/iPad Safari where supported. CI validates generated code but does not replace physical-device testing.
+## PDF memory and progressive loading
 
-## Responsive Ebook regression
+Open a PDF over 100 pages with browser Performance and Memory panels:
 
-### Phone portrait
-
-- Open a PDF on a physical phone in portrait.
-- Confirm exactly one page is visible.
-- Confirm the root/stage uses `is-phone-single-page`.
-- Confirm the page fills the available viewer without horizontal clipping.
-- Swipe and use previous/next controls.
-- Confirm the page number advances one page at a time.
-
-### Phone landscape
-
-- Rotate the same physical phone to landscape.
-- Confirm it remains a one-page reader; it must not switch to a desktop spread.
-- Confirm the current page is preserved during the rebuild.
-- Confirm swipe, corners, previous/next and fullscreen still work.
-- Rotate back to portrait and confirm the same page remains active.
-
-### Desktop spread
-
-- Open the same PDF in a desktop-width browser.
-- Confirm two facing pages are visible.
-- Confirm the root/stage uses `is-desktop-double-page`.
-- Confirm the page indicator shows the visible range, for example `2–3`.
-- Confirm the centre gutter, left/right inner shadows and page corners are visible.
-- Confirm previous/next advances the spread correctly and stops at document boundaries.
-
-### Lazy rendering and memory
-
-- Open a PDF over 100 pages with the Network and Performance panels open.
-- Confirm the first view renders only the active phone page or active desktop spread.
-- Confirm only adjacent pages are prefetched after the active view is ready.
-- Confirm the complete document is not converted into canvases before first interaction.
-- Turn forward and backward repeatedly and confirm memory remains stable.
-- Resize across the phone/desktop boundary and confirm the current page is preserved.
-- Confirm completion percentage never decreases after turning backwards.
-
-### Effects and accessibility
-
-- Confirm paper texture, page shadows, centre gutter and page-settle effects remain scoped to the Ebook.
-- Confirm no overlay blocks Moodle navigation, Tiles/Mosaico cards or theme controls.
-- Enable `prefers-reduced-motion` and confirm decorative animation is disabled without disabling navigation.
-- Intentionally block PageFlip and confirm standard PDF.js fallback remains usable.
-
-## PDF viewer behavior
-
-- Test a small PDF under 10 pages.
-- Test a medium PDF around 50 pages.
-- Test a large PDF over 100 pages.
-- Navigate forward and backward.
-- Test fullscreen.
-- Test portrait and landscape PDFs.
-- Rotate a mobile device while a page is open.
-- Confirm no JavaScript console errors.
-- Confirm memory remains stable during repeated navigation.
-
-## Protected Ebook/PageFlip
-
-- Confirm existing historical `displaymode = standard` activities open as Ebook.
-- Confirm new Ebook activities contain `data-display-mode="ebook"` and `data-region="ebook-stage"`.
-- Confirm `styles_pageflip_fix.css` is loaded only for Ebook mode.
-- Confirm PageFlip fallback remains usable when the library is intentionally blocked.
-- Confirm last-page resume and page-based completion.
+- confirm only the active page has a rendered canvas;
+- confirm adjacent pages may be prefetched without creating canvases for the complete document;
+- confirm the complete file is not loaded into PHP memory;
+- navigate repeatedly and verify memory stabilises;
+- zoom, fit and resize repeatedly and verify obsolete render state does not corrupt the canvas.
 
 ## Protected video desktop
 
@@ -195,8 +167,8 @@ Repeat the core PDF.js tests on iPhone/iPad Safari where supported. CI validates
 - Seek forward and backward several times.
 - Change playback speed.
 - Enter and exit fullscreen.
-- Confirm no upstream Google Drive UI appears.
-- Confirm no raw Drive URL is rendered in page HTML.
+- Confirm no Google Drive UI appears.
+- Confirm no raw Drive URL appears in HTML.
 
 ### Video range protocol
 
@@ -212,58 +184,49 @@ Verify, when the upstream supports ranges:
 - HTTP `206` is preserved;
 - `Content-Range` is present and correct;
 - `Content-Length` matches the requested range;
-- `Accept-Ranges: bytes` is present when supported;
-- only one outgoing range is sent by the proxy path;
-- upstream 4xx/5xx response bodies are not exposed as successful HTTP 200 media.
+- `Accept-Ranges: bytes` is present;
+- only one outgoing range is sent upstream;
+- upstream 4xx/5xx or HTML bodies are not exposed as successful media.
 
 ## iPhone/iPad Safari video
 
-Test on at least one physical iPhone when possible:
+Test on a physical iPhone:
 
 - initial play from a user tap;
 - inline playback;
 - pause and resume;
 - seek forward and backward;
-- repeated seeks after several minutes of playback;
+- repeated seeking after several minutes;
 - playback speed where supported;
 - native/Plyr fullscreen behavior;
 - portrait-to-landscape rotation;
-- lock screen and unlock while paused/playing;
+- lock and unlock while paused/playing;
 - network transition between Wi-Fi and mobile data when practical;
-- reload and replay the same protected video;
-- confirm native controls remain usable if Plyr initialization is intentionally blocked.
-
-Check Safari Web Inspector/network logs for failed range requests or unexpected HTML responses from the protected media endpoint.
-
-## Android and Moodle app
-
-- Repeat play, pause, seek and fullscreen tests in Android Chrome.
-- Repeat PDF.js module, worker and Ebook single-page tests in Android Chrome.
-- Repeat core playback and PDF tests in Moodle app WebView when the plugin is intended for app use.
+- native controls remain usable if Plyr initialization is intentionally blocked.
 
 ## Gamification
 
-- Enable gamification.
-- Reach first page, 25%, 50%, 75% and completion.
+- Enable gamification where available.
+- Reach configured milestones and completion.
 - Confirm rewards are not duplicated after refresh.
 - Confirm total points update.
-- Confirm events are present in Moodle logs.
+- Confirm reward events are present in Moodle logs.
 
 ## Completion
 
-- Configure completion percentage.
+- Configure a completion percentage.
 - Read/view past the threshold.
-- Turn backwards and confirm completion percentage does not decrease.
+- Navigate backward and confirm saved completion does not regress unexpectedly.
 - Confirm Moodle completion is marked.
-- Confirm `resource_completed` fires only once per user completion transition.
+- Confirm `resource_completed` fires only once per completion transition.
 
-## Backup and restore
+## Backup and Restore
 
-- Backup a course with a local PDF Drive Resource.
+- Back up a course with a local PDF Drive Resource.
 - Include user data.
 - Restore into another course.
-- Confirm PDF file restores.
-- Confirm activity settings restore.
+- Confirm the PDF file restores.
+- Confirm activity settings restore and resolve to `pdfjs`.
 - Confirm progress restores when user data is included.
 - Confirm rewards restore when user data is included.
 
@@ -277,20 +240,20 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 
 ## Course-format isolation
 
-- Open a Tiles/Mosaico course before opening Drive Resource.
-- Confirm animated navigation works.
-- Open video and PDF Drive Resource activities.
+- Open a standard-format and a Tiles/Mosaico course before Drive Resource.
+- Confirm navigation works.
+- Open video and PDF activities.
 - Return to the course.
-- Confirm animated navigation, cards, course index and modals remain clickable.
+- Confirm navigation, cards, course index and modals remain clickable.
+- Confirm no Drive Resource overlay remains attached above unrelated Moodle UI.
 
-## Final performance and security checks
+## Final security checks
 
-- Confirm no full-file PHP buffering for large protected resources.
-- Confirm cold PDF first-open latency is lower than the synchronous warm path.
-- Confirm repeated PDF requests use local cache after warming.
+- Confirm no full-file PHP buffering for large resources.
 - Confirm local/cache suffix ranges are correct.
-- Confirm PDF.js and its worker load only from same-origin plugin paths.
-- Confirm Ebook placeholders/canvases contain no direct source URLs or Drive IDs.
-- Confirm no direct source URLs are leaked.
-- Confirm Moodle developer debug log has no new warnings/errors.
-- Confirm browser console is clean on desktop and the tested physical mobile devices.
+- Confirm PDF.js and worker load only from same-origin plugin paths.
+- Confirm no PageFlip or legacy book assets load in learner sessions.
+- Confirm no direct source URL or Drive file ID leaks.
+- Confirm malformed range and header inputs are rejected safely.
+- Confirm Moodle developer debugging has no warnings/errors.
+- Confirm browser console is clean on desktop and physical mobile devices.
