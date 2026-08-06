@@ -21,7 +21,7 @@ jobs:
           path: plugin
           fetch-depth: 0
 
-      - name: Update documentation and CI contracts
+      - name: Update release documentation
         working-directory: plugin
         run: |
           python3 - <<'PY'
@@ -86,26 +86,6 @@ jobs:
               marker = clean_entry.splitlines()[0]
               if marker not in text:
                   path.write_text(text.rstrip() + '\n\n' + clean_entry + '\n', encoding='utf-8')
-
-          workflow = Path('.github/workflows/moodle-50-ci.yml')
-          workflow_text = workflow.read_text(encoding='utf-8')
-          contract = '\n'.join([
-              '      - name: Mobile PDF and video seek contract',
-              '        run: |',
-              '          grep -Fq "\'initialpage\' => \\$initialpage" plugin/view.php',
-              "          grep -q 'videomimetype' plugin/templates/video.mustache",
-              "          grep -q 'registerSeekRecovery' plugin/amd/src/plyr.js",
-              "          grep -q 'slow-2g' plugin/amd/build/plyr.min.js",
-              "          grep -q 'emptied' plugin/amd/build/plyr.min.js",
-              "          grep -q 'is_range_response_usable' plugin/classes/local/http_range_proxy.php",
-              "          grep -q 'UPSTREAM_RANGE_UNSUPPORTED' plugin/classes/local/http_range_proxy.php",
-              "          grep -q 'X-Accel-Buffering: no' plugin/classes/local/http_range_proxy.php",
-              "          grep -q 'max-width: none !important' plugin/styles_pdf_mobile.css",
-          ]) + '\n\n'
-          marker = '      - name: PHPUnit\n'
-          if 'Mobile PDF and video seek contract' not in workflow_text:
-              workflow_text = workflow_text.replace(marker, contract + marker)
-              workflow.write_text(workflow_text, encoding='utf-8')
           PY
 
       - name: Check out Moodle 5.0
@@ -135,7 +115,6 @@ jobs:
         run: |
           cp moodle/mod/videoplayer/amd/build/plyr.min.js plugin/amd/build/plyr.min.js
           cp moodle/mod/videoplayer/amd/build/plyr.min.js.map plugin/amd/build/plyr.min.js.map
-          rm plugin/.github/workflows/finalize-mobile-media-fix.yml
 
       - name: Validate source and generated output
         working-directory: plugin
@@ -155,6 +134,6 @@ jobs:
         run: |
           git config user.name "Elearning Cloud"
           git config user.email "94720805+JoseMorenoSalgado@users.noreply.github.com"
-          git add -A
+          git add README.md CHANGELOG.md docs amd/build/plyr.min.js amd/build/plyr.min.js.map
           git commit -m "build: finalize mobile PDF and video seek fix"
           git push origin HEAD:fix/mobile-pdf-video-seek
