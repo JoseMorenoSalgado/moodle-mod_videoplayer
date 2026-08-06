@@ -17,7 +17,7 @@
 {{!
     @template mod_videoplayer/pdfjs
 
-    Protected PDF.js and PageFlip ebook viewer.
+    Stable protected PDF.js viewer.
 
     Example context (json):
     {
@@ -27,38 +27,29 @@
         "completionpercent": 25,
         "initialpage": 2,
         "totalpages": 10,
-        "pdfurl": "https://example.com/protected-document.pdf",
+        "pdfurl": "https://example.com/protected.php?id=42",
         "title": "Example protected PDF",
-        "displaymode": "ebook",
-        "ebookmode": true,
+        "displaymode": "pdfjs",
         "disablecontextmenu": true,
         "enablewatermark": true,
         "watermark": "Example learner"
     }
 }}
-<div class="mod-videoplayer-container mod-videoplayer-pdfjs{{#ebookmode}} mod-videoplayer-ebook{{/ebookmode}}"
+<div class="mod-videoplayer-container mod-videoplayer-pdfjs"
      data-resource-type="{{type}}"
      data-cmid="{{cmid}}">
     <div class="mod-videoplayer-meta mb-2">
         <span class="mod-videoplayer-meta-item">{{resourcetype}}</span>
         <span class="mod-videoplayer-meta-item">{{#str}} protectedresource, mod_videoplayer {{/str}}</span>
         {{#completionpercent}}
-            {{#ebookmode}}
-                <span class="mod-videoplayer-meta-item" data-region="ebook-progress">{{completionpercent}}%</span>
-            {{/ebookmode}}
-            {{^ebookmode}}
-                <span class="mod-videoplayer-meta-item" data-region="pdfjs-progress">{{completionpercent}}%</span>
-            {{/ebookmode}}
+            <span class="mod-videoplayer-meta-item" data-region="pdfjs-progress">{{completionpercent}}%</span>
         {{/completionpercent}}
-        {{#ebookmode}}
-            {{#enablegamification}}
-                <span class="mod-videoplayer-meta-item" data-region="ebook-points">{{points}}</span>
-            {{/enablegamification}}
-        {{/ebookmode}}
     </div>
 
     {{#initialpage}}
-        <div class="mod-videoplayer-resume alert alert-info" data-region="pdfjs-resume" {{^totalpages}}hidden{{/totalpages}}>
+        <div class="mod-videoplayer-resume alert alert-info"
+             data-region="pdfjs-resume"
+             {{^totalpages}}hidden{{/totalpages}}>
             {{#str}} resumereading, mod_videoplayer {{/str}}
             <strong>{{initialpage}}</strong>{{#totalpages}} / {{totalpages}}{{/totalpages}}
         </div>
@@ -69,7 +60,7 @@
          data-title="{{title}}"
          data-cmid="{{cmid}}"
          data-initial-page="{{initialpage}}"
-         data-display-mode="{{displaymode}}"
+         data-display-mode="pdfjs"
          data-disable-context-menu="{{#disablecontextmenu}}1{{/disablecontextmenu}}{{^disablecontextmenu}}0{{/disablecontextmenu}}"
          data-watermark="{{#enablewatermark}}{{watermark}}{{/enablewatermark}}"
          oncontextmenu="return false;">
@@ -80,55 +71,73 @@
             </div>
 
             <div class="mod-videoplayer-pdfjs-overlay" aria-label="{{title}}">
-                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-prev" data-action="previous-page" title="{{#str}} previouspage, mod_videoplayer {{/str}}" aria-label="{{#str}} previouspage, mod_videoplayer {{/str}}">
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-prev"
+                        data-action="previous-page"
+                        title="{{#str}} previouspage, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} previouspage, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">‹</span>
                 </button>
 
-                {{^ebookmode}}
-                    <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomout" data-action="zoom-out" title="Alejar" aria-label="Alejar">
-                        <span aria-hidden="true">−</span>
-                    </button>
-                {{/ebookmode}}
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomout"
+                        data-action="zoom-out"
+                        title="{{#str}} zoomout, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} zoomout, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">−</span>
+                </button>
 
                 <span class="mod-videoplayer-pdfjs-page-status" aria-live="polite">
-                    <span data-region="current-page">1</span> / <span data-region="total-pages">-</span>
-                    {{^ebookmode}}
-                        <span class="mod-videoplayer-pdfjs-zoom-status" data-region="zoom-level">100%</span>
-                    {{/ebookmode}}
+                    <span data-region="current-page">1</span> /
+                    <span data-region="total-pages">-</span>
+                    <span class="mod-videoplayer-pdfjs-zoom-status" data-region="zoom-level">100%</span>
                 </span>
 
-                {{^ebookmode}}
-                    <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomin" data-action="zoom-in" title="Acercar" aria-label="Acercar">
-                        <span aria-hidden="true">+</span>
-                    </button>
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-zoomin"
+                        data-action="zoom-in"
+                        title="{{#str}} zoomin, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} zoomin, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">+</span>
+                </button>
 
-                    <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fit" data-action="fit-screen" title="Ajustar a pantalla" aria-label="Ajustar a pantalla">
-                        <span aria-hidden="true">⤢</span>
-                    </button>
-                {{/ebookmode}}
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fit"
+                        data-action="fit-screen"
+                        title="{{#str}} fittoscreen, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} fittoscreen, mod_videoplayer {{/str}}">
+                    <span aria-hidden="true">⤢</span>
+                </button>
 
-                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fullscreen" data-action="fullscreen" title="{{#str}} fullscreen, mod_videoplayer {{/str}}" aria-label="{{#str}} fullscreen, mod_videoplayer {{/str}}">
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-fullscreen"
+                        data-action="fullscreen"
+                        title="{{#str}} fullscreen, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} fullscreen, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">⛶</span>
                 </button>
 
-                <button type="button" class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-next" data-action="next-page" title="{{#str}} nextpage, mod_videoplayer {{/str}}" aria-label="{{#str}} nextpage, mod_videoplayer {{/str}}">
+                <button type="button"
+                        class="mod-videoplayer-pdfjs-control mod-videoplayer-pdfjs-control-next"
+                        data-action="next-page"
+                        title="{{#str}} nextpage, mod_videoplayer {{/str}}"
+                        aria-label="{{#str}} nextpage, mod_videoplayer {{/str}}">
                     <span aria-hidden="true">›</span>
                 </button>
             </div>
 
-            {{#ebookmode}}
-                <div class="mod-videoplayer-ebook-stage" data-region="ebook-stage"></div>
-            {{/ebookmode}}
-
-            <canvas class="mod-videoplayer-pdfjs-canvas" draggable="false" oncontextmenu="return false;"{{#ebookmode}} hidden{{/ebookmode}}></canvas>
+            <canvas class="mod-videoplayer-pdfjs-canvas"
+                    draggable="false"
+                    oncontextmenu="return false;"></canvas>
             {{#enablewatermark}}
                 <div class="mod-videoplayer-watermark" aria-hidden="true">{{watermark}}</div>
             {{/enablewatermark}}
         </div>
 
-        {{#ebookmode}}
-            <div class="mod-videoplayer-achievements" data-region="ebook-achievements" aria-live="polite"></div>
-        {{/ebookmode}}
-        <div class="mod-videoplayer-pdfjs-error alert alert-danger" data-region="pdfjs-error" hidden>{{#str}} pdfjsrequired, mod_videoplayer {{/str}}</div>
+        <div class="mod-videoplayer-pdfjs-error alert alert-danger"
+             data-region="pdfjs-error"
+             hidden>
+            {{#str}} pdfjsrequired, mod_videoplayer {{/str}}
+        </div>
     </div>
 </div>
