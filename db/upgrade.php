@@ -611,7 +611,6 @@ function xmldb_videoplayer_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080501, 'videoplayer');
     }
 
-
     if ($oldversion < 2026080600) {
         $table = new xmldb_table('videoplayer');
         $displaymodefield = new xmldb_field(
