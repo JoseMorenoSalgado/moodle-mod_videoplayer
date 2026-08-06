@@ -175,11 +175,13 @@ final class http_range_proxy {
                     if (!self::is_compatible_content_type($candidate, $fallbacktype)) {
                         $invalidcontent = true;
                         $discardbody = true;
-                    } else if (!self::is_range_response_usable(
-                        $range,
-                        $status,
-                        (string) ($responseheaders['content-range'] ?? '')
-                    )) {
+                    } else if (
+                        !self::is_range_response_usable(
+                            $range,
+                            $status,
+                            (string) ($responseheaders['content-range'] ?? '')
+                        )
+                    ) {
                         $discardbody = true;
                     }
                 }
@@ -253,11 +255,14 @@ final class http_range_proxy {
                 }
 
                 $status = (int) ($responseheaders['status'] ?? 0);
-                if (!$headerssent && self::is_range_response_usable(
-                    $range,
-                    $status,
-                    (string) ($responseheaders['content-range'] ?? '')
-                )) {
+                if (
+                    !$headerssent &&
+                    self::is_range_response_usable(
+                        $range,
+                        $status,
+                        (string) ($responseheaders['content-range'] ?? '')
+                    )
+                ) {
                     self::send_response_headers(
                         $responseheaders,
                         $fallbacktype,
