@@ -25,10 +25,9 @@
 /**
  * Return the production-safe PDF display mode.
  *
- * The animated PageFlip and legacy book renderers remain bundled for future
- * compatibility work, but they are not executed in the stable release path.
- * This prevents JavaScript assets from being exposed as document content and
- * keeps mobile rendering on the locally bundled PDF.js implementation.
+ * Legacy PageFlip and book modes are normalised to the locally bundled
+ * PDF.js viewer. This prevents JavaScript assets from being exposed as
+ * document content and keeps mobile and desktop rendering deterministic.
  *
  * @param string|null $requestedmode Requested or legacy database value.
  * @return string Always returns the supported PDF.js mode.
