@@ -11,7 +11,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 /* PDF.js rendering uses deliberate promise orchestration; errors remain handled by terminal catches. */
-/* eslint-disable promise/no-nesting */
 /* eslint-disable promise/always-return */
 define(['core/ajax', 'core/notification', 'mod_videoplayer/pdfjsloader'], function(Ajax, Notification, PdfjsLoader) {
     const PAGEFLIP_URL = M.cfg.wwwroot + '/mod/videoplayer/thirdpartylibs/pageflip/page-flip.browser.js';

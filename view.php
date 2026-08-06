@@ -133,6 +133,7 @@ if (!isguestuser()) {
 if ($type === 'pdf') {
     if ($displaymode === 'ebook') {
         $PAGE->requires->css('/mod/videoplayer/thirdpartylibs/pageflip/page-flip.css');
+        $PAGE->requires->css('/mod/videoplayer/styles_pageflip_fix.css');
         $PAGE->requires->js_call_amd('mod_videoplayer/ebookviewer', 'init');
     } else if ($displaymode === 'book') {
         $PAGE->requires->css('/mod/videoplayer/styles_bookviewer.css');
