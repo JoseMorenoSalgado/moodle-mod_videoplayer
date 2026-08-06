@@ -39,6 +39,7 @@ tests/                    Moodle PHPUnit tests
 thirdpartylibs/           local third-party libraries
 styles.css                intentionally empty global stylesheet
 styles_activity.css       activity-only base presentation
+styles_pageflip_fix.css   protected Ebook presentation and effects
 ```
 
 ## Moodle 5.0 API contract
@@ -101,12 +102,33 @@ npx grunt amd --root=mod/videoplayer
 
 The generated `amd/build/pdfjsloader.min.js` must contain `createElement("script")` and `type="module"`, and must not contain `_systemImportTransformerGlobalIdentifier`.
 
+## Responsive Ebook contract
+
+`amd/src/ebookviewer.js` owns the commercial Ebook experience. The required behavior is:
+
+- physical phones show exactly one page in portrait and landscape;
+- desktop-sized viewer containers show two facing pages;
+- layout changes preserve the current page;
+- the current phone page or current desktop spread renders first;
+- only adjacent pages are prefetched during browser idle time;
+- the document is represented initially by lightweight PageFlip placeholders;
+- completion uses the furthest visible page and never decreases when turning back;
+- PageFlip effects remain local and scoped through `styles_pageflip_fix.css`;
+- standard PDF.js remains the controlled fallback when PageFlip cannot initialize.
+
+Phone detection must not depend solely on viewport width. It combines container width, coarse-pointer capability and the physical short screen side so a phone rotated to landscape does not become a desktop spread.
+
+Do not reintroduce a loop that renders dozens of pages before PageFlip initialization. The former eager-render constant `MAX_INITIAL_RENDER_PAGES` is prohibited by CI.
+
 ## PDF performance
 
-- Render visible pages only.
-- Bound canvas cache size.
-- Prefetch a small neighbouring set.
-- Ignore stale renders after resize/orientation changes.
+- Render only the active phone page or active desktop spread.
+- Create lightweight PageFlip placeholders instead of eagerly rendering the document.
+- Prefetch only adjacent pages during browser idle time.
+- Keep phones in single-page mode after orientation changes.
+- Use a two-page spread only when the viewer container can support it.
+- Bound the device-pixel-ratio multiplier used by canvases.
+- Ignore or replace undersized renders after meaningful resize/fullscreen changes.
 - Proxy cold ranges immediately and warm complete cache through a deduplicated ad-hoc task.
 - Preserve original PDF bytes.
 
@@ -122,7 +144,7 @@ The generated `amd/build/pdfjsloader.min.js` must contain `createElement("script
 
 Root `styles.css` is global in Moodle and must contain no viewer presentation. Shared viewer CSS belongs in `styles_activity.css`, loaded explicitly by `view.php`.
 
-All selectors, animations and variables must use a `mod-videoplayer` or `drive-resource` prefix. Never use unscoped generic classes for fullscreen, overlays, loading or active state.
+Protected Ebook-specific rules belong in `styles_pageflip_fix.css` and must be requested only when `displaymode === 'ebook'`. All selectors, keyframes and variables must use a `mod-videoplayer` or `drive-resource` prefix. Never use unscoped generic classes for fullscreen, overlays, loading or active state.
 
 ## Database upgrades
 
@@ -153,6 +175,7 @@ The CI workflow must pass:
 - Mustache;
 - Grunt/AMD;
 - PDF.js native-ESM bundle contract;
+- responsive Ebook source/build contract;
 - PHPUnit.
 
 ## Commercial release gate
@@ -162,7 +185,10 @@ A Moodle 5.0 release is not approved until all CI combinations pass and staging 
 - fresh install and upgrade;
 - course navigation with Tiles/Mosaico and a standard format;
 - local and Drive PDF opening;
-- Protected Ebook page-turn effect;
+- one-page Ebook on a physical phone in portrait and landscape;
+- two facing Ebook pages on a desktop-width browser;
+- smooth swipe, button and corner page-turn effects;
+- lazy first render without processing the complete document;
 - PDF.js initialization on the affected physical Android/iOS browser without `workerSrc` errors;
 - video start/seek/resume on physical iPhone Safari;
 - valid and invalid byte ranges;
