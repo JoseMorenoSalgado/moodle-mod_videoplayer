@@ -294,3 +294,11 @@ Check Safari Web Inspector/network logs for failed range requests or unexpected 
 - Confirm no direct source URLs are leaked.
 - Confirm Moodle developer debug log has no new warnings/errors.
 - Confirm browser console is clean on desktop and the tested physical mobile devices.
+
+## PDF.js stability regression
+
+- Create or edit a PDF resource that previously stored `ebook`, `book` or `standard`; verify it opens with PDF.js.
+- Confirm no request for `thirdpartylibs/pageflip/page-flip.browser.js` occurs in the browser network panel.
+- Verify previous/next page, zoom, fit, fullscreen, swipe navigation and progress persistence.
+- Verify `protected.php` returns `%PDF-`, `application/pdf`, `Accept-Ranges: bytes` and valid partial responses.
+- Repeat on a physical iPhone and Android phone after clearing browser and Moodle caches.

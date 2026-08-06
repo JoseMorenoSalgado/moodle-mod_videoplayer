@@ -611,5 +611,33 @@ function xmldb_videoplayer_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2026080501, 'videoplayer');
     }
 
+
+    if ($oldversion < 2026080600) {
+        $table = new xmldb_table('videoplayer');
+        $displaymodefield = new xmldb_field(
+            'displaymode',
+            XMLDB_TYPE_CHAR,
+            '32',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            'pdfjs',
+            'type'
+        );
+
+        if ($dbman->table_exists($table) && $dbman->field_exists($table, $displaymodefield)) {
+            $dbman->change_field_default($table, $displaymodefield);
+            $DB->set_field_select(
+                'videoplayer',
+                'displaymode',
+                'pdfjs',
+                'displaymode IS NULL OR displaymode <> :displaymode',
+                ['displaymode' => 'pdfjs']
+            );
+        }
+
+        upgrade_mod_savepoint(true, 2026080600, 'videoplayer');
+    }
+
     return true;
 }

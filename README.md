@@ -205,3 +205,9 @@ GNU GPL v3 or later. Third-party libraries and licences are declared in `thirdpa
 
 Elearning Cloud  
 https://elearningcloud.io
+
+## PDF viewer stability policy (1.1.27-beta)
+
+Drive Resource now routes every PDF through the locally bundled PDF.js viewer. Legacy `standard`, `ebook` and `book` database values are normalised to `pdfjs` during upgrade and at runtime. StPageFlip remains vendored only for future compatibility work and is not loaded in the production learner path. This removes the mobile failure mode where a JavaScript asset could be exposed as visible document content.
+
+After deploying this release, run the Moodle upgrade, purge Moodle caches and invalidate any reverse-proxy or CDN cache that may still contain older viewer assets.

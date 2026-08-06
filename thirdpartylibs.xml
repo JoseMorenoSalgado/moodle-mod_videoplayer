@@ -25,6 +25,6 @@
         <license>MIT</license>
         <licenseversion></licenseversion>
         <repository>https://github.com/Nodlik/StPageFlip</repository>
-        <description>Optional local page turning library used by Drive Resource protected ebook mode.</description>
+        <description>Vendored compatibility library. It is not loaded by the stable production PDF.js viewer.</description>
     </library>
 </thirdpartylibs>

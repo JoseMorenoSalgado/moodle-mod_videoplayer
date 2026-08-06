@@ -123,3 +123,7 @@ The automated matrix checks PHP syntax, coding style, metadata, XMLDB savepoints
 - review of current Moodle security advisories before release.
 
 Screen capture and browser endpoint inspection cannot be prevented absolutely. Product claims must not describe viewer controls as DRM.
+
+## PDF asset isolation
+
+Only the protected resource URL may be supplied to PDF.js. Third-party JavaScript paths must never be accepted as document URLs or rendered inside content containers. The stable viewer does not execute StPageFlip, reducing the attack surface and preventing library source from being exposed as learner-visible content. Server-side login, enrolment and capability checks remain mandatory in `protected.php`.

@@ -179,3 +179,7 @@ The workflow enforces two viewer contracts:
 
 - `pdfjsloader.min.js` must create a native module script, reference the local worker and contain no dynamic-import transformer or RequireJS conversion for `pdf.min.mjs`;
 - `ebookviewer.js` must preserve phone single-page mode, desktop two-page mode, idle adjacent-page prefetch, the dedicated PageFlip stylesheet and the absence of the former eager multi-page rendering constant.
+
+## Stable PDF rendering boundary
+
+The production PDF pipeline is now strictly `protected.php -> authenticated range proxy -> local PDF.js -> canvas`. The learner-facing entry point does not load StPageFlip or the legacy book renderer. Historical display-mode values are converted to `pdfjs`, keeping one deterministic rendering boundary across desktop and mobile devices.

@@ -197,3 +197,7 @@ A Moodle 5.0 release is not approved until all CI combinations pass and staging 
 - Privacy API export/delete;
 - no leaked Google Drive URLs;
 - no developer-debug warnings.
+
+## PDF renderer contract
+
+All production PDF changes must preserve `videoplayer_get_safe_pdf_displaymode()` and the single PDF.js rendering path. Do not reintroduce PageFlip from `view.php`. Any future animated reader must be isolated behind an explicit experimental feature flag, include a mobile PDF.js fallback, remain idempotent, and pass physical-device regression tests before release.

@@ -1,5 +1,16 @@
 # Changelog
 
+
+## 1.1.27-beta - 2026-08-06
+
+### Fixed
+
+- Restored the local PDF.js viewer as the only production PDF rendering path.
+- Prevented StPageFlip and legacy book assets from loading in learner sessions.
+- Normalised legacy `standard`, `ebook` and `book` modes to `pdfjs`.
+- Added upgrade handling, regression tests and deployment verification guidance.
+
+
 All notable changes to **Drive Resource** are documented in this file.
 
 The internal Moodle component is `mod_videoplayer` for compatibility with previous installations.

@@ -21,3 +21,22 @@
  * @copyright  2026 Jose Erasmo Moreno Salgado - Elearning Cloud
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
+/**
+ * Return the production-safe PDF display mode.
+ *
+ * The animated PageFlip and legacy book renderers remain bundled for future
+ * compatibility work, but they are not executed in the stable release path.
+ * This prevents JavaScript assets from being exposed as document content and
+ * keeps mobile rendering on the locally bundled PDF.js implementation.
+ *
+ * @param string|null $requestedmode Requested or legacy database value.
+ * @return string Always returns the supported PDF.js mode.
+ */
+function videoplayer_get_safe_pdf_displaymode(?string $requestedmode): string {
+    $requestedmode = clean_param((string) $requestedmode, PARAM_ALPHANUMEXT);
+    $supportedmodes = ['pdfjs'];
+
+    return in_array($requestedmode, $supportedmodes, true) ? $requestedmode : 'pdfjs';
+}
+

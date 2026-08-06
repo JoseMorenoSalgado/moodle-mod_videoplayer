@@ -294,3 +294,11 @@ A green workflow is required before commercial release, but it does not replace 
 Do not delete courses, activities, tables or physical database indexes. Keep maintenance mode enabled, restore the previous complete `mod/videoplayer` directory if necessary, purge caches and inspect the first PHP/XMLDB error.
 
 Drive Resource does not require editing `format_tiles` or any third-party course-format plugin.
+
+## Upgrade to 1.1.27-beta
+
+1. Replace the plugin code and visit Site administration > Notifications, or run the Moodle CLI upgrade.
+2. Confirm the `videoplayer.displaymode` default is `pdfjs`; the upgrade converts legacy modes automatically.
+3. Purge all Moodle caches and reset PHP OPcache.
+4. Purge Cloudflare, NGINX or other reverse-proxy caches for `/mod/videoplayer/`.
+5. Test one protected PDF on Android, iPhone, tablet and desktop. The response from `protected.php` must start with `%PDF-` and use `Content-Type: application/pdf`.
