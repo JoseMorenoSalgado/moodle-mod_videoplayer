@@ -224,3 +224,7 @@ https://elearningcloud.io
 ## Release 1.1.28-beta
 
 This release improves physical-device playback and reading. PDFs always open on page 1, mobile zoom uses the real canvas dimensions without an oversized empty viewport, and protected videos require valid `206 Partial Content` responses for seeks. The proxy retries Range negotiation across Google redirects, uses a stable Moodle-facing ETag, disables reverse-proxy buffering and never exposes the upstream URL.
+
+## Release 1.1.29-beta
+
+The protected PDF.js viewer now uses a dedicated page stage. Pages that fit the screen are centred horizontally and vertically in fullscreen; pages enlarged beyond the viewport remain anchored to an accessible scroll origin and support smooth horizontal and vertical navigation. Overlay controls remain fixed, respect mobile safe areas and no longer move with the document.

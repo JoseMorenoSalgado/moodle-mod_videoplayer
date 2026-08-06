@@ -275,3 +275,7 @@ Do not delete courses, activities or database tables. Keep maintenance mode enab
 ## Upgrade verification for 1.1.28-beta
 
 After upgrade and cache purge, test a protected MP4 on Android Chrome and iPhone Safari. Seeking to the middle must return `206 Partial Content`, preserve the selected timestamp and avoid a restart at zero. Test a PDF at 100% and above 100%; it must open at page 1, avoid a large empty area below the page and allow horizontal scrolling when zoomed.
+
+## Verification for 1.1.29-beta
+
+After upgrading and purging caches, open a portrait and landscape PDF on Android Chrome and iPhone Safari. At fit-to-screen, confirm the page is centred vertically and horizontally. Increase zoom until both axes overflow and confirm the top-left document origin remains reachable, scrolling works in both directions, controls stay fixed and exiting fullscreen preserves the current page.

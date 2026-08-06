@@ -207,3 +207,7 @@ The workflow also enforces:
 ## Mobile media reliability in 1.1.28-beta
 
 The protected stream boundary now treats browser Range requests as strict contracts. A seek request is emitted to the learner only when Google returns a valid `206` response with `Content-Range`; an upstream `200` is discarded and retried with an explicit Range header. Browser-facing validators are owned by Moodle so redirect-specific Google ETags cannot downgrade later seeks to complete responses. PDF rendering remains local PDF.js and starts from page 1.
+
+## PDF fullscreen stage (1.1.29-beta)
+
+The PDF template separates three layers: a fixed control overlay, a scrollable viewport and a `mod-videoplayer-pdfjs-canvas-stage` containing the canvas and watermark. Auto margins centre a page only while positive free space exists. When zoom creates overflow, those margins collapse to zero, preserving a reachable top-left scroll origin without JavaScript layout heuristics.

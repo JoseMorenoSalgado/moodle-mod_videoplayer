@@ -232,3 +232,7 @@ A release is not approved until CI passes and staging verifies:
 ## Mobile media regression rules
 
 Keep `amd/src/plyr.js` and `amd/build/plyr.min.js` synchronized through Moodle Grunt. Do not reload the video source to recover a seek. The client may retry the requested `currentTime` a bounded number of times, while `http_range_proxy` remains the authoritative fix. PDF templates must receive `initialpage = 1`; reading progress may still store `lastpage` for reporting.
+
+## Fullscreen PDF layout contract
+
+Keep PDF controls outside `.mod-videoplayer-pdfjs-canvas-wrap`. The canvas and watermark must remain inside `.mod-videoplayer-pdfjs-canvas-stage`. Do not centre an oversized canvas with `align-items: center` or transforms: doing so can create negative, unreachable scroll regions on mobile browsers. The stage owns centring through auto margins and the viewport owns scrolling.

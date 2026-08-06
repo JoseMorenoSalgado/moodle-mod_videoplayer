@@ -149,3 +149,7 @@ Production validation additionally requires:
 ## Range and validator hardening
 
 Drive Resource does not forward browser `If-Range` validators to Google. The proxy emits a stable, URL-derived private ETag, validates `Content-Type`, requires `206` plus `Content-Range` for byte requests and sends `X-Accel-Buffering: no`. These headers improve streaming without exposing file IDs, redirect URLs or Google validators.
+
+## Fullscreen presentation boundary
+
+Fullscreen centring is presentation-only. The protected Moodle endpoint remains the sole document URL, context-menu restrictions remain attached to the viewer and canvas, and the watermark is now bounded to the rendered page. No Google Drive identifier, redirect URL or upstream validator is introduced into the DOM.

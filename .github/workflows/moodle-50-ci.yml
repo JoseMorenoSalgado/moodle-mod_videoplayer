@@ -176,6 +176,10 @@ jobs:
           grep -q 'UPSTREAM_RANGE_UNSUPPORTED' plugin/classes/local/http_range_proxy.php
           grep -q 'X-Accel-Buffering: no' plugin/classes/local/http_range_proxy.php
           grep -q 'max-width: none !important' plugin/styles_pdf_mobile.css
+          grep -q 'mod-videoplayer-pdfjs-canvas-stage' plugin/templates/pdfjs.mustache
+          grep -q 'mod-videoplayer-pdfjs-canvas-stage' plugin/styles_pdf_overlay.css
+          grep -q 'margin: auto !important' plugin/styles_pdf_mobile.css
+          grep -q 'justify-content: flex-start !important' plugin/styles_pdf_mobile.css
 
       - name: PHPUnit
         run: moodle-plugin-ci phpunit --fail-on-warning

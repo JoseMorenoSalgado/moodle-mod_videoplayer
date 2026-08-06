@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.29-beta - 2026-08-06
+
+### Fixed
+
+- Centred PDF pages horizontally and vertically in native and fallback fullscreen when the rendered page fits the viewport.
+- Added a dedicated canvas stage so enlarged pages switch naturally to bidirectional scrolling without inaccessible negative offsets.
+- Kept navigation and fullscreen controls fixed above the scrollable document and aligned mobile controls with device safe areas.
+- Scoped the watermark to the rendered page instead of the complete fullscreen viewport.
+
 ## 1.1.28-beta - 2026-08-06
 
 ### Fixed
